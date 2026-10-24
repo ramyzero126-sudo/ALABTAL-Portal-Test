@@ -221,28 +221,78 @@ public class MainActivity extends Activity {
             "controls:controls,orderElements:orderEls,detailInspection:detailInspection,tail:body.slice(-7000)});" +
             "})()";
 
+        if (webView == null) {
+            status.setText("فشل الفحص: صفحة الروستر غير متاحة.");
+            return;
+        }
+
+        status.setText("جاري فحص الصفحة...");
         webView.evaluateJavascript(script, value -> {
             String report;
-            try {
-                Object decoded = new JSONTokener(value).nextValue();
-                report = decoded == null ? "" :
-                    (decoded instanceof String ? (String) decoded : decoded.toString());
-            } catch (Exception e) {
-                report = value == null ? "لا توجد نتيجة" : value;
-            }
 
-            result.setText(report);
             try {
+                if (value == null || "null".equals(value.trim())) {
+                    throw new Exception(
+                        "JavaScript لم يُرجع نتيجة. افتح البوابة وسجّل الدخول وانتظر تحميل الصفحة."
+                    );
+                }
+
+                Object decoded = new JSONTokener(value).nextValue();
+                if (!(decoded instanceof String)) {
+                    throw new Exception(
+                        "النتيجة ليست تقريرًا نصيًا صالحًا: " + String.valueOf(decoded)
+                    );
+                }
+
+                report = (String) decoded;
+                if (report.trim().isEmpty() ||
+                    "null".equals(report.trim()) ||
+                    "undefined".equals(report.trim())) {
+                    throw new Exception("التقرير فارغ أو غير صالح.");
+                }
+
+                org.json.JSONObject root = new org.json.JSONObject(report);
+                if (!root.has("url") || !root.has("cardCount") ||
+                    !root.has("pageLength")) {
+                    throw new Exception(
+                        "نتيجة JavaScript لا تحتوي على حقول تقرير الروستر المطلوبة."
+                    );
+                }
+
+                int cardCount = root.optInt("cardCount", -1);
+                int pageLength = root.optInt("pageLength", 0);
+
+                result.setText(report);
+
                 String savedName = saveInspection(report);
-                status.setText("اكتمل الفحص. التقرير محفوظ باسم: " + savedName);
-                Toast.makeText(this,
+                if (cardCount == 0) {
+                    status.setText(
+                        "تم حفظ تقرير التشخيص: " + savedName +
+                        " — لم تُكتشف بطاقات مندوبين. تأكد من تسجيل الدخول واكتمال تحميل الروستر."
+                    );
+                } else if (pageLength == 0) {
+                    status.setText(
+                        "تم حفظ التقرير، لكن محتوى الصفحة فارغ. راجع التقرير: " + savedName
+                    );
+                } else {
+                    status.setText(
+                        "اكتمل الفحص الأولي: " + cardCount +
+                        " بطاقة. التقرير محفوظ باسم: " + savedName
+                    );
+                }
+
+                Toast.makeText(
+                    this,
                     "تم حفظ التقرير: " + savedName,
-                    Toast.LENGTH_LONG).show();
+                    Toast.LENGTH_LONG
+                ).show();
+
             } catch (Exception e) {
-                status.setText("فشل حفظ التقرير: " +
-                    e.getClass().getSimpleName() + " - " + e.getMessage());
-                Toast.makeText(this, "فشل الحفظ: " + e.getMessage(),
-                    Toast.LENGTH_LONG).show();
+                String message = "فشل الفحص أو التحقق من النتيجة: " +
+                    e.getClass().getSimpleName() + " - " + e.getMessage();
+                result.setText(message);
+                status.setText(message);
+                Toast.makeText(this, message, Toast.LENGTH_LONG).show();
             }
         });
     }
