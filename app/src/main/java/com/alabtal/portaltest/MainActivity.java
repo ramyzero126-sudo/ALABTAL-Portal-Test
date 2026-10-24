@@ -215,9 +215,37 @@ public class MainActivity extends Activity {
             "});" +
             "var detailInspection={headings:detailHeadings,orderCards:orderCards," +
             "panels:detailPanels,activeOrderPanels:activeOrderPanels};" +
+            "var clickCandidates=all.filter(function(e){" +
+            "if(!visible(e))return false;" +
+            "var tag=e.tagName.toLowerCase(),s=getComputedStyle(e);" +
+            "var hit=/^(svg|path|button|summary|a)$/.test(tag)||" +
+            "e.getAttribute('role')==='button'||e.hasAttribute('aria-expanded')||" +
+            "s.cursor==='pointer'||typeof e.onclick==='function';" +
+            "if(!hit)return false;" +
+            "var n=e,inside=false;" +
+            "for(var i=0;n&&i<8;i++,n=n.parentElement){" +
+            "if(/ID:\\s*\\d+/.test(txt(n))&&/Name:/.test(txt(n))){inside=true;break;}" +
+            "}" +
+            "return inside;" +
+            "}).slice(0,120).map(function(e){" +
+            "var n=e,chain=[];" +
+            "for(var i=0;n&&i<4;i++,n=n.parentElement){" +
+            "chain.push({tag:n.tagName,id:n.id||''," +
+            "cls:typeof n.className==='string'?n.className:''," +
+            "role:n.getAttribute('role'),aria:n.getAttribute('aria-label')," +
+            "expanded:n.getAttribute('aria-expanded'),title:n.getAttribute('title')," +
+            "cursor:getComputedStyle(n).cursor,text:txt(n).slice(0,250)," +
+            "html:(n.outerHTML||'').slice(0,900)});" +
+            "}" +
+            "return {element:desc(e),cursor:getComputedStyle(e).cursor," +
+            "onclick:!!e.onclick,tabindex:e.getAttribute('tabindex')," +
+            "pathD:e.tagName.toLowerCase()==='path'?e.getAttribute('d'):null," +
+            "chain:chain};" +
+            "});" +
             "var body=txt(document.body);" +
             "return JSON.stringify({title:document.title,url:location.href," +
             "pageLength:body.length,cardCount:cards.length,cards:cards," +
+            "clickCandidates:clickCandidates," +
             "controls:controls,orderElements:orderEls,detailInspection:detailInspection,tail:body.slice(-7000)});" +
             "})()";
 
