@@ -1,6 +1,11 @@
 package com.alabtal.portaltest;
 
 import android.app.Activity;
+import android.provider.MediaStore;
+import android.os.Environment;
+import android.os.Build;
+import android.net.Uri;
+import android.content.ContentValues;
 import android.os.Bundle;
 import android.graphics.Color;
 import android.view.View;
@@ -130,15 +135,59 @@ public class MainActivity extends Activity {
             "})()";
 
         webView.evaluateJavascript(script, value -> {
+            String report;
             try {
                 Object decoded = new JSONTokener(value).nextValue();
-                result.setText(decoded == null ? "" : decoded.toString());
-                status.setText("اكتمل الفحص الموسع. راجع Orders وorderMatches.");
+                report = decoded == null ? "" :
+                    (decoded instanceof String ? (String) decoded : decoded.toString());
             } catch (Exception e) {
-                result.setText(value == null ? "لا توجد نتيجة" : value);
-                status.setText("تعذر تنسيق النتيجة.");
+                report = value == null ? "لا توجد نتيجة" : value;
+            }
+
+            result.setText(report);
+            try {
+                saveInspection(report);
+                status.setText("اكتمل الفحص وتم حفظ النتيجة في التنزيلات.");
+                Toast.makeText(this,
+                    "تم حفظ roster-inspection.txt في التنزيلات",
+                    Toast.LENGTH_LONG).show();
+            } catch (Exception e) {
+                status.setText("ظهر الفحص، لكن تعذر حفظ الملف: " + e.getMessage());
+                Toast.makeText(this, "تعذر حفظ نتيجة الفحص",
+                    Toast.LENGTH_LONG).show();
             }
         });
+    }
+
+
+    private void saveInspection(String report) throws Exception {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            throw new Exception("هذا الحفظ يحتاج Android 10 أو أحدث.");
+        }
+
+        ContentValues values = new ContentValues();
+        values.put(MediaStore.MediaColumns.DISPLAY_NAME, "roster-inspection.txt");
+        values.put(MediaStore.MediaColumns.MIME_TYPE, "text/plain");
+        values.put(MediaStore.MediaColumns.RELATIVE_PATH,
+            Environment.DIRECTORY_DOWNLOADS + "/ALABTAL-Portal-Test");
+
+        Uri uri = getContentResolver().insert(
+            MediaStore.Downloads.EXTERNAL_CONTENT_URI, values);
+
+        if (uri == null) {
+            throw new Exception("لم يتم إنشاء ملف التنزيلات.");
+        }
+
+        try (java.io.OutputStream out = getContentResolver().openOutputStream(uri)) {
+            if (out == null) {
+                throw new Exception("تعذر فتح الملف للكتابة.");
+            }
+            out.write(report.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            out.flush();
+        } catch (Exception e) {
+            getContentResolver().delete(uri, null, null);
+            throw e;
+        }
     }
 
     @Override
