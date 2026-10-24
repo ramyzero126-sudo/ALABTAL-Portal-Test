@@ -222,10 +222,10 @@ public class MainActivity extends Activity {
 
             result.setText(report);
             try {
-                saveInspection(report);
-                status.setText("اكتمل فحص كروت المندوبين والأسهم.");
+                String savedName = saveInspection(report);
+                status.setText("اكتمل الفحص. التقرير محفوظ باسم: " + savedName);
                 Toast.makeText(this,
-                    "تم حفظ تقرير فحص الكروت في التنزيلات",
+                    "تم حفظ التقرير: " + savedName,
                     Toast.LENGTH_LONG).show();
             } catch (Exception e) {
                 status.setText("فشل حفظ التقرير: " +
@@ -236,32 +236,43 @@ public class MainActivity extends Activity {
         });
     }
 
-    private void saveInspection(String report) throws Exception {
+    private String saveInspection(String report) throws Exception {
+        String fileName = "roster-inspection-" +
+            new java.text.SimpleDateFormat(
+                "yyyyMMdd-HHmmss", java.util.Locale.US
+            ).format(new java.util.Date()) + ".txt";
+
         ContentValues values = new ContentValues();
-        values.put(MediaStore.MediaColumns.DISPLAY_NAME,
-            "roster-inspection.txt");
+        values.put(MediaStore.MediaColumns.DISPLAY_NAME, fileName);
         values.put(MediaStore.MediaColumns.MIME_TYPE, "text/plain");
-        values.put(MediaStore.MediaColumns.RELATIVE_PATH,
-            Environment.DIRECTORY_DOWNLOADS);
+        values.put(
+            MediaStore.MediaColumns.RELATIVE_PATH,
+            Environment.DIRECTORY_DOWNLOADS + "/"
+        );
 
         Uri uri = getContentResolver().insert(
-            MediaStore.Downloads.EXTERNAL_CONTENT_URI, values);
+            MediaStore.Downloads.EXTERNAL_CONTENT_URI, values
+        );
 
         if (uri == null) {
-            throw new Exception("تعذر إنشاء الملف داخل Downloads");
+            throw new Exception("تعذر إنشاء التقرير في مجلد التنزيلات");
         }
 
         try (java.io.OutputStream out =
                 getContentResolver().openOutputStream(uri, "wt")) {
             if (out == null) {
-                throw new Exception("تعذر فتح الملف للكتابة");
+                throw new Exception("تعذر فتح ملف التقرير للكتابة");
             }
-            out.write(report.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            out.write(report.getBytes(
+                java.nio.charset.StandardCharsets.UTF_8
+            ));
             out.flush();
         } catch (Exception e) {
             getContentResolver().delete(uri, null, null);
             throw e;
         }
+
+        return fileName;
     }
 
     @Override
