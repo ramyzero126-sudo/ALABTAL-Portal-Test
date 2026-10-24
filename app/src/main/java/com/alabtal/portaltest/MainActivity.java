@@ -101,37 +101,62 @@ public class MainActivity extends Activity {
             "var all=Array.from(document.querySelectorAll('body *'));" +
             "var visible=function(e){" +
             "var r=e.getBoundingClientRect(),s=getComputedStyle(e);" +
-            "return r.width>0&&r.height>0&&s.display!=='none'&&s.visibility!=='hidden'" +
+            "return r.width>0&&r.height>0&&s.display!=='none'&&s.visibility!=='hidden';" +
             "};" +
+            "var txt=function(e){return (e&&(e.innerText||e.textContent)||'').trim()};" +
             "var desc=function(e){" +
-            "return {tag:e.tagName,text:(e.innerText||e.textContent||'').trim().slice(0,700)," +
+            "return {tag:e.tagName,text:txt(e).slice(0,1200)," +
             "aria:e.getAttribute('aria-label'),expanded:e.getAttribute('aria-expanded')," +
+            "controls:e.getAttribute('aria-controls'),labelledby:e.getAttribute('aria-labelledby')," +
             "title:e.getAttribute('title'),role:e.getAttribute('role')," +
             "cls:typeof e.className==='string'?e.className:''," +
-            "html:(e.outerHTML||'').slice(0,500)}" +
+            "html:(e.outerHTML||'').slice(0,900)};" +
             "};" +
-            "var keys=/order|delivery|dropoff|pickup|address|status|active|expand|chevron|arrow/i;" +
-            "var matches=all.filter(function(e){" +
-            "var z=((e.innerText||e.textContent||'')+' '+(e.className||'')+' '+" +
-            "(e.getAttribute('aria-label')||'')+' '+(e.getAttribute('data-testid')||''));" +
-            "return visible(e)&&keys.test(z)&&z.length<1800" +
+            "var controls=all.filter(function(e){" +
+            "if(!visible(e))return false;" +
+            "var tag=e.tagName.toLowerCase();" +
+            "var label=[e.getAttribute('aria-label'),e.getAttribute('title')," +
+            "e.getAttribute('aria-controls'),e.getAttribute('data-testid')," +
+            "typeof e.className==='string'?e.className:'',txt(e)].join(' ');" +
+            "return /button|summary/.test(tag)||e.getAttribute('role')==='button'||" +
+            "e.hasAttribute('aria-expanded')||/chevron|accordion|expand|collapse|arrow/i.test(label);" +
             "}).filter(function(e){" +
             "return !Array.from(e.children).some(function(c){" +
-            "return keys.test((c.innerText||c.textContent||'')+' '+(c.className||''))" +
-            "})" +
-            "}).slice(0,100).map(desc);" +
+            "return visible(c)&&" +
+            "(/button|summary/.test(c.tagName.toLowerCase())||c.getAttribute('role')==='button'||" +
+            "c.hasAttribute('aria-expanded'));" +
+            "});" +
+            "}).slice(0,160).map(function(e){" +
+            "var chain=[],n=e;" +
+            "for(var i=0;n&&i<5;i++,n=n.parentElement){" +
+            "chain.push({tag:n.tagName,cls:typeof n.className==='string'?n.className:''," +
+            "text:txt(n).slice(0,1000),id:n.id||''});" +
+            "}" +
+            "return {control:desc(e),ancestors:chain};" +
+            "});" +
+            "var orderEls=all.filter(function(e){" +
+            "return visible(e)&&e.children.length===0&&" +
+            "/Order ID:|Accepted Order|Ongoing orders|Past orders|Picked up|Near drop off|Delivered/i.test(txt(e));" +
+            "}).slice(0,100).map(function(e){" +
+            "var chain=[],n=e;" +
+            "for(var i=0;n&&i<5;i++,n=n.parentElement){" +
+            "chain.push({tag:n.tagName,cls:typeof n.className==='string'?n.className:''," +
+            "text:txt(n).slice(0,1800),id:n.id||''});" +
+            "}" +
+            "return {element:desc(e),ancestors:chain};" +
+            "});" +
             "var tables=Array.from(document.querySelectorAll('table')).map(function(t){" +
             "return {className:typeof t.className==='string'?t.className:''," +
             "rows:Array.from(t.querySelectorAll('tr')).slice(0,20).map(function(r){" +
-            "return {text:(r.innerText||'').trim().slice(0,900)," +
-            "controls:Array.from(r.querySelectorAll('button,[role=button],a,[aria-expanded],svg'))" +
-            ".slice(0,15).map(desc)}" +
-            "})}" +
+            "return {text:txt(r).slice(0,900)," +
+            "controls:Array.from(r.querySelectorAll('button,[role=button],a,[aria-expanded]'))" +
+            ".slice(0,15).map(desc)};" +
+            "})};" +
             "});" +
-            "var body=(document.body.innerText||'');" +
+            "var body=txt(document.body);" +
             "return JSON.stringify({title:document.title,url:location.href," +
-            "pageLength:body.length,orderMatches:matches,tables:tables," +
-            "tail:body.slice(-9000)});" +
+            "pageLength:body.length,controls:controls,orderElements:orderEls," +
+            "tables:tables,tail:body.slice(-10000)});" +
             "})()";
 
         webView.evaluateJavascript(script, value -> {
@@ -147,18 +172,18 @@ public class MainActivity extends Activity {
             result.setText(report);
             try {
                 saveInspection(report);
-                status.setText("اكتمل الفحص وتم حفظ النتيجة في التنزيلات.");
+                status.setText("اكتمل فحص الأزرار وتفاصيل الأوردر وتم حفظ التقرير.");
                 Toast.makeText(this,
-                    "تم حفظ roster-inspection.txt في التنزيلات",
+                    "تم حفظ تقرير الفحص في التنزيلات",
                     Toast.LENGTH_LONG).show();
             } catch (Exception e) {
-                status.setText("فشل حفظ التقرير: " + e.getClass().getSimpleName() + " - " + e.getMessage());
+                status.setText("فشل حفظ التقرير: " +
+                    e.getClass().getSimpleName() + " - " + e.getMessage());
                 Toast.makeText(this, "فشل الحفظ: " + e.getMessage(),
                     Toast.LENGTH_LONG).show();
             }
         });
     }
-
 
     private void saveInspection(String report) throws Exception {
         ContentValues values = new ContentValues();
