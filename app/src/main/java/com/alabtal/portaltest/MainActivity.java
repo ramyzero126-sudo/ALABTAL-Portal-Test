@@ -152,8 +152,8 @@ public class MainActivity extends Activity {
                     "تم حفظ roster-inspection.txt في التنزيلات",
                     Toast.LENGTH_LONG).show();
             } catch (Exception e) {
-                status.setText("ظهر الفحص، لكن تعذر حفظ الملف: " + e.getMessage());
-                Toast.makeText(this, "تعذر حفظ نتيجة الفحص",
+                status.setText("فشل حفظ التقرير: " + e.getClass().getSimpleName() + " - " + e.getMessage());
+                Toast.makeText(this, "فشل الحفظ: " + e.getMessage(),
                     Toast.LENGTH_LONG).show();
             }
         });
@@ -161,26 +161,24 @@ public class MainActivity extends Activity {
 
 
     private void saveInspection(String report) throws Exception {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
-            throw new Exception("هذا الحفظ يحتاج Android 10 أو أحدث.");
-        }
-
         ContentValues values = new ContentValues();
-        values.put(MediaStore.MediaColumns.DISPLAY_NAME, "roster-inspection.txt");
+        values.put(MediaStore.MediaColumns.DISPLAY_NAME,
+            "roster-inspection.txt");
         values.put(MediaStore.MediaColumns.MIME_TYPE, "text/plain");
         values.put(MediaStore.MediaColumns.RELATIVE_PATH,
-            Environment.DIRECTORY_DOWNLOADS + "/ALABTAL-Portal-Test");
+            Environment.DIRECTORY_DOWNLOADS);
 
         Uri uri = getContentResolver().insert(
             MediaStore.Downloads.EXTERNAL_CONTENT_URI, values);
 
         if (uri == null) {
-            throw new Exception("لم يتم إنشاء ملف التنزيلات.");
+            throw new Exception("تعذر إنشاء الملف داخل Downloads");
         }
 
-        try (java.io.OutputStream out = getContentResolver().openOutputStream(uri)) {
+        try (java.io.OutputStream out =
+                getContentResolver().openOutputStream(uri, "wt")) {
             if (out == null) {
-                throw new Exception("تعذر فتح الملف للكتابة.");
+                throw new Exception("تعذر فتح الملف للكتابة");
             }
             out.write(report.getBytes(java.nio.charset.StandardCharsets.UTF_8));
             out.flush();
