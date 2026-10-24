@@ -161,10 +161,53 @@ public class MainActivity extends Activity {
             "}" +
             "return {element:desc(e),ancestors:chain};" +
             "});" +
-            "var body=txt(document.body);" +
+            "var detailHeadings=all.filter(function(e){" +
+"var t=txt(e);" +
+"return visible(e)&&e.children.length<3&&" +
+"(t==='Ongoing orders'||t.indexOf('Past orders')===0);" +
+"}).map(function(e){" +
+"var chain=[],n=e;" +
+"for(var i=0;n&&i<6;i++,n=n.parentElement){" +
+"chain.push({tag:n.tagName,cls:typeof n.className==='string'?n.className:''," +
+"text:txt(n).slice(0,1800),html:(n.outerHTML||'').slice(0,2500)});" +
+"}" +
+"return {heading:txt(e),ancestors:chain};" +
+"});" +
+"var orderCards=all.filter(function(e){" +
+"return visible(e)&&e.children.length>0&&" +
+"/Order ID:\\s*HF_[A-Z0-9]+/i.test(txt(e))&&txt(e).length<7000;" +
+"}).filter(function(e){" +
+"return !Array.from(e.children).some(function(c){" +
+"return visible(c)&&/Order ID:\\s*HF_[A-Z0-9]+/i.test(txt(c));" +
+"});" +
+"}).slice(0,30).map(function(e){" +
+"var chain=[],n=e;" +
+"for(var i=0;n&&i<8;i++,n=n.parentElement){" +
+"chain.push({tag:n.tagName,cls:typeof n.className==='string'?n.className:''," +
+"text:txt(n).slice(0,2500),html:(n.outerHTML||'').slice(0,3500)});" +
+"}" +
+"return {orderText:txt(e).slice(0,3000),ancestors:chain};" +
+"});" +
+"var detailPanels=all.filter(function(e){" +
+"var t=txt(e);" +
+"return visible(e)&&t.indexOf('Rider ID:')>=0&&" +
+"t.indexOf('Ongoing orders')>=0&&t.indexOf('Past orders')>=0&&t.length<15000;" +
+"}).filter(function(e){" +
+"return !Array.from(e.children).some(function(c){" +
+"var t=txt(c);" +
+"return visible(c)&&t.indexOf('Rider ID:')>=0&&" +
+"t.indexOf('Ongoing orders')>=0&&t.indexOf('Past orders')>=0;" +
+"});" +
+"}).slice(0,3).map(function(e){" +
+"return {panelText:txt(e).slice(0,10000)," +
+"panelClass:typeof e.className==='string'?e.className:''," +
+"panelHTML:(e.outerHTML||'').slice(0,9000)};" +
+"});" +
+"var detailInspection={headings:detailHeadings,orderCards:orderCards,panels:detailPanels};" +
+"var body=txt(document.body);" +
             "return JSON.stringify({title:document.title,url:location.href," +
             "pageLength:body.length,cardCount:cards.length,cards:cards," +
-            "controls:controls,orderElements:orderEls,tail:body.slice(-7000)});" +
+            "controls:controls,orderElements:orderEls,detailInspection:detailInspection,tail:body.slice(-7000)});" +
             "})()";
 
         webView.evaluateJavascript(script, value -> {
