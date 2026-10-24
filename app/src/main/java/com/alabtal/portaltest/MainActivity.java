@@ -189,22 +189,33 @@ public class MainActivity extends Activity {
 "return {orderText:txt(e).slice(0,3000),ancestors:chain};" +
 "});" +
 "var detailPanels=all.filter(function(e){" +
-"var t=txt(e);" +
-"return visible(e)&&t.indexOf('Rider ID:')>=0&&" +
-"t.indexOf('Ongoing orders')>=0&&t.indexOf('Past orders')>=0&&t.length<15000;" +
-"}).filter(function(e){" +
-"return !Array.from(e.children).some(function(c){" +
-"var t=txt(c);" +
-"return visible(c)&&t.indexOf('Rider ID:')>=0&&" +
-"t.indexOf('Ongoing orders')>=0&&t.indexOf('Past orders')>=0;" +
-"});" +
-"}).slice(0,3).map(function(e){" +
-"return {panelText:txt(e).slice(0,10000)," +
-"panelClass:typeof e.className==='string'?e.className:''," +
-"panelHTML:(e.outerHTML||'').slice(0,9000)};" +
-"});" +
-"var detailInspection={headings:detailHeadings,orderCards:orderCards,panels:detailPanels};" +
-"var body=txt(document.body);" +
+            "var t=txt(e);" +
+            "return visible(e)&&t.indexOf('Rider ID:')>=0&&" +
+            "t.indexOf('Ongoing orders')>=0&&t.indexOf('Past orders')>=0&&t.length<20000;" +
+            "}).filter(function(e){" +
+            "return !Array.from(e.children).some(function(c){" +
+            "var t=txt(c);" +
+            "return visible(c)&&t.indexOf('Rider ID:')>=0&&" +
+            "t.indexOf('Ongoing orders')>=0&&t.indexOf('Past orders')>=0;" +
+            "});" +
+            "}).slice(0,3).map(function(e){" +
+            "return {panelText:txt(e).slice(0,15000)," +
+            "panelClass:typeof e.className==='string'?e.className:''," +
+            "panelHTML:(e.outerHTML||'').slice(0,9000)};" +
+            "});" +
+            "var activeOrderPanels=Array.from(document.querySelectorAll('[role=tabpanel][data-active=true]'))" +
+            ".filter(visible).map(function(e){" +
+            "var c=e.cloneNode(true);" +
+            "c.querySelectorAll('svg,button,[aria-hidden=true]').forEach(function(x){x.remove();});" +
+            "var t=(c.innerText||c.textContent||'').replace(/\\s+/g,' ').trim();" +
+            "var ids=t.match(/HF_[A-Za-z0-9_-]+/g)||[];" +
+            "return {tabId:e.id||'',text:t.slice(0,6000)," +
+            "orderIds:Array.from(new Set(ids))," +
+            "html:(e.outerHTML||'').slice(0,14000)};" +
+            "});" +
+            "var detailInspection={headings:detailHeadings,orderCards:orderCards," +
+            "panels:detailPanels,activeOrderPanels:activeOrderPanels};" +
+            "var body=txt(document.body);" +
             "return JSON.stringify({title:document.title,url:location.href," +
             "pageLength:body.length,cardCount:cards.length,cards:cards," +
             "controls:controls,orderElements:orderEls,detailInspection:detailInspection,tail:body.slice(-7000)});" +
