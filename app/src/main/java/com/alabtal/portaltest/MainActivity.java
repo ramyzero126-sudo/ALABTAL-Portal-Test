@@ -93,30 +93,47 @@ public class MainActivity extends Activity {
     private void inspectRoster() {
         String script =
             "(function(){" +
-            "var t=document.querySelector('table.cape-table');" +
-            "var clickables=Array.from(document.querySelectorAll(" +
-            " 'button,[role=button],a,[aria-expanded],summary," +
-            " [class*=expand],[class*=arrow],[class*=chevron]'));" +
-            "var describe=function(e){" +
-            "return {tag:e.tagName,text:(e.innerText||e.textContent||'').trim().slice(0,120)," +
-            "aria:e.getAttribute('aria-label'),expanded:e.getAttribute('aria-expanded')," +
-            "title:e.getAttribute('title'),cls:typeof e.className==='string'?e.className:''," +
-            "html:e.outerHTML.slice(0,350)}" +
+            "var all=Array.from(document.querySelectorAll('body *'));" +
+            "var visible=function(e){" +
+            "var r=e.getBoundingClientRect(),s=getComputedStyle(e);" +
+            "return r.width>0&&r.height>0&&s.display!=='none'&&s.visibility!=='hidden'" +
             "};" +
-            "var rows=t?Array.from(t.querySelectorAll('tr')).slice(0,12).map(function(r){" +
-            "return {text:(r.innerText||'').trim().slice(0,500)," +
-            "controls:Array.from(r.querySelectorAll('button,[role=button],a,svg,[aria-expanded]')).map(describe)}" +
-            "}):[];" +
-            "return JSON.stringify({ok:!!t,title:document.title,url:location.href," +
-            "tableFound:!!t,rows:rows,clickableCandidates:clickables.slice(0,100).map(describe)," +
-            "visibleText:(document.body.innerText||'').slice(-5000)});" +
+            "var desc=function(e){" +
+            "return {tag:e.tagName,text:(e.innerText||e.textContent||'').trim().slice(0,700)," +
+            "aria:e.getAttribute('aria-label'),expanded:e.getAttribute('aria-expanded')," +
+            "title:e.getAttribute('title'),role:e.getAttribute('role')," +
+            "cls:typeof e.className==='string'?e.className:''," +
+            "html:(e.outerHTML||'').slice(0,500)}" +
+            "};" +
+            "var keys=/order|delivery|dropoff|pickup|address|status|active|expand|chevron|arrow/i;" +
+            "var matches=all.filter(function(e){" +
+            "var z=((e.innerText||e.textContent||'')+' '+(e.className||'')+' '+" +
+            "(e.getAttribute('aria-label')||'')+' '+(e.getAttribute('data-testid')||''));" +
+            "return visible(e)&&keys.test(z)&&z.length<1800" +
+            "}).filter(function(e){" +
+            "return !Array.from(e.children).some(function(c){" +
+            "return keys.test((c.innerText||c.textContent||'')+' '+(c.className||''))" +
+            "})" +
+            "}).slice(0,100).map(desc);" +
+            "var tables=Array.from(document.querySelectorAll('table')).map(function(t){" +
+            "return {className:typeof t.className==='string'?t.className:''," +
+            "rows:Array.from(t.querySelectorAll('tr')).slice(0,20).map(function(r){" +
+            "return {text:(r.innerText||'').trim().slice(0,900)," +
+            "controls:Array.from(r.querySelectorAll('button,[role=button],a,[aria-expanded],svg'))" +
+            ".slice(0,15).map(desc)}" +
+            "})}" +
+            "});" +
+            "var body=(document.body.innerText||'');" +
+            "return JSON.stringify({title:document.title,url:location.href," +
+            "pageLength:body.length,orderMatches:matches,tables:tables," +
+            "tail:body.slice(-9000)});" +
             "})()";
 
         webView.evaluateJavascript(script, value -> {
             try {
                 Object decoded = new JSONTokener(value).nextValue();
                 result.setText(decoded == null ? "" : decoded.toString());
-                status.setText("اكتمل الفحص التشخيصي. ابحث عن عناصر السهم.");
+                status.setText("اكتمل الفحص الموسع. راجع Orders وorderMatches.");
             } catch (Exception e) {
                 result.setText(value == null ? "لا توجد نتيجة" : value);
                 status.setText("تعذر تنسيق النتيجة.");
