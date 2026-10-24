@@ -94,19 +94,29 @@ public class MainActivity extends Activity {
         String script =
             "(function(){" +
             "var t=document.querySelector('table.cape-table');" +
-            "if(!t)return JSON.stringify({ok:false,message:'لم يتم العثور على جدول cape-table في الصفحة الحالية',title:document.title,url:location.href});" +
-            "var rows=Array.from(t.querySelectorAll('tr')).map(function(r){" +
-            "return Array.from(r.querySelectorAll('th,td')).map(function(c){return (c.innerText||c.textContent||'').trim()})" +
-            "});" +
-            "return JSON.stringify({ok:true,title:document.title,url:location.href,rowCount:rows.length,rows:rows.slice(0,30)});" +
+            "var clickables=Array.from(document.querySelectorAll(" +
+            " 'button,[role=button],a,[aria-expanded],summary," +
+            " [class*=expand],[class*=arrow],[class*=chevron]'));" +
+            "var describe=function(e){" +
+            "return {tag:e.tagName,text:(e.innerText||e.textContent||'').trim().slice(0,120)," +
+            "aria:e.getAttribute('aria-label'),expanded:e.getAttribute('aria-expanded')," +
+            "title:e.getAttribute('title'),cls:typeof e.className==='string'?e.className:''," +
+            "html:e.outerHTML.slice(0,350)}" +
+            "};" +
+            "var rows=t?Array.from(t.querySelectorAll('tr')).slice(0,12).map(function(r){" +
+            "return {text:(r.innerText||'').trim().slice(0,500)," +
+            "controls:Array.from(r.querySelectorAll('button,[role=button],a,svg,[aria-expanded]')).map(describe)}" +
+            "}):[];" +
+            "return JSON.stringify({ok:!!t,title:document.title,url:location.href," +
+            "tableFound:!!t,rows:rows,clickableCandidates:clickables.slice(0,100).map(describe)," +
+            "visibleText:(document.body.innerText||'').slice(-5000)});" +
             "})()";
 
         webView.evaluateJavascript(script, value -> {
             try {
                 Object decoded = new JSONTokener(value).nextValue();
-                String data = decoded == null ? "" : decoded.toString();
-                result.setText(data);
-                status.setText("اكتمل فحص الصفحة الحالية.");
+                result.setText(decoded == null ? "" : decoded.toString());
+                status.setText("اكتمل الفحص التشخيصي. ابحث عن عناصر السهم.");
             } catch (Exception e) {
                 result.setText(value == null ? "لا توجد نتيجة" : value);
                 status.setText("تعذر تنسيق النتيجة.");
