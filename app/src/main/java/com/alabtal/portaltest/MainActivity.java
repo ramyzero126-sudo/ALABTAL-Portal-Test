@@ -1,138 +1,133 @@
+package com.alabtal.portaltest;
 
-private void inspectRoster() {
-    status.setText("جاري فحص الصفحة والبحث عن بيانات الروستر...");
-    result.setText("انتظر لحظة...");
+import android.app.Activity;
+import android.os.Bundle;
+import android.graphics.Color;
+import android.view.View;
+import android.view.Gravity;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
+import android.webkit.WebChromeClient;
+import android.widget.Button;
+import android.widget.LinearLayout;
+import android.widget.TextView;
+import android.widget.ScrollView;
+import android.widget.Toast;
+import org.json.JSONTokener;
 
-    String script =
-        "(function() {" +
-        "var tables = Array.from(document.querySelectorAll('table'));" +
-        "var target = document.querySelector('table.cape-table');" +
-        "var allRows = [];" +
-        "var headers = [];" +
-        "var tableInfo = tables.map(function(t, i) {" +
-        " var rs = Array.from(t.querySelectorAll('tr'));" +
-        " return {" +
-        "  index: i," +
-        "  className: String(t.className || '')," +
-        "  rowCount: rs.length," +
-        "  headers: Array.from(t.querySelectorAll('thead th')).map(function(c) {" +
-        "   return (c.innerText || c.textContent || '').trim();" +
-        "  })" +
-        " };" +
-        "});" +
+public class MainActivity extends Activity {
+    private WebView webView;
+    private TextView status;
+    private TextView result;
 
-        "if (target) {" +
-        " var head = target.querySelectorAll('thead th');" +
-        " headers = Array.from(head).map(function(c) {" +
-        "  return (c.innerText || c.textContent || '').trim();" +
-        " });" +
-        " var rows = Array.from(target.querySelectorAll('tr'));" +
-        " allRows = rows.slice(0, 30).map(function(r) {" +
-        "  return Array.from(r.querySelectorAll('th,td')).map(function(c) {" +
-        "   return (c.innerText || c.textContent || '').trim();" +
-        "  });" +
-        " });" +
-        "}" +
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
 
-        "var bodyText = (document.body && document.body.innerText || '').trim();" +
-        "return JSON.stringify({" +
-        " ok: !!target," +
-        " title: document.title," +
-        " url: location.href," +
-        " readyState: document.readyState," +
-        " tableCount: tables.length," +
-        " tableInfo: tableInfo," +
-        " headers: headers," +
-        " rowCount: target ? target.querySelectorAll('tr').length : 0," +
-        " rows: allRows," +
-        " pageText: bodyText.slice(0, 1800)" +
-        "});" +
-        "})()";
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setBackgroundColor(Color.rgb(10, 10, 10));
 
-    webView.evaluateJavascript(script, value -> {
-        try {
-            Object decoded = new JSONTokener(value).nextValue();
-            org.json.JSONObject data =
-                new org.json.JSONObject(decoded.toString());
+        TextView title = new TextView(this);
+        title.setText("AL ABTAL • PORTAL TEST");
+        title.setTextColor(Color.rgb(255, 121, 0));
+        title.setTextSize(19);
+        title.setGravity(Gravity.CENTER);
+        title.setPadding(8, 14, 8, 10);
+        root.addView(title);
 
-            StringBuilder out = new StringBuilder();
+        LinearLayout controls = new LinearLayout(this);
+        controls.setOrientation(LinearLayout.HORIZONTAL);
 
-            out.append("=== نتيجة فحص الروستر ===\n");
-            out.append("العنوان: ")
-                .append(data.optString("title")).append("\n");
-            out.append("الرابط: ")
-                .append(data.optString("url")).append("\n");
-            out.append("حالة التحميل: ")
-                .append(data.optString("readyState")).append("\n");
-            out.append("عدد الجداول: ")
-                .append(data.optInt("tableCount")).append("\n");
-            out.append("تم العثور على cape-table: ")
-                .append(data.optBoolean("ok") ? "نعم" : "لا")
-                .append("\n\n");
+        Button open = new Button(this);
+        open.setText("فتح البوابة");
+        controls.addView(open, new LinearLayout.LayoutParams(0, -2, 1));
 
-            org.json.JSONArray info = data.optJSONArray("tableInfo");
-            if (info != null) {
-                for (int i = 0; i < info.length(); i++) {
-                    org.json.JSONObject t = info.optJSONObject(i);
-                    if (t == null) continue;
+        Button inspect = new Button(this);
+        inspect.setText("فحص الروستر");
+        controls.addView(inspect, new LinearLayout.LayoutParams(0, -2, 1));
 
-                    out.append("جدول ").append(t.optInt("index"))
-                        .append(" | class=")
-                        .append(t.optString("className"))
-                        .append(" | الصفوف=")
-                        .append(t.optInt("rowCount"))
-                        .append("\n");
+        root.addView(controls);
 
-                    org.json.JSONArray hs = t.optJSONArray("headers");
-                    if (hs != null && hs.length() > 0) {
-                        out.append("الأعمدة: ");
-                        for (int j = 0; j < hs.length(); j++) {
-                            if (j > 0) out.append(" | ");
-                            out.append(hs.optString(j));
-                        }
-                        out.append("\n");
-                    }
-                }
+        status = new TextView(this);
+        status.setText("افتح البوابة وسجّل الدخول بنفسك.");
+        status.setTextColor(Color.WHITE);
+        status.setPadding(10, 8, 10, 8);
+        root.addView(status);
+
+        webView = new WebView(this);
+        webView.getSettings().setJavaScriptEnabled(true);
+        webView.getSettings().setDomStorageEnabled(true);
+        webView.getSettings().setSupportMultipleWindows(false);
+        webView.setWebViewClient(new WebViewClient() {
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                status.setText("الصفحة: " + url);
             }
+        });
+        webView.setWebChromeClient(new WebChromeClient());
+        root.addView(webView, new LinearLayout.LayoutParams(-1, 0, 1));
 
-            out.append("\n=== أعمدة الروستر المستهدف ===\n");
-            org.json.JSONArray headers = data.optJSONArray("headers");
-            if (headers != null) {
-                for (int i = 0; i < headers.length(); i++) {
-                    out.append(i + 1).append(". ")
-                        .append(headers.optString(i)).append("\n");
-                }
+        result = new TextView(this);
+        result.setTextColor(Color.WHITE);
+        result.setTextSize(12);
+        result.setPadding(10, 8, 10, 8);
+        ScrollView resultScroll = new ScrollView(this);
+        resultScroll.addView(result);
+        root.addView(resultScroll, new LinearLayout.LayoutParams(-1, 150));
+
+        setContentView(root);
+
+        open.setOnClickListener(v -> openPortal());
+        inspect.setOnClickListener(v -> inspectRoster());
+
+        openPortal();
+    }
+
+    private void openPortal() {
+        webView.loadUrl(
+            "https://eg.me.logisticsbackoffice.com/dashboard/rooster/live-3pl"
+        );
+    }
+
+    private void inspectRoster() {
+        String script =
+            "(function(){" +
+            "var t=document.querySelector('table.cape-table');" +
+            "if(!t)return JSON.stringify({ok:false,message:'لم يتم العثور على جدول cape-table في الصفحة الحالية',title:document.title,url:location.href});" +
+            "var rows=Array.from(t.querySelectorAll('tr')).map(function(r){" +
+            "return Array.from(r.querySelectorAll('th,td')).map(function(c){return (c.innerText||c.textContent||'').trim()})" +
+            "});" +
+            "return JSON.stringify({ok:true,title:document.title,url:location.href,rowCount:rows.length,rows:rows.slice(0,30)});" +
+            "})()";
+
+        webView.evaluateJavascript(script, value -> {
+            try {
+                Object decoded = new JSONTokener(value).nextValue();
+                String data = decoded == null ? "" : decoded.toString();
+                result.setText(data);
+                status.setText("اكتمل فحص الصفحة الحالية.");
+            } catch (Exception e) {
+                result.setText(value == null ? "لا توجد نتيجة" : value);
+                status.setText("تعذر تنسيق النتيجة.");
             }
+        });
+    }
 
-            out.append("\n=== أول 30 صفًا ===\n");
-            org.json.JSONArray rows = data.optJSONArray("rows");
-            if (rows != null) {
-                for (int i = 0; i < rows.length(); i++) {
-                    org.json.JSONArray row = rows.optJSONArray(i);
-                    if (row == null) continue;
-
-                    out.append("صف ").append(i + 1).append(": ");
-                    for (int j = 0; j < row.length(); j++) {
-                        if (j > 0) out.append(" | ");
-                        out.append(row.optString(j));
-                    }
-                    out.append("\n");
-                }
-            }
-
-            if (!data.optBoolean("ok")) {
-                out.append("\n=== نص الصفحة للتشخيص ===\n")
-                    .append(data.optString("pageText"));
-            }
-
-            result.setText(out.toString());
-            status.setText(data.optBoolean("ok")
-                ? "تم العثور على جدول الروستر."
-                : "لم يتم العثور على الجدول؛ راجع تفاصيل الصفحة.");
-        } catch (Exception e) {
-            result.setText("خطأ أثناء قراءة النتيجة:\n"
-                + e.getMessage() + "\n\nالرد الخام:\n" + value);
-            status.setText("تعذر تحليل نتيجة الفحص.");
+    @Override
+    public void onBackPressed() {
+        if (webView != null && webView.canGoBack()) {
+            webView.goBack();
+        } else {
+            super.onBackPressed();
         }
-    });
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (webView != null) {
+            webView.destroy();
+        }
+        super.onDestroy();
+    }
 }
