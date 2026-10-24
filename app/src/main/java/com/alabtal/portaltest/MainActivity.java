@@ -98,65 +98,73 @@ public class MainActivity extends Activity {
     private void inspectRoster() {
         String script =
             "(function(){" +
-            "var all=Array.from(document.querySelectorAll('body *'));" +
+            "var txt=function(e){return (e&&(e.innerText||e.textContent)||'').trim()};" +
             "var visible=function(e){" +
             "var r=e.getBoundingClientRect(),s=getComputedStyle(e);" +
             "return r.width>0&&r.height>0&&s.display!=='none'&&s.visibility!=='hidden';" +
             "};" +
-            "var txt=function(e){return (e&&(e.innerText||e.textContent)||'').trim()};" +
             "var desc=function(e){" +
-            "return {tag:e.tagName,text:txt(e).slice(0,1200)," +
+            "return {tag:e.tagName,text:txt(e).slice(0,500)," +
+            "id:e.id||'',role:e.getAttribute('role')," +
             "aria:e.getAttribute('aria-label'),expanded:e.getAttribute('aria-expanded')," +
-            "controls:e.getAttribute('aria-controls'),labelledby:e.getAttribute('aria-labelledby')," +
-            "title:e.getAttribute('title'),role:e.getAttribute('role')," +
+            "controls:e.getAttribute('aria-controls'),title:e.getAttribute('title')," +
             "cls:typeof e.className==='string'?e.className:''," +
-            "html:(e.outerHTML||'').slice(0,900)};" +
+            "html:(e.outerHTML||'').slice(0,1200)};" +
             "};" +
+            "var all=Array.from(document.querySelectorAll('body *'));" +
+            "var cards=all.filter(function(e){" +
+            "return visible(e)&&e.children.length>0&&" +
+            "/ID:\\s*\\d+/.test(txt(e))&&/Name:/.test(txt(e))&&txt(e).length<5000;" +
+            "}).filter(function(e){" +
+            "return !Array.from(e.children).some(function(c){" +
+            "return visible(c)&&/ID:\\s*\\d+/.test(txt(c))&&/Name:/.test(txt(c));" +
+            "});" +
+            "}).slice(0,30).map(function(card){" +
+            "var buttons=Array.from(card.querySelectorAll(" +
+            "'button,[role=button],summary,a,[aria-expanded],svg'))" +
+            ".filter(visible).slice(0,30).map(function(e){" +
+            "var chain=[],n=e;" +
+            "for(var i=0;n&&i<4;i++,n=n.parentElement){" +
+            "chain.push({tag:n.tagName,id:n.id||''," +
+            "cls:typeof n.className==='string'?n.className:''," +
+            "text:txt(n).slice(0,500)});" +
+            "}" +
+            "return {element:desc(e),ancestors:chain};" +
+            "});" +
+            "return {cardText:txt(card).slice(0,1800)," +
+            "cardClass:typeof card.className==='string'?card.className:''," +
+            "buttons:buttons};" +
+            "});" +
             "var controls=all.filter(function(e){" +
             "if(!visible(e))return false;" +
             "var tag=e.tagName.toLowerCase();" +
             "var label=[e.getAttribute('aria-label'),e.getAttribute('title')," +
-            "e.getAttribute('aria-controls'),e.getAttribute('data-testid')," +
-            "typeof e.className==='string'?e.className:'',txt(e)].join(' ');" +
+            "e.getAttribute('data-testid'),typeof e.className==='string'?e.className:''," +
+            "txt(e)].join(' ');" +
             "return /button|summary/.test(tag)||e.getAttribute('role')==='button'||" +
             "e.hasAttribute('aria-expanded')||/chevron|accordion|expand|collapse|arrow/i.test(label);" +
             "}).filter(function(e){" +
             "return !Array.from(e.children).some(function(c){" +
-            "return visible(c)&&" +
-            "(/button|summary/.test(c.tagName.toLowerCase())||c.getAttribute('role')==='button'||" +
-            "c.hasAttribute('aria-expanded'));" +
+            "return visible(c)&&(/button|summary/.test(c.tagName.toLowerCase())||" +
+            "c.getAttribute('role')==='button'||c.hasAttribute('aria-expanded'));" +
             "});" +
-            "}).slice(0,160).map(function(e){" +
-            "var chain=[],n=e;" +
-            "for(var i=0;n&&i<5;i++,n=n.parentElement){" +
-            "chain.push({tag:n.tagName,cls:typeof n.className==='string'?n.className:''," +
-            "text:txt(n).slice(0,1000),id:n.id||''});" +
-            "}" +
-            "return {control:desc(e),ancestors:chain};" +
-            "});" +
+            "}).slice(0,100).map(desc);" +
             "var orderEls=all.filter(function(e){" +
             "return visible(e)&&e.children.length===0&&" +
-            "/Order ID:|Accepted Order|Ongoing orders|Past orders|Picked up|Near drop off|Delivered/i.test(txt(e));" +
+            "/Order ID:|HF_[A-Z0-9]+|Accepted Order|Ongoing orders|Past orders|" +
+            "Picked up|Near drop off|Delivered|dropoff_address|pickup_address/i.test(txt(e));" +
             "}).slice(0,100).map(function(e){" +
             "var chain=[],n=e;" +
             "for(var i=0;n&&i<5;i++,n=n.parentElement){" +
             "chain.push({tag:n.tagName,cls:typeof n.className==='string'?n.className:''," +
-            "text:txt(n).slice(0,1800),id:n.id||''});" +
+            "text:txt(n).slice(0,1500),id:n.id||''});" +
             "}" +
             "return {element:desc(e),ancestors:chain};" +
             "});" +
-            "var tables=Array.from(document.querySelectorAll('table')).map(function(t){" +
-            "return {className:typeof t.className==='string'?t.className:''," +
-            "rows:Array.from(t.querySelectorAll('tr')).slice(0,20).map(function(r){" +
-            "return {text:txt(r).slice(0,900)," +
-            "controls:Array.from(r.querySelectorAll('button,[role=button],a,[aria-expanded]'))" +
-            ".slice(0,15).map(desc)};" +
-            "})};" +
-            "});" +
             "var body=txt(document.body);" +
             "return JSON.stringify({title:document.title,url:location.href," +
-            "pageLength:body.length,controls:controls,orderElements:orderEls," +
-            "tables:tables,tail:body.slice(-10000)});" +
+            "pageLength:body.length,cardCount:cards.length,cards:cards," +
+            "controls:controls,orderElements:orderEls,tail:body.slice(-7000)});" +
             "})()";
 
         webView.evaluateJavascript(script, value -> {
@@ -172,9 +180,9 @@ public class MainActivity extends Activity {
             result.setText(report);
             try {
                 saveInspection(report);
-                status.setText("اكتمل فحص الأزرار وتفاصيل الأوردر وتم حفظ التقرير.");
+                status.setText("اكتمل فحص كروت المندوبين والأسهم.");
                 Toast.makeText(this,
-                    "تم حفظ تقرير الفحص في التنزيلات",
+                    "تم حفظ تقرير فحص الكروت في التنزيلات",
                     Toast.LENGTH_LONG).show();
             } catch (Exception e) {
                 status.setText("فشل حفظ التقرير: " +
