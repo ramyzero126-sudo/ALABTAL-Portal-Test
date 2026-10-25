@@ -398,32 +398,36 @@ public class MainActivity extends Activity {
         target.addView(row, rp);
     }
 
+
     private LinearLayout createTile(String label, String value) {
         LinearLayout box = new LinearLayout(this);
         box.setOrientation(LinearLayout.VERTICAL);
         box.setGravity(Gravity.CENTER_VERTICAL);
-        box.setPadding(dp(6), dp(4), dp(5), dp(4));
+        box.setMinimumHeight(dp(59));
+        box.setPadding(dp(9), dp(8), dp(8), dp(8));
 
         GradientDrawable tileBg = new GradientDrawable(
                 GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[]{Color.rgb(37, 23, 15), Color.rgb(9, 10, 14)});
-        tileBg.setCornerRadius(dp(12));
-        tileBg.setStroke(dp(1), Color.rgb(170, 76, 24));
+                new int[]{Color.rgb(35, 25, 19), Color.rgb(12, 13, 17)});
+        tileBg.setCornerRadius(dp(13));
+        tileBg.setStroke(dp(1), Color.rgb(165, 78, 30));
         box.setBackground(tileBg);
-        box.setElevation(dp(5));
+        box.setElevation(dp(3));
 
         TextView l = makeText(label, 10, MUTED, false);
-        l.setMaxLines(1);
+        l.setMaxLines(2);
         l.setGravity(Gravity.START);
-
-        TextView v = makeText(value == null || value.trim().isEmpty()
-                ? "—" : value, 11, WHITE, true);
-        v.setMaxLines(2);
-        v.setGravity(Gravity.START);
-        v.setPadding(0, dp(1), 0, 0);
-
         box.addView(l);
+
+        TextView v = makeText(
+                value == null || value.trim().isEmpty()
+                        ? "—" : value,
+                12, WHITE, true);
+        v.setMaxLines(3);
+        v.setGravity(Gravity.START);
+        v.setPadding(0, dp(4), 0, 0);
         box.addView(v);
+
         return box;
     }
 
@@ -637,6 +641,7 @@ public class MainActivity extends Activity {
             "  vehicle:(typeof r.vehicle === 'string' ? r.vehicle : ((r.vehicle || {}).name || (r.vehicle || {}).type || (r.vehicle || {}).vehicle_type || r.vehicle_type || r.vehicleType || (r.vehicle_info || {}).name || (r.vehicle_info || {}).type || ''))," +
             "  total_orders:r.total_orders || r.total_deliveries_count || info.total_orders || info.total_deliveries_count || info.completed_deliveries_count || latest.length || 0," +
             "  total_orders_source:(r.total_orders != null || r.total_deliveries_count != null || info.total_orders != null || info.total_deliveries_count != null || info.completed_deliveries_count != null) ? 'counter' : 'latest_deliveries'," +
+            "  worked_seconds:(detail && detail.time_spent && detail.time_spent.worked_seconds != null) ? Number(detail.time_spent.worked_seconds) : ((detail && detail.worked_seconds != null) ? Number(detail.worked_seconds) : -1)," +
             "  active_orders:activeOrders," +
             "  detail_error:detailError" +
             " };" +
@@ -751,10 +756,18 @@ public class MainActivity extends Activity {
         int onBreak = 0;
         int ready = 0;
         int late = 0;
+        long totalWorkedSeconds = 0;
+        int ridersWithWorkTime = 0;
 
         for (int i = 0; i < riders.length(); i++) {
             JSONObject rider = riders.optJSONObject(i);
             if (rider == null) continue;
+
+            long workedSeconds = rider.optLong("worked_seconds", -1);
+            if (workedSeconds >= 0) {
+                totalWorkedSeconds += workedSeconds;
+                ridersWithWorkTime++;
+            }
 
             String state = rider.optString(
                     "rider_status", rider.optString("status", ""))
@@ -791,6 +804,22 @@ public class MainActivity extends Activity {
         addTileRow(dashboardStats,
                 "🟠 جاهز / متاح", String.valueOf(ready),
                 "⏰ متأخر", String.valueOf(late));
+
+        addTileRow(dashboardStats,
+                "⏱️ إجمالي ساعات العمل اليوم",
+                ridersWithWorkTime > 0
+                    ? formatWorkDuration(totalWorkedSeconds)
+                    : "غير متاح من المصدر",
+                "👤 مندوبون ببيانات وقت العمل",
+                String.valueOf(ridersWithWorkTime));
+    }
+
+
+    private String formatWorkDuration(long seconds) {
+        if (seconds < 0) return "غير متاح من المصدر";
+        long hours = seconds / 3600;
+        long minutes = (seconds % 3600) / 60;
+        return hours + " س " + minutes + " د";
     }
 
     private String formatTime(String iso) {
@@ -802,68 +831,101 @@ public class MainActivity extends Activity {
         }
     }
 
+
     private void addRiderCard(JSONObject rider, JSONArray orders) {
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(dp(14), dp(14), dp(14), dp(14));
+        card.setPadding(dp(13), dp(13), dp(13), dp(13));
 
         GradientDrawable cardBg = new GradientDrawable(
                 GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[]{Color.rgb(30, 20, 14), Color.rgb(7, 8, 12)}
+                new int[]{Color.rgb(37, 23, 15), Color.rgb(10, 11, 15),
+                          Color.rgb(7, 8, 10)}
         );
-        cardBg.setCornerRadius(dp(19));
-        cardBg.setStroke(dp(2), Color.rgb(255, 125, 15));
+        cardBg.setCornerRadius(dp(21));
+        cardBg.setStroke(dp(2), ORANGE);
         card.setBackground(cardBg);
-        card.setElevation(dp(8));
+        card.setElevation(dp(7));
 
         LinearLayout.LayoutParams cp =
                 new LinearLayout.LayoutParams(-1, -2);
-        cp.setMargins(0, 0, 0, dp(12));
+        cp.setMargins(0, 0, 0, dp(13));
         cards.addView(card, cp);
 
         String name = rider.optString("name", "مندوب بدون اسم");
         String id = rider.optString("employee_id", "—");
 
-        TextView heading = makeText("👤  " + name, 18, WHITE, true);
-        heading.setTypeface(Typeface.create("sans-serif-black", Typeface.BOLD));
-        card.addView(heading);
+        LinearLayout identity = new LinearLayout(this);
+        identity.setOrientation(LinearLayout.HORIZONTAL);
+        identity.setGravity(Gravity.CENTER_VERTICAL);
 
-        TextView idView = makeText("🪪  رقم المندوب: " + id, 11, MUTED, false);
-        idView.setPadding(0, dp(3), 0, dp(7));
-        card.addView(idView);
+        LinearLayout nameColumn = new LinearLayout(this);
+        nameColumn.setOrientation(LinearLayout.VERTICAL);
 
-        boolean hasOrders =
+        TextView heading = makeText(name, 17, WHITE, true);
+        heading.setTypeface(Typeface.create(
+                "sans-serif-black", Typeface.BOLD));
+        heading.setMaxLines(3);
+        nameColumn.addView(heading);
+
+        TextView idView = makeText("ID  " + id, 10, MUTED, false);
+        idView.setPadding(0, dp(4), 0, 0);
+        nameColumn.addView(idView);
+
+        identity.addView(nameColumn,
+                new LinearLayout.LayoutParams(0, -2, 1));
+
+        TextView badge = makeText(
                 rider.optBoolean("has_active_deliveries", false)
-                || rider.optInt("active_count") > 0
-                || orders.length() > 0;
+                        || rider.optInt("active_count") > 0
+                        || orders.length() > 0
+                        ? "● معاه أوردر" : "○ بدون أوردر",
+                10,
+                rider.optBoolean("has_active_deliveries", false)
+                        || rider.optInt("active_count") > 0
+                        || orders.length() > 0 ? GREEN : MUTED,
+                true);
+        badge.setGravity(Gravity.CENTER);
+        badge.setPadding(dp(8), dp(7), dp(8), dp(7));
+        badge.setBackground(round(
+                Color.rgb(17, 31, 25),
+                rider.optBoolean("has_active_deliveries", false)
+                        || rider.optInt("active_count") > 0
+                        || orders.length() > 0
+                        ? GREEN : Color.rgb(85, 88, 95), 1));
+        LinearLayout.LayoutParams badgeParams =
+                new LinearLayout.LayoutParams(-2, -2);
+        badgeParams.setMargins(dp(7), 0, 0, 0);
+        identity.addView(badge, badgeParams);
+        card.addView(identity);
 
-        String riderStatus = rider.optString("rider_status",
-                rider.optString("status", "غير معروف"));
-        String riderStatusArabic = translateRiderStatus(riderStatus);
+        String riderStatus = rider.optString(
+                "rider_status", rider.optString("status", "غير معروف"));
 
         TextView state = makeText(
-                (hasOrders ? "📦  معاه أوردر" : "✓  مفيش أوردر نشط")
-                + "     •     " + riderStatusArabic,
-                12, hasOrders ? GREEN : MUTED, true
-        );
-        state.setGravity(Gravity.CENTER);
-        state.setPadding(dp(7), dp(8), dp(7), dp(8));
+                "حالة التشغيل  •  " + translateRiderStatus(riderStatus),
+                11, GREEN, true);
+        state.setPadding(dp(10), dp(8), dp(10), dp(8));
         state.setBackground(round(
-                Color.rgb(20, 30, 25),
-                hasOrders ? GREEN : Color.rgb(75, 80, 85), 1
-        ));
+                Color.rgb(14, 27, 22), Color.rgb(39, 151, 91), 1));
         LinearLayout.LayoutParams stateParams =
                 new LinearLayout.LayoutParams(-1, -2);
-        stateParams.setMargins(0, 0, 0, dp(9));
+        stateParams.setMargins(0, dp(10), 0, dp(7));
         card.addView(state, stateParams);
 
         String wallet = firstValue(rider,
                 "wallet_balance", "wallet", "balance");
-        int activeCount = Math.max(
-                rider.optInt("active_count"), orders.length());
+        String workDuration;
+        long seconds = rider.optLong("worked_seconds", -1);
+        if (seconds >= 0) {
+            workDuration = formatWorkDuration(seconds);
+        } else {
+            workDuration = firstValue(rider,
+                    "worked_time", "worked_hours", "worked");
+        }
 
         addTileRow(card,
-                "📦 عدد الأوردرات", firstValue(rider, "total_orders"),
+                "📦 إجمالي الأوردرات", firstValue(rider, "total_orders"),
                 "💰 المحفظة", wallet);
 
         addTileRow(card,
@@ -874,7 +936,8 @@ public class MainActivity extends Activity {
                 "⚡ الأداء", firstValue(rider,
                         "performance", "performance_score"),
                 "✅ نسبة القبول", firstValue(rider,
-                        "acceptance_rate", "acceptance", "acceptance_percentage"));
+                        "acceptance_rate", "acceptance",
+                        "acceptance_percentage"));
 
         addTileRow(card,
                 "🕒 بداية الشيفت", firstValue(rider,
@@ -883,36 +946,42 @@ public class MainActivity extends Activity {
                         "shift_end", "planned_shift_end", "session_end"));
 
         addTileRow(card,
-                "⏱️ ساعات العمل", firstValue(rider,
-                        "worked_time", "worked_hours", "worked"),
+                "⏱️ ساعات العمل اليوم", workDuration,
                 "🚲 وسيلة التوصيل", firstValue(rider,
                         "vehicle", "vehicle_type"));
 
-        if (hasOrders) {
+        if (orders.length() > 0) {
             JSONObject activeOrder = orders.optJSONObject(0);
             if (activeOrder != null) {
                 addOrderProgressTrack(card,
                         activeOrder.optString("status", ""));
-            } else {
-                TextView orderStage = makeText(
-                        "● أوردر نشط — تفاصيل المرحلة غير متاحة",
-                        11, ORANGE, true);
-                orderStage.setPadding(dp(3), dp(7), dp(3), dp(2));
-                card.addView(orderStage);
+
+                TextView route = makeText(
+                        "مسار الأوردر والعناوين",
+                        12, ORANGE, true);
+                route.setPadding(0, dp(7), 0, dp(4));
+                card.addView(route);
+
+                addAddress(card, "📦 الاستلام من المطعم",
+                        activeOrder.optString("pickup_address", ""));
+                addAddress(card, "🏁 التسليم للعميل",
+                        activeOrder.optString("dropoff_address", ""));
             }
+        } else {
+            TextView noOrder = makeText(
+                    "لا يوجد أوردر نشط مؤكد في البيانات الحالية",
+                    11, MUTED, false);
+            noOrder.setPadding(dp(3), dp(9), dp(3), dp(3));
+            card.addView(noOrder);
         }
 
         TextView detailsHint = makeText(
-                hasOrders
-                ? "اضغط لعرض تفاصيل المندوب والأوردر النشط"
-                : "لا يوجد أوردر نشط مؤكد — اضغط لعرض تفاصيل المندوب",
-                12, ORANGE, true);
-        detailsHint.setPadding(0, dp(8), 0, dp(2));
+                "اضغط لعرض تفاصيل المندوب والأوردر  ›",
+                11, ORANGE, true);
+        detailsHint.setPadding(0, dp(11), 0, dp(2));
         card.addView(detailsHint);
         card.setOnClickListener(v -> showRiderDetails(rider, orders));
-
     }
-
 
     private void addOrderProgressTrack(LinearLayout target, String rawStatus) {
         String st = rawStatus == null ? "" : rawStatus.trim().toLowerCase(Locale.ROOT);
