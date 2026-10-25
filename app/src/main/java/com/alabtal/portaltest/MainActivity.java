@@ -1,6 +1,9 @@
 package com.alabtal.portaltest;
 
 import android.app.Activity;
+import android.animation.ObjectAnimator;
+import android.view.animation.DecelerateInterpolator;
+import android.widget.FrameLayout;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -60,6 +63,7 @@ public class MainActivity extends Activity {
     private TextView status;
     private TextView banner;
     private TextView summary;
+    private LinearLayout dashboardStats;
     private LinearLayout cards;
     private Button inspectButton;
     private boolean portalVisible = false;
@@ -123,16 +127,22 @@ public class MainActivity extends Activity {
         root.setPadding(dp(12), dp(5), dp(12), dp(5));
 
         // Premium AL ABTAL LED Header
+        LinearLayout portalRow = new LinearLayout(this);
+        portalRow.setOrientation(LinearLayout.HORIZONTAL);
+        portalRow.setGravity(Gravity.LEFT | Gravity.CENTER_VERTICAL);
+
+        Button portalButton = makeButton("🌐 البوابة");
+        LinearLayout.LayoutParams portalParams =
+                new LinearLayout.LayoutParams(-2, dp(39));
+        portalParams.setMargins(0, 0, 0, dp(5));
+        portalRow.addView(portalButton, portalParams);
+        portalButton.setOnClickListener(v -> showPortalPage());
+        root.addView(portalRow);
+
         LinearLayout brand = new LinearLayout(this);
         brand.setOrientation(LinearLayout.VERTICAL);
         brand.setGravity(Gravity.CENTER);
         brand.setPadding(dp(8), dp(5), dp(8), dp(7));
-
-        TextView globe = makeText("🌐", 24, ORANGE, true);
-        globe.setGravity(Gravity.CENTER);
-        globe.setOnClickListener(v -> showPortalPage());
-        globe.setGravity(Gravity.CENTER);
-        brand.addView(globe, new LinearLayout.LayoutParams(-1, dp(29)));
 
         TextView title = makeText("AL ABTAL", 29, ORANGE, true);
         title.setGravity(Gravity.CENTER);
@@ -154,7 +164,7 @@ public class MainActivity extends Activity {
         brand.setBackground(brandBg);
 
         LinearLayout.LayoutParams brandParams =
-                new LinearLayout.LayoutParams(-1, dp(101));
+                new LinearLayout.LayoutParams(-1, dp(69));
         brandParams.setMargins(0, dp(3), 0, dp(7));
         root.addView(brand, brandParams);
 
@@ -180,8 +190,6 @@ public class MainActivity extends Activity {
         root.addView(banner, bp);
         handler.post(bannerRunnable);
 
-        TextView rosterTitle = makeText("متابعة المناديب — طنطا", 17, WHITE, true);
-        root.addView(rosterTitle);
 
         summary = makeText(
             "في انتظار تحميل بيانات الروستر...",
@@ -190,27 +198,25 @@ public class MainActivity extends Activity {
         summary.setPadding(0, dp(5), 0, dp(5));
         root.addView(summary);
 
+        TextView statsTitle = makeText(
+                "ملخص التشغيل المباشر", 14, ORANGE, true);
+        statsTitle.setPadding(0, dp(5), 0, dp(5));
+        root.addView(statsTitle);
+
+        dashboardStats = new LinearLayout(this);
+        dashboardStats.setOrientation(LinearLayout.VERTICAL);
+        root.addView(dashboardStats);
+
         // Controls
         LinearLayout controls = new LinearLayout(this);
         controls.setOrientation(LinearLayout.HORIZONTAL);
 
-        Button openButton = makeButton("🌐 البوابة");
+        inspectButton = makeButton("⟳ تحديث البيانات");
         controls.addView(
-            openButton, new LinearLayout.LayoutParams(0, dp(45), 1)
+            inspectButton, new LinearLayout.LayoutParams(-1, dp(45))
         );
 
-        inspectButton = makeButton("تحديث البيانات");
-        LinearLayout.LayoutParams ip =
-            new LinearLayout.LayoutParams(0, dp(45), 1);
-        ip.setMargins(dp(7), 0, 0, 0);
-        controls.addView(inspectButton, ip);
 
-        Button logoutButton = makeButton("خروج");
-        logoutButton.setBackground(round(Color.rgb(85, 30, 25), RED, 1));
-        LinearLayout.LayoutParams logoutParams =
-            new LinearLayout.LayoutParams(0, dp(45), 0.7f);
-        logoutParams.setMargins(dp(7), 0, 0, 0);
-        controls.addView(logoutButton, logoutParams);
 
         root.addView(controls);
 
@@ -281,8 +287,6 @@ public class MainActivity extends Activity {
 
         setContentView(root);
 
-        openButton.setOnClickListener(v -> showPortalPage());
-        logoutButton.setOnClickListener(v -> logoutApp());
         inspectButton.setOnClickListener(v -> inspectRoster());
 
         addEmptyCard(
@@ -356,6 +360,7 @@ public class MainActivity extends Activity {
     ) {
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
 
         row.addView(
             createTile(label1, value1),
@@ -377,11 +382,29 @@ public class MainActivity extends Activity {
     private LinearLayout createTile(String label, String value) {
         LinearLayout box = new LinearLayout(this);
         box.setOrientation(LinearLayout.VERTICAL);
-        box.setPadding(dp(9), dp(8), dp(7), dp(8));
-        box.setBackground(round(Color.rgb(25, 27, 32), Color.rgb(54, 57, 65), 1));
+        box.setGravity(Gravity.CENTER_VERTICAL);
+        box.setPadding(dp(9), dp(7), dp(8), dp(7));
+
+        GradientDrawable tileBg = new GradientDrawable(
+                GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[] {
+                    Color.rgb(25, 20, 19),
+                    Color.rgb(11, 12, 15)
+                });
+        tileBg.setCornerRadius(dp(9));
+        tileBg.setStroke(dp(1), Color.rgb(95, 43, 28));
+        box.setBackground(tileBg);
+        box.setElevation(dp(2));
 
         TextView l = makeText(label, 10, MUTED, false);
-        TextView v = makeText(value, 13, WHITE, true);
+        l.setMaxLines(1);
+        l.setGravity(Gravity.START);
+
+        TextView v = makeText(value == null || value.trim().isEmpty()
+                ? "—" : value, 12, WHITE, true);
+        v.setMaxLines(2);
+        v.setGravity(Gravity.START);
+        v.setPadding(0, dp(3), 0, 0);
 
         box.addView(l);
         box.addView(v);
@@ -622,9 +645,11 @@ public class MainActivity extends Activity {
 
             summary.setText(
                 "المندوبون: " + riders.length() +
-                "    •    مندوبون لديهم أوردرات ظاهرة: " + ridersWithOrders +
-                "    •    عدد الأوردرات المتاحة بالمصدر: " + totalOrders
+                "    •    لديهم أوردرات ظاهرة: " + ridersWithOrders +
+                "    •    الأوردرات بالمصدر: " + totalOrders
             );
+
+            renderDashboardStats(riders, ridersWithOrders, totalOrders);
 
             String savedName = saveInspection(report.toString());
 
@@ -637,6 +662,57 @@ public class MainActivity extends Activity {
             status.setText("تعذر عرض التقرير: " + e.getMessage());
             Toast.makeText(this, "فشل قراءة بيانات الروستر", Toast.LENGTH_LONG).show();
         }
+    }
+
+    private void renderDashboardStats(
+            JSONArray riders, int ridersWithOrders, int totalOrders) {
+        if (dashboardStats == null) return;
+        dashboardStats.removeAllViews();
+
+        int working = 0;
+        int onBreak = 0;
+        int ready = 0;
+        int late = 0;
+
+        for (int i = 0; i < riders.length(); i++) {
+            JSONObject rider = riders.optJSONObject(i);
+            if (rider == null) continue;
+
+            String state = rider.optString(
+                    "rider_status", rider.optString("status", ""))
+                    .trim().toLowerCase(Locale.ROOT);
+
+            if (state.contains("break")) {
+                onBreak++;
+            } else if (state.contains("late")) {
+                late++;
+            } else if (state.contains("working")
+                    || state.contains("on_delivery")
+                    || state.contains("on delivery")) {
+                working++;
+            } else if (state.contains("ready")
+                    || state.contains("available")
+                    || state.contains("idle")) {
+                ready++;
+            }
+        }
+
+        addTileRow(dashboardStats,
+                "👥 إجمالي المندوبين", String.valueOf(riders.length()),
+                "📦 معاهم أوردر", String.valueOf(ridersWithOrders));
+
+        addTileRow(dashboardStats,
+                "🧾 الأوردرات بالمصدر", String.valueOf(totalOrders),
+                "⭕ بدون أوردر ظاهر",
+                String.valueOf(Math.max(0, riders.length() - ridersWithOrders)));
+
+        addTileRow(dashboardStats,
+                "🟢 شغال", String.valueOf(working),
+                "☕ بريك", String.valueOf(onBreak));
+
+        addTileRow(dashboardStats,
+                "🟠 جاهز / متاح", String.valueOf(ready),
+                "⏰ متأخر", String.valueOf(late));
     }
 
     private String formatTime(String iso) {
@@ -736,13 +812,16 @@ public class MainActivity extends Activity {
 
         if (hasOrders) {
             JSONObject activeOrder = orders.optJSONObject(0);
-            String stage = activeOrder == null
-                    ? "الأوردر نشط — تفاصيل المرحلة غير متاحة"
-                    : "🚦 مرحلة الأوردر: " + arabicStatus(
-                            activeOrder.optString("status", ""));
-            TextView orderStage = makeText(stage, 12, ORANGE, true);
-            orderStage.setPadding(dp(4), dp(8), dp(4), dp(3));
-            card.addView(orderStage);
+            if (activeOrder != null) {
+                addOrderProgressTrack(card,
+                        activeOrder.optString("status", ""));
+            } else {
+                TextView orderStage = makeText(
+                        "● أوردر نشط — تفاصيل المرحلة غير متاحة",
+                        11, ORANGE, true);
+                orderStage.setPadding(dp(3), dp(7), dp(3), dp(2));
+                card.addView(orderStage);
+            }
         }
 
         TextView detailsHint = makeText(
@@ -754,6 +833,112 @@ public class MainActivity extends Activity {
         card.addView(detailsHint);
         card.setOnClickListener(v -> showRiderDetails(rider, orders));
 
+    }
+
+
+    private void addOrderProgressTrack(LinearLayout target, String rawStatus) {
+        String st = rawStatus == null ? "" : rawStatus.trim().toLowerCase(Locale.ROOT);
+
+        int active = -1;
+        if (st.equals("dispatched") || st.equals("courier_notified")
+                || st.equals("accepted") || st.equals("assigned")) {
+            active = 0;
+        } else if (st.equals("near_pickup") || st.equals("at_pickup")
+                || st.equals("arrived_at_pickup") || st.equals("picked_up")
+                || st.equals("left_pickup")) {
+            active = 1;
+        } else if (st.equals("in_transit") || st.equals("on_the_way")
+                || st.equals("near_dropoff")) {
+            active = 2;
+        } else if (st.equals("at_dropoff") || st.equals("arrived_at_dropoff")) {
+            active = 3;
+        }
+
+        if (st.equals("completed")) {
+            TextView done = makeText("✓ تم تسليم الأوردر", 11, GREEN, true);
+            done.setPadding(dp(3), dp(8), dp(3), dp(2));
+            target.addView(done);
+            return;
+        }
+        if (st.equals("cancelled")) {
+            TextView cancelled = makeText("✕ الأوردر ملغي", 11, RED, true);
+            cancelled.setPadding(dp(3), dp(8), dp(3), dp(2));
+            target.addView(cancelled);
+            return;
+        }
+
+        String[] labels = {
+            "معاه أوردر", "وصل المطعم",
+            "في الطريق للعميل", "وصل عند العميل"
+        };
+
+        TextView heading = makeText("مسار الأوردر  /  " + arabicStatus(rawStatus),
+                11, ORANGE, true);
+        heading.setPadding(dp(2), dp(8), dp(2), dp(5));
+        target.addView(heading);
+
+        FrameLayout trackContainer = new FrameLayout(this);
+
+        LinearLayout track = new LinearLayout(this);
+        track.setOrientation(LinearLayout.HORIZONTAL);
+        track.setGravity(Gravity.CENTER_VERTICAL);
+
+        for (int i = 0; i < labels.length; i++) {
+            LinearLayout station = new LinearLayout(this);
+            station.setOrientation(LinearLayout.VERTICAL);
+            station.setGravity(Gravity.CENTER);
+            station.setPadding(dp(2), dp(22), dp(2), dp(5));
+
+            boolean reached = active >= i;
+            int led = reached ? ORANGE : Color.rgb(72, 53, 47);
+
+            TextView dot = makeText(
+                    reached ? "●" : "○",
+                    12, led, true);
+            dot.setGravity(Gravity.CENTER);
+
+            TextView label = makeText(labels[i], 8,
+                    reached ? WHITE : MUTED, reached);
+            label.setGravity(Gravity.CENTER);
+            label.setMaxLines(2);
+
+            station.addView(dot);
+            station.addView(label);
+
+            LinearLayout.LayoutParams sp =
+                    new LinearLayout.LayoutParams(0, -2, 1);
+            track.addView(station, sp);
+        }
+
+        trackContainer.addView(track, new FrameLayout.LayoutParams(-1, -2));
+
+        TextView bike = makeText("🏍️", 17, ORANGE, true);
+        bike.setGravity(Gravity.CENTER);
+
+        FrameLayout.LayoutParams bikeParams = new FrameLayout.LayoutParams(
+                dp(27), dp(24), Gravity.TOP | Gravity.LEFT);
+        trackContainer.addView(bike, bikeParams);
+
+        LinearLayout.LayoutParams tp =
+                new LinearLayout.LayoutParams(-1, -2);
+        tp.setMargins(0, 0, 0, dp(3));
+        target.addView(trackContainer, tp);
+
+        final int targetStage = active;
+        trackContainer.post(() -> {
+            if (trackContainer.getWidth() <= dp(27)) return;
+
+            float maxTravel = trackContainer.getWidth() - dp(27);
+            float destination = maxTravel *
+                    (Math.max(0, Math.min(3, targetStage)) / 3.0f);
+
+            bike.setTranslationX(0f);
+            ObjectAnimator animator = ObjectAnimator.ofFloat(
+                    bike, View.TRANSLATION_X, 0f, destination);
+            animator.setDuration(1100);
+            animator.setInterpolator(new DecelerateInterpolator());
+            animator.start();
+        });
     }
 
     private void showRiderDetails(JSONObject rider, JSONArray orders) {
