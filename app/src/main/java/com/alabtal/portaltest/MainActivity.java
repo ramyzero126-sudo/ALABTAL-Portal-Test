@@ -9,6 +9,7 @@ import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.view.Gravity;
 import android.view.View;
+import android.view.ViewGroup;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -62,6 +63,8 @@ public class MainActivity extends Activity {
     private LinearLayout cards;
     private Button inspectButton;
     private boolean portalVisible = false;
+    private boolean portalPageVisible = false;
+    private LinearLayout portalRoot;
     private LinearLayout dashboardRoot;
     private boolean detailVisible = false;
     private SharedPreferences authPrefs;
@@ -127,7 +130,7 @@ public class MainActivity extends Activity {
 
         TextView globe = makeText("🌐", 24, ORANGE, true);
         globe.setGravity(Gravity.CENTER);
-        globe.setOnClickListener(v -> togglePortal());
+        globe.setOnClickListener(v -> showPortalPage());
         globe.setGravity(Gravity.CENTER);
         brand.addView(globe, new LinearLayout.LayoutParams(-1, dp(29)));
 
@@ -278,7 +281,7 @@ public class MainActivity extends Activity {
 
         setContentView(root);
 
-        openButton.setOnClickListener(v -> togglePortal());
+        openButton.setOnClickListener(v -> showPortalPage());
         logoutButton.setOnClickListener(v -> logoutApp());
         inspectButton.setOnClickListener(v -> inspectRoster());
 
@@ -286,8 +289,6 @@ public class MainActivity extends Activity {
             "بانتظار البيانات",
             "افتح البوابة وسجّل الدخول، ثم اضغط تحديث البيانات."
         );
-
-        openPortal();
     }
 
     private int dp(float value) {
@@ -387,15 +388,58 @@ public class MainActivity extends Activity {
         return box;
     }
 
-    private void togglePortal() {
-        if (webView == null) return;
-        portalVisible = !portalVisible;
-        webView.setVisibility(portalVisible ? View.VISIBLE : View.GONE);
-        if (portalVisible) {
-            if (!pageLoaded) openPortal();
-            else status.setText("البوابة مفتوحة. يمكنك تحديث البيانات.");
-        } else {
-            status.setText("تم إخفاء البوابة؛ بيانات المناديب تظل ظاهرة.");
+    private void showPortalPage() {
+        if (webView == null || dashboardRoot == null) return;
+
+        if (portalRoot == null) {
+            portalRoot = new LinearLayout(this);
+            portalRoot.setOrientation(LinearLayout.VERTICAL);
+            portalRoot.setPadding(dp(10), dp(8), dp(10), dp(8));
+            portalRoot.setBackgroundColor(BG);
+
+            LinearLayout toolbar = new LinearLayout(this);
+            toolbar.setOrientation(LinearLayout.HORIZONTAL);
+
+            Button backButton = makeButton("← رجوع");
+            toolbar.addView(backButton,
+                    new LinearLayout.LayoutParams(0, dp(46), 1));
+            backButton.setOnClickListener(v -> returnToDashboard());
+
+            Button syncButton = makeButton("⟳ تحديث");
+            LinearLayout.LayoutParams syncParams =
+                    new LinearLayout.LayoutParams(0, dp(46), 1);
+            syncParams.setMargins(dp(6), 0, 0, 0);
+            toolbar.addView(syncButton, syncParams);
+            syncButton.setOnClickListener(v -> {
+                if (pageLoaded) {
+                    inspectRoster();
+                } else {
+                    status.setText("انتظر تحميل البوابة وتسجيل الدخول أولًا.");
+                    if (webView != null) webView.reload();
+                }
+            });
+
+            portalRoot.addView(toolbar);
+            TextView portalTitle =
+                    makeText("بوابة الروستر الحي", 17, ORANGE, true);
+            portalTitle.setPadding(dp(3), dp(8), dp(3), dp(8));
+            portalRoot.addView(portalTitle);
+        }
+
+        if (webView.getParent() instanceof ViewGroup) {
+            ((ViewGroup) webView.getParent()).removeView(webView);
+        }
+
+        portalRoot.addView(
+                webView, new LinearLayout.LayoutParams(-1, 0, 1));
+        webView.setVisibility(View.VISIBLE);
+
+        portalPageVisible = true;
+        portalVisible = true;
+        setContentView(portalRoot);
+
+        if (!pageLoaded) {
+            openPortal();
         }
     }
 
@@ -464,7 +508,13 @@ public class MainActivity extends Activity {
 
             "const output = await Promise.all(riders.map(async r => {" +
             " const info = r.deliveries_info || {};" +
-            " const activeIds = (info.active_delivery_ids || []).map(x => String(x));" +
+            " const activeIds = (info.active_delivery_ids || []).map(x => {" +
+            "  if (x && typeof x === 'object') {" +
+            "   return String(x.delivery_id != null ? x.delivery_id :" +
+            "    (x.order_id != null ? x.order_id : (x.id != null ? x.id : ''))).trim();" +
+            "  }" +
+            "  return String(x == null ? '' : x).trim();" +
+            " }).filter(Boolean);" +
             " let detail = null;" +
             " let detailError = '';" +
 
@@ -479,8 +529,18 @@ public class MainActivity extends Activity {
             " const deliveryInfo = (detail && detail.deliveries_info) || {};" +
             " const latest = deliveryInfo.latest_deliveries || [];" +
 
-            " const activeOrders = latest.map(o => ({" +
-            "  delivery_id:String(o.delivery_id != null ? o.delivery_id : o.order_id || '')," +
+            " const activeOrders = latest.filter(o => {" +
+            "  const rawId = o.delivery_id != null ? o.delivery_id :" +
+            "   (o.order_id != null ? o.order_id :" +
+            "   (o.id != null ? o.id :" +
+            "   (o.deliveryId != null ? o.deliveryId : o.orderId)));" +
+            "  const id = String(rawId == null ? '' : rawId).trim();" +
+            "  return id !== '' && activeIds.includes(id);" +
+            " }).map(o => ({" +
+            "  delivery_id:String(o.delivery_id != null ? o.delivery_id :" +
+            "   (o.order_id != null ? o.order_id :" +
+            "   (o.id != null ? o.id :" +
+            "   (o.deliveryId != null ? o.deliveryId : o.orderId))))," +
             "  order_code:o.order_code || ''," +
             "  status:o.status || ''," +
             "  vendor_name:o.vendor_name || ''," +
@@ -663,22 +723,34 @@ public class MainActivity extends Activity {
                         "acceptance_rate", "acceptance", "acceptance_percentage"));
 
         addTileRow(card,
-                "⏱️ ساعات العمل", firstValue(rider,
-                        "worked_time", "worked_hours", "worked"),
                 "🕒 بداية الشيفت", firstValue(rider,
-                        "shift_start", "planned_shift_start", "session_start"));
+                        "shift_start", "planned_shift_start", "session_start"),
+                "🏁 نهاية الشيفت", firstValue(rider,
+                        "shift_end", "planned_shift_end", "session_end"));
 
         addTileRow(card,
-                "🏁 نهاية الشيفت", firstValue(rider,
-                        "shift_end", "planned_shift_end", "session_end"),
+                "⏱️ ساعات العمل", firstValue(rider,
+                        "worked_time", "worked_hours", "worked"),
                 "🚲 وسيلة التوصيل", firstValue(rider,
                         "vehicle", "vehicle_type"));
 
-        TextView detailsHint = makeText(orders.length() > 0
-                ? "📦 الأوردرات الظاهرة: " + orders.length() + " • اضغط لعرض التفاصيل والمراحل"
-                : "اضغط على الكارت لعرض تفاصيل المندوب والأوردرات المتاحة",
+        if (hasOrders) {
+            JSONObject activeOrder = orders.optJSONObject(0);
+            String stage = activeOrder == null
+                    ? "الأوردر نشط — تفاصيل المرحلة غير متاحة"
+                    : "🚦 مرحلة الأوردر: " + arabicStatus(
+                            activeOrder.optString("status", ""));
+            TextView orderStage = makeText(stage, 12, ORANGE, true);
+            orderStage.setPadding(dp(4), dp(8), dp(4), dp(3));
+            card.addView(orderStage);
+        }
+
+        TextView detailsHint = makeText(
+                hasOrders
+                ? "اضغط لعرض تفاصيل المندوب والأوردر النشط"
+                : "لا يوجد أوردر نشط مؤكد — اضغط لعرض تفاصيل المندوب",
                 12, ORANGE, true);
-        detailsHint.setPadding(0, dp(10), 0, dp(2));
+        detailsHint.setPadding(0, dp(8), 0, dp(2));
         card.addView(detailsHint);
         card.setOnClickListener(v -> showRiderDetails(rider, orders));
 
@@ -720,35 +792,65 @@ public class MainActivity extends Activity {
         addDetailLine(page, "المنطقة", firstValue(rider, "zone"));
         addDetailLine(page, "وسيلة التوصيل", firstValue(rider, "vehicle", "vehicle_type"));
 
-        TextView ordersTitle = makeText("الأوردرات ومراحلها", 18, ORANGE, true);
+        TextView ordersTitle = makeText("تفاصيل الأوردر النشط", 18, ORANGE, true);
         ordersTitle.setPadding(0, dp(16), 0, dp(8));
         page.addView(ordersTitle);
+
         if (orders.length() == 0) {
-            TextView none = makeText("لم تصل تفاصيل أوردرات من المصدر لهذا المندوب.", 13, MUTED, false);
-            page.addView(none);
-        }
-        for (int i = 0; i < orders.length(); i++) {
-            JSONObject order = orders.optJSONObject(i);
-            if (order == null) continue;
-            LinearLayout box = new LinearLayout(this);
-            box.setOrientation(LinearLayout.VERTICAL);
-            box.setPadding(dp(12), dp(11), dp(12), dp(11));
-            box.setBackground(round(Color.rgb(24, 20, 17), ORANGE, 1));
-            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, -2);
-            params.setMargins(0, 0, 0, dp(10));
-            page.addView(box, params);
-            String code = order.optString("order_code", "");
-            if (code.isEmpty()) code = order.optString("delivery_id", "غير متاح");
-            box.addView(makeText("📦 أوردر " + (i + 1) + " • " + code, 15, ORANGE, true));
-            box.addView(makeText("🚦 المرحلة: " + arabicStatus(order.optString("status", "")), 13, GREEN, true));
-            box.addView(makeText("🍔 المطعم: " + displayValue(order.optString("vendor_name", "")), 12, WHITE, false));
-            addAddress(box, "عنوان الاستلام", order.optString("pickup_address", ""));
-            addAddress(box, "عنوان العميل", order.optString("dropoff_address", ""));
-            JSONArray timeline = order.optJSONArray("timeline");
-            if (timeline != null && timeline.length() > 0) {
-                TextView time = makeText("أحداث التوصيل المسجلة: " + timeline.length(), 11, MUTED, false);
-                time.setPadding(0, dp(6), 0, 0);
-                box.addView(time);
+            boolean activeConfirmed =
+                    rider.optBoolean("has_active_deliveries", false)
+                    || rider.optInt("active_count") > 0;
+
+            String message = activeConfirmed
+                    ? "المصدر يؤكد وجود أوردر نشط، لكن تفاصيله غير متاحة حاليًا."
+                    : "لا يوجد أوردر نشط مؤكد لهذا المندوب.";
+
+            page.addView(makeText(message, 14, MUTED, false));
+        } else {
+            JSONObject order = orders.optJSONObject(0);
+
+            if (order == null) {
+                page.addView(makeText(
+                        "تعذر قراءة تفاصيل الأوردر النشط.",
+                        14, MUTED, false));
+            } else {
+                LinearLayout box = new LinearLayout(this);
+                box.setOrientation(LinearLayout.VERTICAL);
+                box.setPadding(dp(12), dp(12), dp(12), dp(12));
+                box.setBackground(round(
+                        Color.rgb(24, 20, 17), ORANGE, 1));
+
+                LinearLayout.LayoutParams params =
+                        new LinearLayout.LayoutParams(-1, -2);
+                params.setMargins(0, 0, 0, dp(10));
+                page.addView(box, params);
+
+                String code = order.optString("order_code", "");
+                if (code.isEmpty()) {
+                    code = order.optString("delivery_id", "غير متاح");
+                }
+
+                box.addView(makeText(
+                        "📦 رقم الأوردر: " + code, 15, ORANGE, true));
+                box.addView(makeText(
+                        "🚦 المرحلة: "
+                                + arabicStatus(order.optString("status", "")),
+                        14, GREEN, true));
+                box.addView(makeText(
+                        "🍔 المطعم: "
+                                + displayValue(order.optString("vendor_name", "")),
+                        13, WHITE, false));
+                addAddress(box, "عنوان الاستلام",
+                        order.optString("pickup_address", ""));
+                addAddress(box, "عنوان العميل",
+                        order.optString("dropoff_address", ""));
+
+                JSONArray timeline = order.optJSONArray("timeline");
+                if (timeline != null && timeline.length() > 0) {
+                    box.addView(makeText(
+                            "أحداث التوصيل المسجلة: " + timeline.length(),
+                            11, MUTED, false));
+                }
             }
         }
         setContentView(scroll);
@@ -770,6 +872,22 @@ public class MainActivity extends Activity {
 
     private void returnToDashboard() {
         detailVisible = false;
+
+        if (portalPageVisible && webView != null
+                && dashboardRoot != null) {
+            if (webView.getParent() instanceof ViewGroup) {
+                ((ViewGroup) webView.getParent()).removeView(webView);
+            }
+
+            int index = Math.min(6, dashboardRoot.getChildCount());
+            webView.setVisibility(View.GONE);
+            dashboardRoot.addView(webView, index,
+                    new LinearLayout.LayoutParams(-1, dp(155)));
+
+            portalPageVisible = false;
+            portalVisible = false;
+        }
+
         if (dashboardRoot != null) setContentView(dashboardRoot);
     }
 
@@ -1001,7 +1119,7 @@ public class MainActivity extends Activity {
 
     @Override
     public void onBackPressed() {
-        if (detailVisible) {
+        if (portalPageVisible || detailVisible) {
             returnToDashboard();
         } else if (webView != null && webView.canGoBack()) {
             webView.goBack();
