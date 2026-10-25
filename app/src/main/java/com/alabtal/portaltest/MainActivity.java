@@ -893,34 +893,64 @@ public class MainActivity extends Activity {
     }
 
 
+
     private void addRiderCard(JSONObject rider, JSONArray orders) {
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(dp(8), dp(7), dp(8), dp(7));
+        card.setPadding(dp(9), dp(8), dp(9), dp(7));
 
         GradientDrawable cardBg = new GradientDrawable(
                 GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[]{Color.rgb(30, 21, 16), Color.rgb(10, 11, 14)}
+                new int[]{Color.rgb(27, 25, 23), Color.rgb(11, 12, 15)}
         );
-        cardBg.setCornerRadius(dp(13));
-        cardBg.setStroke(dp(1), ORANGE);
+        cardBg.setCornerRadius(dp(14));
+        cardBg.setStroke(dp(1), Color.rgb(125, 70, 37));
         card.setBackground(cardBg);
-        card.setElevation(dp(2));
 
-        LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(
-                -1, -2);
-        cardParams.setMargins(dp(5), dp(3), dp(5), dp(4));
+        LinearLayout.LayoutParams cardParams =
+                new LinearLayout.LayoutParams(-1, -2);
+        cardParams.setMargins(dp(3), dp(3), dp(3), dp(4));
         cards.addView(card, cardParams);
 
-        String name = firstValue(rider, "name", "employee_name", "rider_name");
-        if (name.isEmpty()) name = "مندوب بدون اسم";
-        String id = firstValue(rider, "employee_id", "id", "rider_id");
-        String wallet = firstValue(rider, "wallet", "wallet_balance",
-                "walletBalance", "balance");
-        String totalOrders = firstValue(rider, "total_orders",
-                "orders_count", "totalOrders");
-        String state = firstValue(rider, "state", "status", "work_status");
+        String name = firstValue(
+                rider, "name", "employee_name", "rider_name");
+        if (name.equals("غير متاح")) name = "مندوب بدون اسم";
 
+        String id = firstValue(
+                rider, "employee_id", "id", "rider_id");
+
+        String wallet = firstValue(
+                rider, "wallet_balance", "wallet", "walletBalance",
+                "balance");
+
+        String totalOrders = firstValue(
+                rider, "total_orders", "orders_count", "totalOrders");
+
+        String performance = firstValue(
+                rider, "performance", "performance_score");
+
+        String workTime = firstValue(
+                rider, "worked_time", "worked_hours", "worked",
+                "worked_duration", "work_time");
+
+        String rawState = firstValue(
+                rider, "rider_status", "state", "status", "work_status");
+
+        String state = translateRiderStatus(rawState);
+        if (state.equals("غير متاح")) state = "غير محدد";
+
+        boolean hasOrders = orders != null && orders.length() > 0;
+
+        int stateColor = GREEN;
+        String lowerState = rawState.toLowerCase(Locale.ROOT);
+        if (lowerState.contains("break")) {
+            stateColor = ORANGE;
+        } else if (lowerState.contains("offline")
+                || lowerState.contains("inactive")) {
+            stateColor = RED;
+        }
+
+        // Header: rider name, ID and live status
         LinearLayout heading = new LinearLayout(this);
         heading.setOrientation(LinearLayout.HORIZONTAL);
         heading.setGravity(Gravity.CENTER_VERTICAL);
@@ -928,51 +958,83 @@ public class MainActivity extends Activity {
         LinearLayout identity = new LinearLayout(this);
         identity.setOrientation(LinearLayout.VERTICAL);
         identity.setGravity(Gravity.CENTER_VERTICAL);
-        identity.setLayoutParams(new LinearLayout.LayoutParams(0, -2, 1));
+        identity.setLayoutParams(
+                new LinearLayout.LayoutParams(0, -2, 1));
 
-        TextView nameView = makeText(name, 14, Color.WHITE, true);
+        TextView nameView = makeText(name, 14, WHITE, true);
         nameView.setMaxLines(1);
-        nameView.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        nameView.setEllipsize(
+                android.text.TextUtils.TruncateAt.END);
         identity.addView(nameView);
 
         TextView idView = makeText(
-                id.isEmpty() ? "مندوب" : "ID: " + id, 10, Color.LTGRAY, false);
+                id.equals("غير متاح") ? "مندوب" : "ID: " + id,
+                10, MUTED, false);
+        idView.setMaxLines(1);
         identity.addView(idView);
+
         heading.addView(identity);
 
-        boolean hasOrders = orders != null && orders.length() > 0;
-        TextView orderBadge = makeText(
-                hasOrders ? "● معاه أوردر" : "○ بدون أوردر",
-                10, hasOrders ? Color.rgb(110, 230, 145) : Color.LTGRAY, true);
-        orderBadge.setGravity(Gravity.CENTER);
-        orderBadge.setPadding(dp(6), dp(5), dp(6), dp(5));
-        heading.addView(orderBadge);
+        LinearLayout statusPill = new LinearLayout(this);
+        statusPill.setGravity(Gravity.CENTER);
+        statusPill.setPadding(dp(8), dp(5), dp(8), dp(5));
+        GradientDrawable pillBg = new GradientDrawable();
+        pillBg.setColor(Color.rgb(25, 29, 29));
+        pillBg.setCornerRadius(dp(18));
+        pillBg.setStroke(dp(1), stateColor);
+        statusPill.setBackground(pillBg);
+
+        TextView statusText = makeText(
+                "● " + state, 10, stateColor, true);
+        statusText.setGravity(Gravity.CENTER);
+        statusText.setMaxLines(1);
+        statusPill.addView(statusText);
+        heading.addView(statusPill);
+
         card.addView(heading);
 
-        // ملخص صغير ظاهر دائمًا
+        // Actual order indicator
+        TextView orderBadge = makeText(
+                hasOrders ? "● معاه أوردر" : "○ بدون أوردر",
+                10, hasOrders ? GREEN : MUTED, true);
+        orderBadge.setPadding(0, dp(4), 0, dp(1));
+        card.addView(orderBadge);
+
+        // Four equal compact metrics
         LinearLayout metrics = new LinearLayout(this);
         metrics.setOrientation(LinearLayout.HORIZONTAL);
         metrics.setGravity(Gravity.CENTER_VERTICAL);
-        LinearLayout.LayoutParams metricParams = new LinearLayout.LayoutParams(
-                -1, -2);
+
+        LinearLayout.LayoutParams metricParams =
+                new LinearLayout.LayoutParams(-1, -2);
         metricParams.topMargin = dp(5);
         card.addView(metrics, metricParams);
 
-        addCompactMetric(metrics, "المحفظة", wallet.isEmpty() ? "—" : wallet);
-        addCompactMetric(metrics, "الأوردرات",
-                totalOrders.isEmpty()
-                        ? String.valueOf(orders == null ? 0 : orders.length())
-                        : totalOrders);
+        String orderValue = totalOrders;
+        if (orderValue.equals("غير متاح")) {
+            orderValue = String.valueOf(
+                    orders == null ? 0 : orders.length());
+        }
 
-        TextView toggle = makeText("⌄ عرض التفاصيل", 11, ORANGE, true);
+        addCompactMetric(metrics, "المحفظة",
+                wallet.equals("غير متاح") ? "—" : wallet);
+        addCompactMetric(metrics, "الأوردرات", orderValue);
+        addCompactMetric(metrics, "الأداء",
+                performance.equals("غير متاح") ? "—" : performance);
+        addCompactMetric(metrics, "وقت العمل",
+                workTime.equals("غير متاح") ? "—" : workTime);
+
+        // Expandable details
+        TextView toggle = makeText(
+                "⌄ التفاصيل والأوردرات", 11, ORANGE, true);
         toggle.setGravity(Gravity.CENTER);
-        toggle.setPadding(0, dp(5), 0, dp(2));
+        toggle.setPadding(0, dp(6), 0, dp(2));
         card.addView(toggle);
 
         LinearLayout details = new LinearLayout(this);
         details.setOrientation(LinearLayout.VERTICAL);
         details.setVisibility(View.GONE);
-        details.setPadding(dp(2), dp(5), dp(2), 0);
+        details.setPadding(dp(2), dp(4), dp(2), 0);
         card.addView(details);
 
         addCompactDetail(details, "الحالة", state);
@@ -982,18 +1044,17 @@ public class MainActivity extends Activity {
         addCompactDetail(details, "المنطقة",
                 firstValue(rider, "zone", "area", "city"));
         addCompactDetail(details, "الأداء",
-                firstValue(rider, "performance", "performance_score"));
+                performance);
         addCompactDetail(details, "نسبة القبول",
-                firstValue(rider, "acceptance", "acceptance_rate"));
+                firstValue(rider, "acceptance_rate",
+                        "acceptance", "acceptanceRate"));
         addCompactDetail(details, "بداية الشيفت",
                 firstValue(rider, "shift_start", "shiftStart",
                         "shift_start_time", "session_start"));
         addCompactDetail(details, "نهاية الشيفت",
                 firstValue(rider, "shift_end", "shiftEnd",
                         "shift_end_time", "session_end"));
-        addCompactDetail(details, "وقت العمل",
-                firstValue(rider, "worked", "worked_time",
-                        "worked_duration", "work_time"));
+        addCompactDetail(details, "وقت العمل", workTime);
         addCompactDetail(details, "المركبة",
                 firstValue(rider, "vehicle", "vehicle_type"));
 
@@ -1001,17 +1062,26 @@ public class MainActivity extends Activity {
             for (int i = 0; i < orders.length(); i++) {
                 JSONObject order = orders.optJSONObject(i);
                 if (order == null) continue;
+
                 TextView orderTitle = makeText(
                         "📦 أوردر " + (i + 1), 12, ORANGE, true);
-                LinearLayout.LayoutParams op = new LinearLayout.LayoutParams(
-                        -1, -2);
+                LinearLayout.LayoutParams op =
+                        new LinearLayout.LayoutParams(-1, -2);
                 op.topMargin = dp(5);
                 details.addView(orderTitle, op);
 
                 addCompactDetail(details, "رقم الأوردر",
-                        firstValue(order, "order_code", "order_id", "id"));
-                addCompactDetail(details, "الحالة",
-                        firstValue(order, "status", "order_status", "stage"));
+                        firstValue(order, "order_code",
+                                "order_id", "id"));
+
+                String orderStatus = firstValue(
+                        order, "status", "order_status", "stage");
+
+                if (!orderStatus.equals("غير متاح")) {
+                    addOrderProgressTrack(details, orderStatus);
+                }
+
+                addCompactDetail(details, "الحالة", orderStatus);
                 addCompactDetail(details, "الاستلام",
                         firstValue(order, "pickup_address", "pickup",
                                 "pickupAddress"));
@@ -1021,7 +1091,8 @@ public class MainActivity extends Activity {
             }
         } else {
             TextView noOrder = makeText(
-                    "لا يوجد أوردر ظاهر لهذا المندوب", 11, Color.LTGRAY, false);
+                    "لا يوجد أوردر ظاهر لهذا المندوب",
+                    11, MUTED, false);
             noOrder.setPadding(0, dp(4), 0, dp(4));
             details.addView(noOrder);
         }
@@ -1029,34 +1100,52 @@ public class MainActivity extends Activity {
         View.OnClickListener toggleDetails = v -> {
             boolean show = details.getVisibility() != View.VISIBLE;
             details.setVisibility(show ? View.VISIBLE : View.GONE);
-            toggle.setText(show ? "⌃ إخفاء التفاصيل" : "⌄ عرض التفاصيل");
+            toggle.setText(show
+                    ? "⌃ إخفاء التفاصيل"
+                    : "⌄ التفاصيل والأوردرات");
         };
+
         heading.setOnClickListener(toggleDetails);
         metrics.setOnClickListener(toggleDetails);
         toggle.setOnClickListener(toggleDetails);
     }
 
-    private void addCompactMetric(LinearLayout parent, String label, String value) {
+
+    private void addCompactMetric(
+            LinearLayout parent, String label, String value) {
         LinearLayout item = new LinearLayout(this);
         item.setOrientation(LinearLayout.VERTICAL);
         item.setGravity(Gravity.CENTER);
-        item.setPadding(dp(5), dp(4), dp(5), dp(4));
+        item.setMinimumHeight(dp(49));
+        item.setPadding(dp(2), dp(5), dp(2), dp(5));
 
         GradientDrawable bg = new GradientDrawable();
-        bg.setColor(Color.rgb(20, 20, 22));
-        bg.setCornerRadius(dp(8));
-        bg.setStroke(dp(1), Color.rgb(100, 65, 40));
+        bg.setColor(Color.rgb(20, 21, 23));
+        bg.setCornerRadius(dp(9));
+        bg.setStroke(dp(1), Color.rgb(105, 66, 40));
         item.setBackground(bg);
 
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, -2, 1);
+        LinearLayout.LayoutParams lp =
+                new LinearLayout.LayoutParams(0, -2, 1);
         lp.setMargins(dp(2), 0, dp(2), 0);
         parent.addView(item, lp);
 
-        item.addView(makeText(label, 10, Color.LTGRAY, false));
-        TextView val = makeText(value, 13, Color.WHITE, true);
+        TextView title = makeText(label, 9, MUTED, false);
+        title.setGravity(Gravity.CENTER);
+        title.setMaxLines(1);
+        title.setEllipsize(
+                android.text.TextUtils.TruncateAt.END);
+        item.addView(title, new LinearLayout.LayoutParams(-1, -2));
+
+        TextView val = makeText(
+                value == null || value.trim().isEmpty()
+                        ? "—" : value,
+                11, WHITE, true);
+        val.setGravity(Gravity.CENTER);
         val.setMaxLines(1);
-        val.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        item.addView(val);
+        val.setEllipsize(
+                android.text.TextUtils.TruncateAt.END);
+        item.addView(val, new LinearLayout.LayoutParams(-1, -2));
     }
 
     private void addCompactDetail(LinearLayout parent, String label, String value) {

@@ -4,3 +4,21 @@ node_modules/
 local.properties
 *.jks
 *.keystore
+
+# Local backups
+*.backup
+*.backup-*
+*.bak
+
+# Android build files
+.gradle/
+build/
+app/build/
+local.properties
+
+# Secrets
+.env
+.env.*
+!.env.example
+*.jks
+*.keystore
