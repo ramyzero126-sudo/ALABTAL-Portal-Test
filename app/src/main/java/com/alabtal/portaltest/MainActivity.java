@@ -579,6 +579,53 @@ public class MainActivity extends Activity {
             " return {start:'',end:''};" +
             "}" +
 
+            "function getRosterRowFromTable(r) {" +
+            " const id = String(r.employee_id || '').trim();" +
+            " const name = String(r.name || '').replace(/\\s+/g,' ').trim().toLowerCase();" +
+            " const norm = s => String(s || '').replace(/\\s+/g,' ').trim();" +
+            " const tables = Array.from(document.querySelectorAll('table.cape-table, table'));" +
+            " for (const table of tables) {" +
+            "  let headers = Array.from(table.querySelectorAll('thead th,thead td')).map(x => norm(x.innerText || x.textContent).toLowerCase());" +
+            "  if (!headers.length) {" +
+            "   const first = table.querySelector('tr');" +
+            "   if (first) headers = Array.from(first.querySelectorAll('th,td')).map(x => norm(x.innerText || x.textContent).toLowerCase());" +
+            "  }" +
+            "  if (!headers.length) continue;" +
+            "  const idx = re => headers.findIndex(h => re.test(h));" +
+            "  const sessionIdx = idx(/current\\s*session|session|shift|الشيفت|الشفت|الوردية/);" +
+            "  const perfIdx = idx(/performance|\\butr\\b/);" +
+            "  const workedIdx = idx(/time\\s*worked|worked\\s*time|وقت\\s*العمل/);" +
+            "  const acceptanceIdx = idx(/acceptance\\s*rate|acceptance|نسبة\\s*القبول/);" +
+            "  const walletIdx = idx(/wallet\\s*balance|wallet|المحفظة/);" +
+            "  const ordersIdx = idx(/deliveries|orders|عدد\\s*الأوردرات|الأوردرات/);" +
+            "  const deliveriesInPerf = perfText => { const m = String(perfText || '').match(/Deliveries\\s*:\\s*(\\d+)/i); return m ? Number(m[1]) : -1; };" +
+            "  const rows = Array.from(table.querySelectorAll('tbody tr')).filter(tr => tr.querySelectorAll('td').length);" +
+            "  for (const tr of rows) {" +
+            "   const cells = Array.from(tr.querySelectorAll('td')).map(td => norm(td.innerText || td.textContent));" +
+            "   const text = cells.join(' ').toLowerCase();" +
+            "   const hasId = id && new RegExp('(?:^|\\\\D)' + id + '(?:\\\\D|$)').test(cells.join(' '));" +
+            "   const hasName = name && text.includes(name);" +
+            "   if (!hasId && !hasName) continue;" +
+            "   const cell = i => i >= 0 && i < cells.length ? cells[i] : '';" +
+            "   const session = cell(sessionIdx).match(/(\\d{1,2}:\\d{2})\\s*[-–—]\\s*(\\d{1,2}:\\d{2})/);" +
+            "   const perfText = cell(perfIdx);" +
+            "   const utr = perfText.match(/(?:UTR\\s*:\\s*)?([0-9]+(?:\\.[0-9]+)?)/i);" +
+            "   const workedText = cell(workedIdx);" +
+            "   const orderText = cell(ordersIdx);" +
+            "   const orderMatch = orderText.match(/\\d+/);" +
+            "   const deliveriesCount = deliveriesInPerf(perfText);" +
+            "   return {" +
+            "    start:session ? session[1] : '', end:session ? session[2] : ''," +
+            "    performance:utr ? utr[1] : '', worked_time:workedText," +
+            "    worked_seconds:(() => { const m = workedText.match(/^(\\d{1,3}):(\\d{2}):(\\d{2})$/); return m ? (+m[1]*3600 + +m[2]*60 + +m[3]) : -1; })()," +
+            "    acceptance_rate:cell(acceptanceIdx), wallet_balance:cell(walletIdx)," +
+            "    total_orders:deliveriesCount >= 0 ? deliveriesCount : (orderMatch ? Number(orderMatch[0]) : -1)" +
+            "   };" +
+            "  }" +
+            " }" +
+            " return {start:'',end:'',performance:'',worked_time:'',worked_seconds:-1,acceptance_rate:'',wallet_balance:'',total_orders:-1};" +
+            "}" +
+
             "const output = await Promise.all(riders.map(async r => {" +
             " const info = r.deliveries_info || {};" +
             " const activeIds = (info.active_delivery_ids || []).map(x => {" +
@@ -602,6 +649,14 @@ public class MainActivity extends Activity {
             " const deliveryInfo = (detail && detail.deliveries_info) || {};" +
             " const latest = deliveryInfo.latest_deliveries || [];" +
             " const tableShift = getShiftFromTable(r);" +
+            " const tableData = getRosterRowFromTable(r);" +
+            " const perf = (detail && detail.performance && typeof detail.performance === 'object') ? detail.performance : ((r.performance_info && typeof r.performance_info === 'object') ? r.performance_info : ((r.performance && typeof r.performance === 'object') ? r.performance : {}));" +
+            " const timeSpent = (detail && detail.time_spent && typeof detail.time_spent === 'object') ? detail.time_spent : ((r.time_spent && typeof r.time_spent === 'object') ? r.time_spent : {});" +
+            " const perfRaw = (typeof r.performance === 'number' || typeof r.performance === 'string') ? r.performance : (perf.utilization_rate ?? perf.score ?? perf.value ?? r.performance_score ?? r.performanceScore ?? '');" +
+            " const acceptanceRaw = r.acceptance_rate ?? r.acceptance_percentage ?? r.acceptance ?? r.acceptanceRate ?? perf.acceptance_rate ?? (r.acceptance_info || {}).rate ?? (r.acceptance_info || {}).percentage ?? (info || {}).acceptance_rate ?? '';" +
+            " const perfValue = perfRaw == null ? '' : String(perfRaw);" +
+            " const acceptanceValue = acceptanceRaw == null ? '' : String(acceptanceRaw);" +
+
 
             " const activeOrders = latest.filter(o => {" +
             "  const rawId = o.delivery_id != null ? o.delivery_id :" +
@@ -630,18 +685,18 @@ public class MainActivity extends Activity {
             "  has_active_deliveries:activeIds.length > 0," +
             "  active_delivery_ids:activeIds," +
             "  active_count:activeIds.length," +
-            "  wallet_balance:(r.wallet_info || {}).balance," +
+            "  wallet_balance:((r.wallet_info || {}).balance != null ? (r.wallet_info || {}).balance : (tableData.wallet_balance || ''))," +
             "  zone:(r.zone || {}).name || ''," +
             "  starting_point:(r.starting_point || {}).name || ''," +
             "  shift_start:(r.shift_start || r.shiftStart || r.planned_shift_start || r.session_start || (r.shift_info || {}).start_time || (r.shift_info || {}).start || (r.shift || {}).start_time || (r.shift || {}).start || (r.session || {}).start_time || (r.session || {}).start || tableShift.start || '')," +
             "  shift_end:(r.shift_end || r.shiftEnd || r.planned_shift_end || r.session_end || (r.shift_info || {}).end_time || (r.shift_info || {}).end || (r.shift || {}).end_time || (r.shift || {}).end || (r.session || {}).end_time || (r.session || {}).end || tableShift.end || '')," +
-            "  performance:r.performance_score ?? r.performance ?? r.performanceScore ?? (r.performance_info || {}).score ?? (r.performance_info || {}).value ?? (info || {}).performance_score ?? ''," +
-            "  acceptance_rate:r.acceptance_rate ?? r.acceptance_percentage ?? r.acceptance ?? r.acceptanceRate ?? (r.acceptance_info || {}).rate ?? (r.acceptance_info || {}).percentage ?? (info || {}).acceptance_rate ?? ''," +
-            "  worked_time:r.worked_time || r.worked_hours || r.worked || ''," +
+            "  performance:perfValue || tableData.performance || ''," +
+            "  acceptance_rate:acceptanceValue || tableData.acceptance_rate || ''," +
+            "  worked_time:r.worked_time || r.worked_hours || r.worked || tableData.worked_time || ''," +
             "  vehicle:(typeof r.vehicle === 'string' ? r.vehicle : ((r.vehicle || {}).name || (r.vehicle || {}).type || (r.vehicle || {}).vehicle_type || r.vehicle_type || r.vehicleType || (r.vehicle_info || {}).name || (r.vehicle_info || {}).type || ''))," +
-            "  total_orders:r.total_orders || r.total_deliveries_count || info.total_orders || info.total_deliveries_count || info.completed_deliveries_count || latest.length || 0," +
-            "  total_orders_source:(r.total_orders != null || r.total_deliveries_count != null || info.total_orders != null || info.total_deliveries_count != null || info.completed_deliveries_count != null) ? 'counter' : 'latest_deliveries'," +
-            "  worked_seconds:(detail && detail.time_spent && detail.time_spent.worked_seconds != null) ? Number(detail.time_spent.worked_seconds) : ((detail && detail.worked_seconds != null) ? Number(detail.worked_seconds) : -1)," +
+            "  total_orders:(r.total_orders != null ? r.total_orders : (r.total_deliveries_count != null ? r.total_deliveries_count : (info.total_orders != null ? info.total_orders : (info.total_deliveries_count != null ? info.total_deliveries_count : (info.completed_deliveries_count != null ? info.completed_deliveries_count : (tableData.total_orders >= 0 ? tableData.total_orders : latest.length))))))," +
+            "  total_orders_source:(r.total_orders != null || r.total_deliveries_count != null || info.total_orders != null || info.total_deliveries_count != null || info.completed_deliveries_count != null) ? 'counter' : (tableData.total_orders >= 0 ? 'roster_table' : 'latest_deliveries')," +
+            "  worked_seconds:(timeSpent.worked_seconds != null && Number.isFinite(Number(timeSpent.worked_seconds))) ? Number(timeSpent.worked_seconds) : ((detail && detail.worked_seconds != null && Number.isFinite(Number(detail.worked_seconds))) ? Number(detail.worked_seconds) : tableData.worked_seconds)," +
             "  active_orders:activeOrders," +
             "  detail_error:detailError" +
             " };" +
