@@ -897,19 +897,19 @@ public class MainActivity extends Activity {
     private void addRiderCard(JSONObject rider, JSONArray orders) {
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(dp(9), dp(8), dp(9), dp(7));
+        card.setPadding(dp(10), dp(7), dp(10), dp(6));
 
         GradientDrawable cardBg = new GradientDrawable(
                 GradientDrawable.Orientation.TOP_BOTTOM,
                 new int[]{Color.rgb(27, 25, 23), Color.rgb(11, 12, 15)}
         );
-        cardBg.setCornerRadius(dp(14));
+        cardBg.setCornerRadius(dp(13));
         cardBg.setStroke(dp(1), Color.rgb(125, 70, 37));
         card.setBackground(cardBg);
 
         LinearLayout.LayoutParams cardParams =
                 new LinearLayout.LayoutParams(-1, -2);
-        cardParams.setMargins(dp(3), dp(3), dp(3), dp(4));
+        cardParams.setMargins(dp(3), dp(3), dp(3), dp(5));
         cards.addView(card, cardParams);
 
         String name = firstValue(
@@ -961,7 +961,7 @@ public class MainActivity extends Activity {
         identity.setLayoutParams(
                 new LinearLayout.LayoutParams(0, -2, 1));
 
-        TextView nameView = makeText(name, 14, WHITE, true);
+        TextView nameView = makeText(name, 13, WHITE, true);
         nameView.setMaxLines(1);
         nameView.setEllipsize(
                 android.text.TextUtils.TruncateAt.END);
@@ -977,7 +977,7 @@ public class MainActivity extends Activity {
 
         LinearLayout statusPill = new LinearLayout(this);
         statusPill.setGravity(Gravity.CENTER);
-        statusPill.setPadding(dp(8), dp(5), dp(8), dp(5));
+        statusPill.setPadding(dp(7), dp(4), dp(7), dp(4));
         GradientDrawable pillBg = new GradientDrawable();
         pillBg.setColor(Color.rgb(25, 29, 29));
         pillBg.setCornerRadius(dp(18));
@@ -1007,7 +1007,7 @@ public class MainActivity extends Activity {
 
         LinearLayout.LayoutParams metricParams =
                 new LinearLayout.LayoutParams(-1, -2);
-        metricParams.topMargin = dp(5);
+        metricParams.topMargin = dp(4);
         card.addView(metrics, metricParams);
 
         String orderValue = totalOrders;
@@ -1028,7 +1028,7 @@ public class MainActivity extends Activity {
         TextView toggle = makeText(
                 "⌄ التفاصيل والأوردرات", 11, ORANGE, true);
         toggle.setGravity(Gravity.CENTER);
-        toggle.setPadding(0, dp(6), 0, dp(2));
+        toggle.setPadding(0, dp(4), 0, dp(1));
         card.addView(toggle);
 
         LinearLayout details = new LinearLayout(this);
