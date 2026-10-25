@@ -160,7 +160,7 @@ public class MainActivity extends Activity {
 
         GradientDrawable brandBg = new GradientDrawable(
                 GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[]{Color.rgb(36, 21, 10), Color.rgb(8, 9, 11)}
+                new int[]{Color.rgb(65, 28, 5), Color.rgb(5, 6, 9)}
         );
         brandBg.setCornerRadius(dp(12));
         brandBg.setStroke(dp(1), ORANGE);
@@ -406,14 +406,11 @@ public class MainActivity extends Activity {
 
         GradientDrawable tileBg = new GradientDrawable(
                 GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[] {
-                    Color.rgb(25, 20, 19),
-                    Color.rgb(11, 12, 15)
-                });
-        tileBg.setCornerRadius(dp(9));
-        tileBg.setStroke(dp(1), Color.rgb(95, 43, 28));
+                new int[]{Color.rgb(37, 23, 15), Color.rgb(9, 10, 14)});
+        tileBg.setCornerRadius(dp(12));
+        tileBg.setStroke(dp(1), Color.rgb(170, 76, 24));
         box.setBackground(tileBg);
-        box.setElevation(dp(2));
+        box.setElevation(dp(5));
 
         TextView l = makeText(label, 10, MUTED, false);
         l.setMaxLines(1);
@@ -601,12 +598,12 @@ public class MainActivity extends Activity {
             "  wallet_balance:(r.wallet_info || {}).balance," +
             "  zone:(r.zone || {}).name || ''," +
             "  starting_point:(r.starting_point || {}).name || ''," +
-            "  shift_start:r.shift_start || r.shiftStart || (r.shift_info || {}).start_time || (r.shift || {}).start_time || ''," +
-            "  shift_end:r.shift_end || r.shiftEnd || (r.shift_info || {}).end_time || (r.shift || {}).end_time || ''," +
-            "  performance:r.performance_score || r.performance || ''," +
-            "  acceptance_rate:r.acceptance_rate || r.acceptance_percentage || r.acceptance || ''," +
+            "  shift_start:(r.shift_start || r.shiftStart || r.planned_shift_start || r.session_start || (r.shift_info || {}).start_time || (r.shift_info || {}).start || (r.shift || {}).start_time || (r.shift || {}).start || (r.session || {}).start_time || (r.session || {}).start || '')," +
+            "  shift_end:(r.shift_end || r.shiftEnd || r.planned_shift_end || r.session_end || (r.shift_info || {}).end_time || (r.shift_info || {}).end || (r.shift || {}).end_time || (r.shift || {}).end || (r.session || {}).end_time || (r.session || {}).end || '')," +
+            "  performance:r.performance_score ?? r.performance ?? r.performanceScore ?? (r.performance_info || {}).score ?? (r.performance_info || {}).value ?? (info || {}).performance_score ?? ''," +
+            "  acceptance_rate:r.acceptance_rate ?? r.acceptance_percentage ?? r.acceptance ?? r.acceptanceRate ?? (r.acceptance_info || {}).rate ?? (r.acceptance_info || {}).percentage ?? (info || {}).acceptance_rate ?? ''," +
             "  worked_time:r.worked_time || r.worked_hours || r.worked || ''," +
-            "  vehicle:r.vehicle || r.vehicle_type || ''," +
+            "  vehicle:(typeof r.vehicle === 'string' ? r.vehicle : ((r.vehicle || {}).name || (r.vehicle || {}).type || (r.vehicle || {}).vehicle_type || r.vehicle_type || r.vehicleType || (r.vehicle_info || {}).name || (r.vehicle_info || {}).type || ''))," +
             "  total_orders:r.total_orders || r.total_deliveries_count || info.total_orders || info.total_deliveries_count || info.completed_deliveries_count || latest.length || 0," +
             "  total_orders_source:(r.total_orders != null || r.total_deliveries_count != null || info.total_orders != null || info.total_deliveries_count != null || info.completed_deliveries_count != null) ? 'counter' : 'latest_deliveries'," +
             "  active_orders:activeOrders," +
@@ -777,16 +774,16 @@ public class MainActivity extends Activity {
     private void addRiderCard(JSONObject rider, JSONArray orders) {
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(dp(12), dp(12), dp(12), dp(12));
+        card.setPadding(dp(14), dp(14), dp(14), dp(14));
 
         GradientDrawable cardBg = new GradientDrawable(
                 GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[]{Color.rgb(24, 23, 21), Color.rgb(12, 13, 16)}
+                new int[]{Color.rgb(30, 20, 14), Color.rgb(7, 8, 12)}
         );
-        cardBg.setCornerRadius(dp(15));
-        cardBg.setStroke(dp(1), ORANGE);
+        cardBg.setCornerRadius(dp(19));
+        cardBg.setStroke(dp(2), Color.rgb(255, 125, 15));
         card.setBackground(cardBg);
-        card.setElevation(dp(3));
+        card.setElevation(dp(8));
 
         LinearLayout.LayoutParams cp =
                 new LinearLayout.LayoutParams(-1, -2);
