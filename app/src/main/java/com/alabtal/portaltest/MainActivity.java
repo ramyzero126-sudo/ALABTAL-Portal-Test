@@ -104,23 +104,59 @@ public class MainActivity extends Activity {
         root.setBackgroundColor(BG);
         root.setPadding(dp(12), dp(5), dp(12), dp(5));
 
-        // Header
-        TextView globe = makeText("🌐", 29, ORANGE, true);
+        // Premium AL ABTAL LED Header
+        LinearLayout brand = new LinearLayout(this);
+        brand.setOrientation(LinearLayout.VERTICAL);
+        brand.setGravity(Gravity.CENTER);
+        brand.setPadding(dp(8), dp(5), dp(8), dp(7));
+
+        TextView globe = makeText("🌐", 24, ORANGE, true);
         globe.setGravity(Gravity.CENTER);
-        root.addView(globe, new LinearLayout.LayoutParams(-1, dp(39)));
+        brand.addView(globe, new LinearLayout.LayoutParams(-1, dp(29)));
 
-        TextView title = makeText("AL ABTAL OPERATIONS", 21, WHITE, true);
+        TextView title = makeText("AL ABTAL", 29, ORANGE, true);
         title.setGravity(Gravity.CENTER);
-        root.addView(title);
+        title.setTypeface(Typeface.create("sans-serif-black", Typeface.BOLD));
+        title.setLetterSpacing(0.10f);
+        title.setShadowLayer(dp(5), 0, 0, ORANGE);
+        brand.addView(title, new LinearLayout.LayoutParams(-1, dp(42)));
 
-        banner = makeText("", 15, ORANGE, true);
+        TextView subtitle = makeText("L I V E   O P E R A T I O N S", 10, WHITE, true);
+        subtitle.setGravity(Gravity.CENTER);
+        brand.addView(subtitle, new LinearLayout.LayoutParams(-1, dp(20)));
+
+        GradientDrawable brandBg = new GradientDrawable(
+                GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{Color.rgb(36, 21, 10), Color.rgb(8, 9, 11)}
+        );
+        brandBg.setCornerRadius(dp(12));
+        brandBg.setStroke(dp(1), ORANGE);
+        brand.setBackground(brandBg);
+
+        LinearLayout.LayoutParams brandParams =
+                new LinearLayout.LayoutParams(-1, dp(101));
+        brandParams.setMargins(0, dp(3), 0, dp(7));
+        root.addView(brand, brandParams);
+
+        banner = makeText("", 14, ORANGE, true);
         banner.setGravity(Gravity.CENTER);
         banner.setSingleLine(true);
-        banner.setPadding(4, dp(7), 4, dp(7));
-        banner.setBackground(round(PANEL, ORANGE, 1));
+        banner.setLetterSpacing(0.025f);
+        banner.setShadowLayer(dp(4), 0, 0, ORANGE);
+        banner.setPadding(dp(5), dp(7), dp(5), dp(7));
+
+        GradientDrawable ledBg = new GradientDrawable(
+                GradientDrawable.Orientation.LEFT_RIGHT,
+                new int[]{Color.rgb(35, 16, 4), Color.rgb(12, 12, 13),
+                          Color.rgb(35, 16, 4)}
+        );
+        ledBg.setCornerRadius(dp(8));
+        ledBg.setStroke(dp(1), ORANGE);
+        banner.setBackground(ledBg);
+
         LinearLayout.LayoutParams bp =
-            new LinearLayout.LayoutParams(-1, dp(43));
-        bp.setMargins(0, dp(8), 0, dp(9));
+                new LinearLayout.LayoutParams(-1, dp(43));
+        bp.setMargins(0, 0, 0, dp(9));
         root.addView(banner, bp);
         handler.post(bannerRunnable);
 
@@ -491,83 +527,108 @@ public class MainActivity extends Activity {
     private void addRiderCard(JSONObject rider, JSONArray orders) {
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(dp(12), dp(11), dp(12), dp(12));
-        card.setBackground(round(PANEL, ORANGE, 1));
+        card.setPadding(dp(12), dp(12), dp(12), dp(12));
+
+        GradientDrawable cardBg = new GradientDrawable(
+                GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{Color.rgb(24, 23, 21), Color.rgb(12, 13, 16)}
+        );
+        cardBg.setCornerRadius(dp(15));
+        cardBg.setStroke(dp(1), ORANGE);
+        card.setBackground(cardBg);
+        card.setElevation(dp(3));
 
         LinearLayout.LayoutParams cp =
-            new LinearLayout.LayoutParams(-1, -2);
-        cp.setMargins(0, 0, 0, dp(11));
+                new LinearLayout.LayoutParams(-1, -2);
+        cp.setMargins(0, 0, 0, dp(12));
         cards.addView(card, cp);
 
         String name = rider.optString("name", "مندوب بدون اسم");
         String id = rider.optString("employee_id", "—");
 
-        TextView heading = makeText(name, 17, WHITE, true);
+        TextView heading = makeText("👤  " + name, 18, WHITE, true);
+        heading.setTypeface(Typeface.create("sans-serif-black", Typeface.BOLD));
         card.addView(heading);
 
-        TextView idView = makeText("رقم المندوب: " + id, 11, MUTED, false);
+        TextView idView = makeText("🪪  رقم المندوب: " + id, 11, MUTED, false);
+        idView.setPadding(0, dp(3), 0, dp(7));
         card.addView(idView);
 
-        boolean hasOrders = rider.optBoolean(
-            "has_active_deliveries",
-            rider.optInt("active_count") > 0
-        );
+        boolean hasOrders =
+                rider.optBoolean("has_active_deliveries", false)
+                || rider.optInt("active_count") > 0
+                || orders.length() > 0;
 
-        String riderStatus = rider.optString("rider_status", "غير معروف");
+        String riderStatus = rider.optString("rider_status",
+                rider.optString("status", "غير معروف"));
         String riderStatusArabic = translateRiderStatus(riderStatus);
 
         TextView state = makeText(
-            "حالة المندوب: " + riderStatusArabic +
-            "     •     " + (hasOrders ? "معاه أوردر" : "مفيش أوردر نشط"),
-            12,
-            hasOrders ? GREEN : MUTED,
-            true
+                (hasOrders ? "📦  معاه أوردر" : "✓  مفيش أوردر نشط")
+                + "     •     " + riderStatusArabic,
+                12, hasOrders ? GREEN : MUTED, true
         );
-        state.setPadding(0, dp(5), 0, dp(3));
-        card.addView(state);
+        state.setGravity(Gravity.CENTER);
+        state.setPadding(dp(7), dp(8), dp(7), dp(8));
+        state.setBackground(round(
+                Color.rgb(20, 30, 25),
+                hasOrders ? GREEN : Color.rgb(75, 80, 85), 1
+        ));
+        LinearLayout.LayoutParams stateParams =
+                new LinearLayout.LayoutParams(-1, -2);
+        stateParams.setMargins(0, 0, 0, dp(9));
+        card.addView(state, stateParams);
 
-        String wallet = "غير متاح";
-        Object walletValue = rider.opt("wallet_balance");
-        if (walletValue != null && walletValue != JSONObject.NULL) {
-            wallet = String.valueOf(walletValue);
-        }
+        String wallet = firstValue(rider,
+                "wallet_balance", "wallet", "balance");
+        int activeCount = Math.max(
+                rider.optInt("active_count"), orders.length());
 
-        addTileRow(
-            card,
-            "الأوردرات النشطة",
-            String.valueOf(rider.optInt("active_count")),
-            "المحفظة",
-            wallet
-        );
+        addTileRow(card,
+                "📦 الأوردرات النشطة", String.valueOf(activeCount),
+                "💰 المحفظة", wallet);
 
-        addTileRow(
-            card,
-            "المحطة",
-            rider.optString("starting_point", "غير متاح"),
-            "المنطقة",
-            rider.optString("zone", "غير متاح")
-        );
+        addTileRow(card,
+                "📍 المحطة", firstValue(rider, "starting_point"),
+                "🗺️ المنطقة", firstValue(rider, "zone"));
+
+        addTileRow(card,
+                "⚡ الأداء", firstValue(rider,
+                        "performance", "performance_score"),
+                "✅ نسبة القبول", firstValue(rider,
+                        "acceptance_rate", "acceptance", "acceptance_percentage"));
+
+        addTileRow(card,
+                "⏱️ ساعات العمل", firstValue(rider,
+                        "worked_time", "worked_hours", "worked"),
+                "🕒 بداية الشيفت", firstValue(rider,
+                        "shift_start", "planned_shift_start", "session_start"));
+
+        addTileRow(card,
+                "🏁 نهاية الشيفت", firstValue(rider,
+                        "shift_end", "planned_shift_end", "session_end"),
+                "🚲 وسيلة التوصيل", firstValue(rider,
+                        "vehicle", "vehicle_type"));
 
         if (orders.length() == 0 && hasOrders) {
             TextView missing = makeText(
-                "يوجد أوردر نشط لكن تفاصيله غير متاحة في استجابة التفاصيل.",
-                12, ORANGE, false
-            );
+                    "⚠️ يوجد أوردر نشط، لكن تفاصيله غير متاحة في استجابة المصدر.",
+                    12, ORANGE, false);
             missing.setPadding(0, dp(8), 0, 0);
             card.addView(missing);
 
             String error = rider.optString("detail_error", "");
             if (!error.isEmpty()) {
-                TextView err = makeText("تفاصيل الخطأ: " + error, 10, MUTED, false);
+                TextView err = makeText(
+                        "تفاصيل الخطأ: " + error, 10, MUTED, false);
                 card.addView(err);
             }
         }
 
         if (orders.length() == 0 && !hasOrders) {
             TextView none = makeText(
-                "لا توجد أوردرات نشطة ظاهرة لهذا المندوب.",
-                12, MUTED, false
-            );
+                    "لا توجد أوردرات نشطة ظاهرة لهذا المندوب.",
+                    12, MUTED, false);
             none.setPadding(0, dp(8), 0, 0);
             card.addView(none);
         }
@@ -578,14 +639,19 @@ public class MainActivity extends Activity {
 
             LinearLayout orderBox = new LinearLayout(this);
             orderBox.setOrientation(LinearLayout.VERTICAL);
-            orderBox.setPadding(dp(10), dp(9), dp(10), dp(9));
-            orderBox.setBackground(
-                round(Color.rgb(24, 25, 29), Color.rgb(90, 57, 28), 1)
+            orderBox.setPadding(dp(10), dp(10), dp(10), dp(10));
+
+            GradientDrawable orderBg = new GradientDrawable(
+                    GradientDrawable.Orientation.TOP_BOTTOM,
+                    new int[]{Color.rgb(35, 25, 17), Color.rgb(18, 19, 22)}
             );
+            orderBg.setCornerRadius(dp(11));
+            orderBg.setStroke(dp(1), Color.rgb(190, 91, 24));
+            orderBox.setBackground(orderBg);
 
             LinearLayout.LayoutParams op =
-                new LinearLayout.LayoutParams(-1, -2);
-            op.setMargins(0, dp(9), 0, 0);
+                    new LinearLayout.LayoutParams(-1, -2);
+            op.setMargins(0, dp(10), 0, 0);
             card.addView(orderBox, op);
 
             String code = order.optString("order_code", "");
@@ -594,38 +660,51 @@ public class MainActivity extends Activity {
             }
 
             TextView orderTitle = makeText(
-                "الأوردر " + (j + 1) + "  •  " + code,
-                13, ORANGE, true
-            );
+                    "🛵  الأوردر " + (j + 1) + "  •  " + code,
+                    14, ORANGE, true);
             orderBox.addView(orderTitle);
 
             TextView vendor = makeText(
-                "المطعم: " + displayValue(order.optString("vendor_name", "")),
-                12, WHITE, true
-            );
-            vendor.setPadding(0, dp(5), 0, 0);
+                    "🍔  المطعم: " + displayValue(
+                            order.optString("vendor_name", "")),
+                    12, WHITE, true);
+            vendor.setPadding(0, dp(6), 0, 0);
             orderBox.addView(vendor);
 
             TextView stage = makeText(
-                "المرحلة: " + arabicStatus(order.optString("status", "")),
-                12, GREEN, true
-            );
-            stage.setPadding(0, dp(5), 0, 0);
+                    "🚦  المرحلة: " + arabicStatus(
+                            order.optString("status", "")),
+                    12, GREEN, true);
+            stage.setPadding(0, dp(6), 0, 0);
             orderBox.addView(stage);
 
-            addAddress(orderBox, "عنوان الاستلام", order.optString("pickup_address", ""));
-            addAddress(orderBox, "عنوان العميل", order.optString("dropoff_address", ""));
+            addAddress(orderBox, "🟠 عنوان الاستلام",
+                    order.optString("pickup_address", ""));
+            addAddress(orderBox, "📍 عنوان العميل",
+                    order.optString("dropoff_address", ""));
 
             JSONArray timeline = order.optJSONArray("timeline");
             if (timeline != null && timeline.length() > 0) {
                 TextView timelineView = makeText(
-                    "أحداث التوصيل المسجلة: " + timeline.length(),
-                    10, MUTED, false
-                );
-                timelineView.setPadding(0, dp(5), 0, 0);
+                        "🧭 أحداث التوصيل المسجلة: " + timeline.length(),
+                        10, MUTED, false);
+                timelineView.setPadding(0, dp(6), 0, 0);
                 orderBox.addView(timelineView);
             }
         }
+    }
+
+    private String firstValue(JSONObject object, String... keys) {
+        for (String key : keys) {
+            if (!object.has(key) || object.isNull(key)) continue;
+            Object value = object.opt(key);
+            if (value == null || value == JSONObject.NULL) continue;
+            String text = String.valueOf(value).trim();
+            if (!text.isEmpty() && !"null".equalsIgnoreCase(text)) {
+                return text;
+            }
+        }
+        return "غير متاح";
     }
 
     private void addAddress(LinearLayout parent, String label, String address) {
