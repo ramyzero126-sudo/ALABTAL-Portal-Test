@@ -1,15 +1,13 @@
+
 package com.alabtal.portaltest;
 
 import android.app.Activity;
-import android.provider.MediaStore;
-import android.os.Environment;
-import android.os.Build;
-import android.net.Uri;
-import android.content.ContentValues;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.graphics.Color;
-import android.view.View;
 import android.view.Gravity;
+import android.webkit.JavascriptInterface;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.webkit.WebChromeClient;
@@ -18,12 +16,35 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.ScrollView;
 import android.widget.Toast;
-import org.json.JSONTokener;
+import android.content.ContentValues;
+import android.provider.MediaStore;
+import android.os.Environment;
+import android.net.Uri;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 
 public class MainActivity extends Activity {
+
     private WebView webView;
     private TextView status;
     private TextView result;
+    private Button inspectButton;
+
+    private final Handler handler = new Handler(Looper.getMainLooper());
+    private boolean inspectionRunning = false;
+
+    private static final String PORTAL_URL =
+        "https://eg.me.logisticsbackoffice.com/dashboard/rooster/live-3pl";
+
+    private static final String RIDERS_URL =
+        "/api/rider-live-operations/v1/external/city/214/riders?page=0&size=10";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -34,11 +55,11 @@ public class MainActivity extends Activity {
         root.setBackgroundColor(Color.rgb(10, 10, 10));
 
         TextView title = new TextView(this);
-        title.setText("AL ABTAL • PORTAL TEST");
+        title.setText("AL ABTAL • LIVE ORDERS");
         title.setTextColor(Color.rgb(255, 121, 0));
-        title.setTextSize(19);
+        title.setTextSize(20);
         title.setGravity(Gravity.CENTER);
-        title.setPadding(8, 14, 8, 10);
+        title.setPadding(8, 14, 8, 12);
         root.addView(title);
 
         LinearLayout controls = new LinearLayout(this);
@@ -46,316 +67,375 @@ public class MainActivity extends Activity {
 
         Button open = new Button(this);
         open.setText("فتح البوابة");
-        controls.addView(open, new LinearLayout.LayoutParams(0, -2, 1));
+        controls.addView(open,
+            new LinearLayout.LayoutParams(0, -2, 1));
 
-        Button inspect = new Button(this);
-        inspect.setText("فحص الروستر");
-        controls.addView(inspect, new LinearLayout.LayoutParams(0, -2, 1));
+        inspectButton = new Button(this);
+        inspectButton.setText("فحص الأوردرات");
+        controls.addView(inspectButton,
+            new LinearLayout.LayoutParams(0, -2, 1));
 
         root.addView(controls);
 
         status = new TextView(this);
-        status.setText("افتح البوابة وسجّل الدخول بنفسك.");
         status.setTextColor(Color.WHITE);
-        status.setPadding(10, 8, 10, 8);
+        status.setTextSize(13);
+        status.setPadding(12, 8, 12, 8);
+        status.setText("افتح البوابة وسجّل الدخول.");
         root.addView(status);
 
         webView = new WebView(this);
         webView.getSettings().setJavaScriptEnabled(true);
         webView.getSettings().setDomStorageEnabled(true);
         webView.getSettings().setSupportMultipleWindows(false);
+
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public void onPageFinished(WebView view, String url) {
                 status.setText("الصفحة: " + url);
             }
         });
+
         webView.setWebChromeClient(new WebChromeClient());
-        root.addView(webView, new LinearLayout.LayoutParams(-1, 0, 1));
+
+        // الجسر مخصص لاستلام تقرير الفحص فقط.
+        webView.addJavascriptInterface(new Object() {
+            @JavascriptInterface
+            public void onReport(String json) {
+                runOnUiThread(() -> handleReport(json));
+            }
+
+            @JavascriptInterface
+            public void onError(String message) {
+                runOnUiThread(() -> {
+                    inspectionRunning = false;
+                    inspectButton.setEnabled(true);
+                    status.setText("تعذر الفحص: " + message);
+                    Toast.makeText(
+                        MainActivity.this,
+                        "فشل جلب البيانات",
+                        Toast.LENGTH_LONG
+                    ).show();
+                });
+            }
+        }, "AlabtalBridge");
+
+        root.addView(webView,
+            new LinearLayout.LayoutParams(-1, 0, 1));
 
         result = new TextView(this);
         result.setTextColor(Color.WHITE);
-        result.setTextSize(12);
-        result.setPadding(10, 8, 10, 8);
+        result.setTextSize(13);
+        result.setPadding(12, 10, 12, 10);
+        result.setTextIsSelectable(true);
+
         ScrollView resultScroll = new ScrollView(this);
         resultScroll.addView(result);
-        root.addView(resultScroll, new LinearLayout.LayoutParams(-1, 150));
+        root.addView(resultScroll,
+            new LinearLayout.LayoutParams(-1, 0, 1));
 
         setContentView(root);
 
         open.setOnClickListener(v -> openPortal());
-        inspect.setOnClickListener(v -> inspectRoster());
+        inspectButton.setOnClickListener(v -> inspectRoster());
 
         openPortal();
     }
 
     private void openPortal() {
-        webView.loadUrl(
-            "https://eg.me.logisticsbackoffice.com/dashboard/rooster/live-3pl"
-        );
+        webView.loadUrl(PORTAL_URL);
     }
 
     private void inspectRoster() {
-        String script =
-            "(function(){" +
-            "var txt=function(e){return (e&&(e.innerText||e.textContent)||'').trim()};" +
-            "var visible=function(e){" +
-            "var r=e.getBoundingClientRect(),s=getComputedStyle(e);" +
-            "return r.width>0&&r.height>0&&s.display!=='none'&&s.visibility!=='hidden';" +
-            "};" +
-            "var desc=function(e){" +
-            "return {tag:e.tagName,text:txt(e).slice(0,500)," +
-            "id:e.id||'',role:e.getAttribute('role')," +
-            "aria:e.getAttribute('aria-label'),expanded:e.getAttribute('aria-expanded')," +
-            "controls:e.getAttribute('aria-controls'),title:e.getAttribute('title')," +
-            "cls:typeof e.className==='string'?e.className:''," +
-            "html:(e.outerHTML||'').slice(0,1200)};" +
-            "};" +
-            "var all=Array.from(document.querySelectorAll('body *'));" +
-            "var cards=all.filter(function(e){" +
-            "return visible(e)&&e.children.length>0&&" +
-            "/ID:\\s*\\d+/.test(txt(e))&&/Name:/.test(txt(e))&&txt(e).length<5000;" +
-            "}).filter(function(e){" +
-            "return !Array.from(e.children).some(function(c){" +
-            "return visible(c)&&/ID:\\s*\\d+/.test(txt(c))&&/Name:/.test(txt(c));" +
-            "});" +
-            "}).slice(0,30).map(function(card){" +
-            "var buttons=Array.from(card.querySelectorAll(" +
-            "'button,[role=button],summary,a,[aria-expanded],svg'))" +
-            ".filter(visible).slice(0,30).map(function(e){" +
-            "var chain=[],n=e;" +
-            "for(var i=0;n&&i<4;i++,n=n.parentElement){" +
-            "chain.push({tag:n.tagName,id:n.id||''," +
-            "cls:typeof n.className==='string'?n.className:''," +
-            "text:txt(n).slice(0,500)});" +
-            "}" +
-            "return {element:desc(e),ancestors:chain};" +
-            "});" +
-            "return {cardText:txt(card).slice(0,1800)," +
-            "cardClass:typeof card.className==='string'?card.className:''," +
-            "buttons:buttons};" +
-            "});" +
-            "var controls=all.filter(function(e){" +
-            "if(!visible(e))return false;" +
-            "var tag=e.tagName.toLowerCase();" +
-            "var label=[e.getAttribute('aria-label'),e.getAttribute('title')," +
-            "e.getAttribute('data-testid'),typeof e.className==='string'?e.className:''," +
-            "txt(e)].join(' ');" +
-            "return /button|summary/.test(tag)||e.getAttribute('role')==='button'||" +
-            "e.hasAttribute('aria-expanded')||/chevron|accordion|expand|collapse|arrow/i.test(label);" +
-            "}).filter(function(e){" +
-            "return !Array.from(e.children).some(function(c){" +
-            "return visible(c)&&(/button|summary/.test(c.tagName.toLowerCase())||" +
-            "c.getAttribute('role')==='button'||c.hasAttribute('aria-expanded'));" +
-            "});" +
-            "}).slice(0,100).map(desc);" +
-            "var orderEls=all.filter(function(e){" +
-            "return visible(e)&&e.children.length===0&&" +
-            "/Order ID:|HF_[A-Z0-9]+|Accepted Order|Ongoing orders|Past orders|" +
-            "Picked up|Near drop off|Delivered|dropoff_address|pickup_address/i.test(txt(e));" +
-            "}).slice(0,100).map(function(e){" +
-            "var chain=[],n=e;" +
-            "for(var i=0;n&&i<5;i++,n=n.parentElement){" +
-            "chain.push({tag:n.tagName,cls:typeof n.className==='string'?n.className:''," +
-            "text:txt(n).slice(0,1500),id:n.id||''});" +
-            "}" +
-            "return {element:desc(e),ancestors:chain};" +
-            "});" +
-            "var detailHeadings=all.filter(function(e){" +
-"var t=txt(e);" +
-"return visible(e)&&e.children.length<3&&" +
-"(t==='Ongoing orders'||t.indexOf('Past orders')===0);" +
-"}).map(function(e){" +
-"var chain=[],n=e;" +
-"for(var i=0;n&&i<6;i++,n=n.parentElement){" +
-"chain.push({tag:n.tagName,cls:typeof n.className==='string'?n.className:''," +
-"text:txt(n).slice(0,1800),html:(n.outerHTML||'').slice(0,2500)});" +
-"}" +
-"return {heading:txt(e),ancestors:chain};" +
-"});" +
-"var orderCards=all.filter(function(e){" +
-"return visible(e)&&e.children.length>0&&" +
-"/Order ID:\\s*HF_[A-Z0-9]+/i.test(txt(e))&&txt(e).length<7000;" +
-"}).filter(function(e){" +
-"return !Array.from(e.children).some(function(c){" +
-"return visible(c)&&/Order ID:\\s*HF_[A-Z0-9]+/i.test(txt(c));" +
-"});" +
-"}).slice(0,30).map(function(e){" +
-"var chain=[],n=e;" +
-"for(var i=0;n&&i<8;i++,n=n.parentElement){" +
-"chain.push({tag:n.tagName,cls:typeof n.className==='string'?n.className:''," +
-"text:txt(n).slice(0,2500),html:(n.outerHTML||'').slice(0,3500)});" +
-"}" +
-"return {orderText:txt(e).slice(0,3000),ancestors:chain};" +
-"});" +
-"var detailPanels=all.filter(function(e){" +
-            "var t=txt(e);" +
-            "return visible(e)&&t.indexOf('Rider ID:')>=0&&" +
-            "t.indexOf('Ongoing orders')>=0&&t.indexOf('Past orders')>=0&&t.length<20000;" +
-            "}).filter(function(e){" +
-            "return !Array.from(e.children).some(function(c){" +
-            "var t=txt(c);" +
-            "return visible(c)&&t.indexOf('Rider ID:')>=0&&" +
-            "t.indexOf('Ongoing orders')>=0&&t.indexOf('Past orders')>=0;" +
-            "});" +
-            "}).slice(0,3).map(function(e){" +
-            "return {panelText:txt(e).slice(0,15000)," +
-            "panelClass:typeof e.className==='string'?e.className:''," +
-            "panelHTML:(e.outerHTML||'').slice(0,9000)};" +
-            "});" +
-            "var activeOrderPanels=Array.from(document.querySelectorAll('[role=tabpanel][data-active=true]'))" +
-            ".filter(visible).map(function(e){" +
-            "var c=e.cloneNode(true);" +
-            "c.querySelectorAll('svg,button,[aria-hidden=true]').forEach(function(x){x.remove();});" +
-            "var t=(c.innerText||c.textContent||'').replace(/\\s+/g,' ').trim();" +
-            "var ids=t.match(/HF_[A-Za-z0-9_-]+/g)||[];" +
-            "return {tabId:e.id||'',text:t.slice(0,6000)," +
-            "orderIds:Array.from(new Set(ids))," +
-            "html:(e.outerHTML||'').slice(0,14000)};" +
-            "});" +
-            "var detailInspection={headings:detailHeadings,orderCards:orderCards," +
-            "panels:detailPanels,activeOrderPanels:activeOrderPanels};" +
-            "var clickCandidates=all.filter(function(e){" +
-            "if(!visible(e))return false;" +
-            "var tag=e.tagName.toLowerCase(),s=getComputedStyle(e);" +
-            "var hit=/^(svg|path|button|summary|a)$/.test(tag)||" +
-            "e.getAttribute('role')==='button'||e.hasAttribute('aria-expanded')||" +
-            "s.cursor==='pointer'||typeof e.onclick==='function';" +
-            "if(!hit)return false;" +
-            "var n=e,inside=false;" +
-            "for(var i=0;n&&i<8;i++,n=n.parentElement){" +
-            "if(/ID:\\s*\\d+/.test(txt(n))&&/Name:/.test(txt(n))){inside=true;break;}" +
-            "}" +
-            "return inside;" +
-            "}).slice(0,120).map(function(e){" +
-            "var n=e,chain=[];" +
-            "for(var i=0;n&&i<4;i++,n=n.parentElement){" +
-            "chain.push({tag:n.tagName,id:n.id||''," +
-            "cls:typeof n.className==='string'?n.className:''," +
-            "role:n.getAttribute('role'),aria:n.getAttribute('aria-label')," +
-            "expanded:n.getAttribute('aria-expanded'),title:n.getAttribute('title')," +
-            "cursor:getComputedStyle(n).cursor,text:txt(n).slice(0,250)," +
-            "html:(n.outerHTML||'').slice(0,900)});" +
-            "}" +
-            "return {element:desc(e),cursor:getComputedStyle(e).cursor," +
-            "onclick:!!e.onclick,tabindex:e.getAttribute('tabindex')," +
-            "pathD:e.tagName.toLowerCase()==='path'?e.getAttribute('d'):null," +
-            "chain:chain};" +
-            "});" +
-            "var body=txt(document.body);" +
-            "return JSON.stringify({title:document.title,url:location.href," +
-            "pageLength:body.length,cardCount:cards.length,cards:cards," +
-            "clickCandidates:clickCandidates," +
-            "controls:controls,orderElements:orderEls,detailInspection:detailInspection,tail:body.slice(-7000)});" +
-            "})()";
-
-        if (webView == null) {
-            status.setText("فشل الفحص: صفحة الروستر غير متاحة.");
+        if (inspectionRunning) {
             return;
         }
 
-        status.setText("جاري فحص الصفحة...");
-        webView.evaluateJavascript(script, value -> {
-            String report;
+        if (webView == null) {
+            status.setText("صفحة البوابة غير متاحة.");
+            return;
+        }
 
-            try {
-                if (value == null || "null".equals(value.trim())) {
-                    throw new Exception(
-                        "JavaScript لم يُرجع نتيجة. افتح البوابة وسجّل الدخول وانتظر تحميل الصفحة."
-                    );
-                }
+        inspectionRunning = true;
+        inspectButton.setEnabled(false);
+        status.setText("جاري جلب المندوبين والأوردرات...");
 
-                Object decoded = new JSONTokener(value).nextValue();
-                if (!(decoded instanceof String)) {
-                    throw new Exception(
-                        "النتيجة ليست تقريرًا نصيًا صالحًا: " + String.valueOf(decoded)
-                    );
-                }
+        String script =
+            "(async function() {" +
+            "try {" +
 
-                report = (String) decoded;
-                if (report.trim().isEmpty() ||
-                    "null".equals(report.trim()) ||
-                    "undefined".equals(report.trim())) {
-                    throw new Exception("التقرير فارغ أو غير صالح.");
-                }
+            "const base = location.origin;" +
 
-                org.json.JSONObject root = new org.json.JSONObject(report);
-                if (!root.has("url") || !root.has("cardCount") ||
-                    !root.has("pageLength")) {
-                    throw new Exception(
-                        "نتيجة JavaScript لا تحتوي على حقول تقرير الروستر المطلوبة."
-                    );
-                }
+            "async function getJson(url) {" +
+            " const response = await fetch(url, {" +
+            "  credentials: 'include'," +
+            "  headers: {'Accept':'application/json'}" +
+            " });" +
+            " if (!response.ok) throw new Error('HTTP ' + response.status + ' - ' + url);" +
+            " return await response.json();" +
+            "}" +
 
-                int cardCount = root.optInt("cardCount", -1);
-                int pageLength = root.optInt("pageLength", 0);
+            "const data = await getJson(" +
+            " base + " + JSONObject.quote(RIDERS_URL) +
+            ");" +
 
-                result.setText(report);
+            "const riders = data.content || data.riders || [];" +
 
-                String savedName = saveInspection(report);
-                if (cardCount == 0) {
-                    status.setText(
-                        "تم حفظ تقرير التشخيص: " + savedName +
-                        " — لم تُكتشف بطاقات مندوبين. تأكد من تسجيل الدخول واكتمال تحميل الروستر."
-                    );
-                } else if (pageLength == 0) {
-                    status.setText(
-                        "تم حفظ التقرير، لكن محتوى الصفحة فارغ. راجع التقرير: " + savedName
-                    );
-                } else {
-                    status.setText(
-                        "اكتمل الفحص الأولي: " + cardCount +
-                        " بطاقة. التقرير محفوظ باسم: " + savedName
-                    );
-                }
+            "const output = await Promise.all(riders.map(async r => {" +
 
-                Toast.makeText(
-                    this,
-                    "تم حفظ التقرير: " + savedName,
-                    Toast.LENGTH_LONG
-                ).show();
+            " const info = r.deliveries_info || {};" +
+            " const activeIds = (info.active_delivery_ids || []).map(x => String(x));" +
+            " let detail = null;" +
+            " let detailError = '';" +
 
-            } catch (Exception e) {
-                String message = "فشل الفحص أو التحقق من النتيجة: " +
-                    e.getClass().getSimpleName() + " - " + e.getMessage();
-                result.setText(message);
-                status.setText(message);
-                Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+            " if (activeIds.length > 0) {" +
+            "  try {" +
+            "   detail = await getJson(base + " +
+            "    '/api/rider-live-operations/v2/external/rider/' +" +
+            "    encodeURIComponent(String(r.employee_id)));" +
+            "  } catch (e) { detailError = String(e.message || e); }" +
+            " }" +
+
+            " const deliveryInfo = (detail && detail.deliveries_info) || {};" +
+            " const latest = deliveryInfo.latest_deliveries || [];" +
+
+            " const activeOrders = latest.filter(o => {" +
+            "  const id = String(o.delivery_id != null ? o.delivery_id : o.order_id);" +
+            "  const s = String(o.status || '').toLowerCase();" +
+            "  return activeIds.includes(id) &&" +
+            "   s !== 'completed' && s !== 'cancelled';" +
+            " }).map(o => ({" +
+            "  delivery_id: String(o.delivery_id != null ? o.delivery_id : o.order_id || '')," +
+            "  order_code: o.order_code || ''," +
+            "  status: o.status || ''," +
+            "  vendor_name: o.vendor_name || ''," +
+            "  pickup_address: o.pickup_address || ''," +
+            "  dropoff_address: o.dropoff_address || ''," +
+            "  timeline: o.timeline || []" +
+            " }));" +
+
+            " return {" +
+            "  employee_id: String(r.employee_id || '')," +
+            "  name: r.name || ''," +
+            "  rider_status: r.status || ''," +
+            "  has_active_deliveries: info.has_active_deliveries === true," +
+            "  active_delivery_ids: activeIds," +
+            "  active_count: activeIds.length," +
+            "  wallet_balance: (r.wallet_info || {}).balance," +
+            "  zone: (r.zone || {}).name || ''," +
+            "  starting_point: (r.starting_point || {}).name || ''," +
+            "  active_orders: activeOrders," +
+            "  detail_error: detailError" +
+            " };" +
+            "}));" +
+
+            "const report = {" +
+            " url: location.href," +
+            " pageLength: (document.body.innerText || '').length," +
+            " cardCount: output.length," +
+            " total_elements: data.total_elements || output.length," +
+            " checked_at: new Date().toISOString()," +
+            " riders: output" +
+            "};" +
+
+            "window.AlabtalBridge.onReport(JSON.stringify(report));" +
+
+            "} catch (e) {" +
+            " window.AlabtalBridge.onError(String(e.message || e));" +
+            "}" +
+            "})();";
+
+        webView.evaluateJavascript(script, null);
+    }
+
+    private void handleReport(String json) {
+        inspectionRunning = false;
+        inspectButton.setEnabled(true);
+
+        try {
+            JSONObject report = new JSONObject(json);
+            JSONArray riders = report.optJSONArray("riders");
+
+            if (riders == null) {
+                throw new Exception("بيانات المندوبين غير موجودة");
             }
-        });
+
+            StringBuilder text = new StringBuilder();
+            int activeRiders = 0;
+            int activeOrderCount = 0;
+
+            text.append("AL ABTAL — تقرير الروستر\n");
+            text.append("وقت الفحص: ")
+                .append(report.optString("checked_at"))
+                .append("\n");
+            text.append("عدد المندوبين: ")
+                .append(riders.length())
+                .append("\n\n");
+
+            for (int i = 0; i < riders.length(); i++) {
+                JSONObject rider = riders.getJSONObject(i);
+                JSONArray orders = rider.optJSONArray("active_orders");
+                if (orders == null) orders = new JSONArray();
+
+                boolean hasOrders =
+                    rider.optBoolean("has_active_deliveries");
+
+                if (hasOrders) activeRiders++;
+                activeOrderCount += rider.optInt("active_count");
+
+                text.append("━━━━━━━━━━━━━━━━━━\n");
+                text.append(rider.optString("name", "مندوب"))
+                    .append("\n");
+
+                text.append("رقم المندوب: ")
+                    .append(rider.optString("employee_id"))
+                    .append("\n");
+
+                text.append("الحالة: ")
+                    .append(hasOrders ? "معاه أوردر" : "مفيش أوردر نشط")
+                    .append("\n");
+
+                text.append("عدد الأوردرات النشطة: ")
+                    .append(rider.optInt("active_count"))
+                    .append("\n");
+
+                text.append("المحطة: ")
+                    .append(rider.optString("starting_point"))
+                    .append("\n");
+
+                text.append("المحفظة: ")
+                    .append(rider.optString("wallet_balance", "غير متاح"))
+                    .append("\n");
+
+                if (orders.length() == 0 && hasOrders) {
+                    text.append(
+                        "تفاصيل الأوردر غير متاحة في استجابة التفاصيل.\n"
+                    );
+                    String err = rider.optString("detail_error", "");
+                    if (!err.isEmpty()) {
+                        text.append("سبب جلب التفاصيل: ")
+                            .append(err).append("\n");
+                    }
+                }
+
+                for (int j = 0; j < orders.length(); j++) {
+                    JSONObject order = orders.getJSONObject(j);
+
+                    text.append("\n  الأوردر ")
+                        .append(j + 1).append("\n");
+
+                    text.append("  الكود: ")
+                        .append(order.optString("order_code", "غير متاح"))
+                        .append("\n");
+
+                    text.append("  المطعم: ")
+                        .append(order.optString("vendor_name", "غير متاح"))
+                        .append("\n");
+
+                    text.append("  الحالة: ")
+                        .append(arabicStatus(order.optString("status")))
+                        .append("\n");
+
+                    text.append("  الاستلام: ")
+                        .append(order.optString("pickup_address", "غير متاح"))
+                        .append("\n");
+
+                    text.append("  التسليم: ")
+                        .append(order.optString("dropoff_address", "غير متاح"))
+                        .append("\n");
+                }
+
+                text.append("\n");
+            }
+
+            text.insert(
+                text.indexOf("\n\n") + 2,
+                "مندوبون معهم أوردرات: " + activeRiders +
+                "\nإجمالي معرّفات الأوردرات النشطة: " +
+                activeOrderCount + "\n\n"
+            );
+
+            result.setText(text.toString());
+
+            String savedName = saveInspection(report.toString());
+
+            status.setText(
+                "اكتمل الفحص. تم حفظ التقرير: " + savedName
+            );
+
+            Toast.makeText(
+                this,
+                "تم حفظ التقرير في التنزيلات",
+                Toast.LENGTH_LONG
+            ).show();
+
+        } catch (Exception e) {
+            status.setText("تعذر قراءة التقرير: " + e.getMessage());
+            result.setText(json);
+        }
+    }
+
+    private String arabicStatus(String status) {
+        switch (status) {
+            case "dispatched":
+                return "تم إسناد الأوردر";
+            case "courier_notified":
+                return "تم إشعار المندوب";
+            case "accepted":
+                return "المندوب قبل الأوردر";
+            case "near_pickup":
+                return "اقترب من المطعم";
+            case "picked_up":
+                return "استلم الأوردر";
+            case "left_pickup":
+                return "غادر المطعم وفي الطريق للعميل";
+            case "near_dropoff":
+                return "وصل بالقرب من العميل";
+            case "completed":
+                return "تم التسليم";
+            case "cancelled":
+                return "ملغي";
+            default:
+                return status.isEmpty() ? "غير معروف" : status;
+        }
     }
 
     private String saveInspection(String report) throws Exception {
         String fileName = "roster-inspection-" +
-            new java.text.SimpleDateFormat(
-                "yyyyMMdd-HHmmss", java.util.Locale.US
-            ).format(new java.util.Date()) + ".txt";
+            new SimpleDateFormat(
+                "yyyyMMdd-HHmmss",
+                Locale.US
+            ).format(new Date()) + ".json";
 
         ContentValues values = new ContentValues();
         values.put(MediaStore.MediaColumns.DISPLAY_NAME, fileName);
-        values.put(MediaStore.MediaColumns.MIME_TYPE, "text/plain");
+        values.put(
+            MediaStore.MediaColumns.MIME_TYPE,
+            "application/json"
+        );
         values.put(
             MediaStore.MediaColumns.RELATIVE_PATH,
             Environment.DIRECTORY_DOWNLOADS + "/"
         );
 
         Uri uri = getContentResolver().insert(
-            MediaStore.Downloads.EXTERNAL_CONTENT_URI, values
+            MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+            values
         );
 
         if (uri == null) {
-            throw new Exception("تعذر إنشاء التقرير في مجلد التنزيلات");
+            throw new Exception("تعذر إنشاء التقرير");
         }
 
-        try (java.io.OutputStream out =
-                getContentResolver().openOutputStream(uri, "wt")) {
+        try (OutputStream out =
+                 getContentResolver().openOutputStream(uri, "wt")) {
             if (out == null) {
-                throw new Exception("تعذر فتح ملف التقرير للكتابة");
+                throw new Exception("تعذر فتح ملف التقرير");
             }
-            out.write(report.getBytes(
-                java.nio.charset.StandardCharsets.UTF_8
-            ));
+
+            out.write(report.getBytes(StandardCharsets.UTF_8));
             out.flush();
+
         } catch (Exception e) {
             getContentResolver().delete(uri, null, null);
             throw e;
@@ -375,9 +455,13 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        handler.removeCallbacksAndMessages(null);
+
         if (webView != null) {
+            webView.removeJavascriptInterface("AlabtalBridge");
             webView.destroy();
         }
+
         super.onDestroy();
     }
 }
