@@ -72,6 +72,7 @@ public class MainActivity extends Activity {
     private LinearLayout dashboardRoot;
     private boolean detailVisible = false;
     private SharedPreferences authPrefs;
+    private SharedPreferences rosterCachePrefs;
 
     private boolean inspectionRunning = false;
     private boolean pageLoaded = false;
@@ -112,6 +113,8 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         authPrefs = getSharedPreferences("alabtal_local_auth", MODE_PRIVATE);
+        rosterCachePrefs = getSharedPreferences(
+                "alabtal_roster_cache", MODE_PRIVATE);
         showLoginScreen(authPrefs.getString("username", null) == null);
     }
 
@@ -124,7 +127,7 @@ public class MainActivity extends Activity {
         LinearLayout root = dashboardRoot;
         root.setOrientation(LinearLayout.VERTICAL);
         root.setBackgroundColor(BG);
-        root.setPadding(dp(12), dp(5), dp(12), dp(5));
+        root.setPadding(dp(8), dp(3), dp(8), dp(3));
 
         // Premium AL ABTAL LED Header
         LinearLayout portalRow = new LinearLayout(this);
@@ -133,8 +136,8 @@ public class MainActivity extends Activity {
 
         Button portalButton = makeButton("🌐 البوابة");
         LinearLayout.LayoutParams portalParams =
-                new LinearLayout.LayoutParams(-2, dp(39));
-        portalParams.setMargins(0, 0, 0, dp(5));
+                new LinearLayout.LayoutParams(-2, dp(33));
+        portalParams.setMargins(0, 0, 0, dp(3));
         portalRow.addView(portalButton, portalParams);
         portalButton.setOnClickListener(v -> showPortalPage());
         root.addView(portalRow);
@@ -142,18 +145,18 @@ public class MainActivity extends Activity {
         LinearLayout brand = new LinearLayout(this);
         brand.setOrientation(LinearLayout.VERTICAL);
         brand.setGravity(Gravity.CENTER);
-        brand.setPadding(dp(8), dp(5), dp(8), dp(7));
+        brand.setPadding(dp(6), dp(2), dp(6), dp(3));
 
-        TextView title = makeText("AL ABTAL", 29, ORANGE, true);
+        TextView title = makeText("AL ABTAL", 24, ORANGE, true);
         title.setGravity(Gravity.CENTER);
         title.setTypeface(Typeface.create("sans-serif-black", Typeface.BOLD));
         title.setLetterSpacing(0.10f);
         title.setShadowLayer(dp(5), 0, 0, ORANGE);
-        brand.addView(title, new LinearLayout.LayoutParams(-1, dp(42)));
+        brand.addView(title, new LinearLayout.LayoutParams(-1, dp(34)));
 
-        TextView subtitle = makeText("L I V E   O P E R A T I O N S", 10, WHITE, true);
+        TextView subtitle = makeText("L I V E   O P E R A T I O N S", 9, WHITE, true);
         subtitle.setGravity(Gravity.CENTER);
-        brand.addView(subtitle, new LinearLayout.LayoutParams(-1, dp(20)));
+        brand.addView(subtitle, new LinearLayout.LayoutParams(-1, dp(16)));
 
         GradientDrawable brandBg = new GradientDrawable(
                 GradientDrawable.Orientation.TOP_BOTTOM,
@@ -164,8 +167,8 @@ public class MainActivity extends Activity {
         brand.setBackground(brandBg);
 
         LinearLayout.LayoutParams brandParams =
-                new LinearLayout.LayoutParams(-1, dp(69));
-        brandParams.setMargins(0, dp(3), 0, dp(7));
+                new LinearLayout.LayoutParams(-1, dp(54));
+        brandParams.setMargins(0, dp(2), 0, dp(4));
         root.addView(brand, brandParams);
 
         banner = makeText("", 14, ORANGE, true);
@@ -173,7 +176,7 @@ public class MainActivity extends Activity {
         banner.setSingleLine(true);
         banner.setLetterSpacing(0.025f);
         banner.setShadowLayer(dp(4), 0, 0, ORANGE);
-        banner.setPadding(dp(5), dp(7), dp(5), dp(7));
+        banner.setPadding(dp(4), dp(3), dp(4), dp(3));
 
         GradientDrawable ledBg = new GradientDrawable(
                 GradientDrawable.Orientation.LEFT_RIGHT,
@@ -185,8 +188,8 @@ public class MainActivity extends Activity {
         banner.setBackground(ledBg);
 
         LinearLayout.LayoutParams bp =
-                new LinearLayout.LayoutParams(-1, dp(43));
-        bp.setMargins(0, 0, 0, dp(9));
+                new LinearLayout.LayoutParams(-1, dp(32));
+        bp.setMargins(0, 0, 0, dp(4));
         root.addView(banner, bp);
         handler.post(bannerRunnable);
 
@@ -195,37 +198,47 @@ public class MainActivity extends Activity {
             "في انتظار تحميل بيانات الروستر...",
             12, MUTED, false
         );
-        summary.setPadding(0, dp(5), 0, dp(5));
+        summary.setTextSize(10);
+        summary.setMaxLines(2);
+        summary.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        summary.setPadding(0, dp(2), 0, dp(2));
         root.addView(summary);
 
         TextView statsTitle = makeText(
-                "ملخص التشغيل المباشر", 14, ORANGE, true);
-        statsTitle.setPadding(0, dp(5), 0, dp(5));
+                "ملخص التشغيل المباشر", 12, ORANGE, true);
+        statsTitle.setPadding(0, dp(2), 0, dp(2));
         root.addView(statsTitle);
 
         dashboardStats = new LinearLayout(this);
         dashboardStats.setOrientation(LinearLayout.VERTICAL);
         root.addView(dashboardStats);
 
-        // Controls
+        // Compact refresh control beside the status line
         LinearLayout controls = new LinearLayout(this);
         controls.setOrientation(LinearLayout.HORIZONTAL);
-
-        inspectButton = makeButton("⟳ تحديث البيانات");
-        controls.addView(
-            inspectButton, new LinearLayout.LayoutParams(-1, dp(45))
-        );
-
-
-
-        root.addView(controls);
+        controls.setGravity(Gravity.CENTER_VERTICAL);
 
         status = makeText(
-            "افتح البوابة وسجّل الدخول لقراءة بيانات الروستر.",
-            12, ORANGE, false
+            "في انتظار بيانات الروستر...",
+            10, ORANGE, false
         );
-        status.setPadding(2, dp(6), 2, dp(6));
-        root.addView(status);
+        status.setMaxLines(2);
+        status.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        status.setPadding(dp(2), dp(2), dp(4), dp(2));
+        controls.addView(
+            status, new LinearLayout.LayoutParams(0, -2, 1)
+        );
+
+        inspectButton = makeButton("⟳");
+        inspectButton.setTextSize(22);
+        inspectButton.setPadding(0, 0, 0, 0);
+        inspectButton.setContentDescription("تحديث البيانات");
+        LinearLayout.LayoutParams refreshParams =
+                new LinearLayout.LayoutParams(dp(42), dp(38));
+        refreshParams.setMargins(dp(3), 0, 0, 0);
+        controls.addView(inspectButton, refreshParams);
+
+        root.addView(controls);
 
         // Embedded portal: login and authenticated session
         webView = new WebView(this);
@@ -241,10 +254,10 @@ public class MainActivity extends Activity {
             @Override
             public void onPageFinished(WebView view, String url) {
                 pageLoaded = true;
-                status.setText("تم تحميل الصفحة. سجّل الدخول إذا طُلب منك ذلك.");
+                status.setText("تم تحميل صفحة البوابة؛ جاري التحقق من الجلسة...");
 
                 handler.removeCallbacks(refreshRunnable);
-                handler.postDelayed(refreshRunnable, 30000);
+                handler.post(refreshRunnable);
             }
         });
 
@@ -271,7 +284,8 @@ public class MainActivity extends Activity {
         );
 
         TextView listTitle = makeText("المندوبون والأوردرات", 16, ORANGE, true);
-        listTitle.setPadding(0, dp(9), 0, dp(6));
+        listTitle.setTextSize(14);
+        listTitle.setPadding(0, dp(4), 0, dp(3));
         root.addView(listTitle);
 
         ScrollView cardScroll = new ScrollView(this);
@@ -291,8 +305,13 @@ public class MainActivity extends Activity {
 
         addEmptyCard(
             "بانتظار البيانات",
-            "افتح البوابة وسجّل الدخول، ثم اضغط تحديث البيانات."
+            "جاري استعادة آخر بيانات محفوظة..."
         );
+
+        restoreCachedReport();
+
+        // ابدأ تحميل البوابة تلقائيًا مع الاحتفاظ بإمكانية فتحها من الزر.
+        webView.loadUrl(PORTAL_URL);
     }
 
     private int dp(float value) {
@@ -338,7 +357,7 @@ public class MainActivity extends Activity {
         box.setPadding(dp(8), dp(7), dp(8), dp(7));
         box.setBackground(round(Color.rgb(25, 27, 32), Color.rgb(55, 58, 65), 1));
 
-        TextView l = makeText(label, 10, MUTED, false);
+        TextView l = makeText(label, 9, MUTED, false);
         TextView v = makeText(value, 13, valueColor, true);
 
         box.addView(l);
@@ -369,13 +388,13 @@ public class MainActivity extends Activity {
 
         LinearLayout.LayoutParams second =
             new LinearLayout.LayoutParams(0, -2, 1);
-        second.setMargins(dp(7), 0, 0, 0);
+        second.setMargins(dp(4), 0, 0, 0);
 
         row.addView(createTile(label2, value2), second);
 
         LinearLayout.LayoutParams rp =
             new LinearLayout.LayoutParams(-1, -2);
-        rp.setMargins(0, dp(7), 0, 0);
+        rp.setMargins(0, dp(3), 0, 0);
         target.addView(row, rp);
     }
 
@@ -383,7 +402,7 @@ public class MainActivity extends Activity {
         LinearLayout box = new LinearLayout(this);
         box.setOrientation(LinearLayout.VERTICAL);
         box.setGravity(Gravity.CENTER_VERTICAL);
-        box.setPadding(dp(9), dp(7), dp(8), dp(7));
+        box.setPadding(dp(6), dp(4), dp(5), dp(4));
 
         GradientDrawable tileBg = new GradientDrawable(
                 GradientDrawable.Orientation.TOP_BOTTOM,
@@ -401,10 +420,10 @@ public class MainActivity extends Activity {
         l.setGravity(Gravity.START);
 
         TextView v = makeText(value == null || value.trim().isEmpty()
-                ? "—" : value, 12, WHITE, true);
+                ? "—" : value, 11, WHITE, true);
         v.setMaxLines(2);
         v.setGravity(Gravity.START);
-        v.setPadding(0, dp(3), 0, 0);
+        v.setPadding(0, dp(1), 0, 0);
 
         box.addView(l);
         box.addView(v);
@@ -613,12 +632,32 @@ public class MainActivity extends Activity {
         webView.evaluateJavascript(script, null);
     }
 
+    private void restoreCachedReport() {
+        if (rosterCachePrefs == null) return;
+
+        String saved = rosterCachePrefs.getString(
+                "last_successful_report", null);
+
+        if (saved == null || saved.trim().isEmpty()) return;
+
+        try {
+            JSONObject cached = new JSONObject(saved);
+            cached.put("_from_cache", true);
+            handleReport(cached.toString());
+        } catch (Exception e) {
+            status.setText("تعذر استعادة البيانات المحفوظة؛ جاري محاولة التحديث.");
+        }
+    }
+
     private void handleReport(String json) {
         inspectionRunning = false;
         inspectButton.setEnabled(true);
 
         try {
             JSONObject report = new JSONObject(json);
+            boolean fromCache = report.optBoolean("_from_cache", false);
+            report.remove("_from_cache");
+
             JSONArray riders = report.optJSONArray("riders");
 
             if (riders == null) {
@@ -651,12 +690,23 @@ public class MainActivity extends Activity {
 
             renderDashboardStats(riders, ridersWithOrders, totalOrders);
 
-            String savedName = saveInspection(report.toString());
+            if (fromCache) {
+                status.setText(
+                    "آخر بيانات محفوظة: " +
+                    formatTime(report.optString("checked_at")) +
+                    " • جاري التحقق من التحديث الحي"
+                );
+            } else {
+                status.setText(
+                    "آخر تحديث: " + formatTime(report.optString("checked_at")) +
+                    " • تم تحديث البيانات بنجاح"
+                );
 
-            status.setText(
-                "آخر تحديث: " + formatTime(report.optString("checked_at")) +
-                " • التقرير: " + savedName
-            );
+                // لا تحفظ التقرير إلا بعد نجاح تحليله وعرض بياناته.
+                rosterCachePrefs.edit()
+                    .putString("last_successful_report", report.toString())
+                    .apply();
+            }
 
         } catch (Exception e) {
             status.setText("تعذر عرض التقرير: " + e.getMessage());
