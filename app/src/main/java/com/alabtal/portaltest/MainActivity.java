@@ -1191,6 +1191,25 @@ public class MainActivity extends Activity {
                 }
             }
         });
+        if (!setup) {
+            Button resetLogin = makeButton("إعادة تعيين بيانات الدخول");
+            resetLogin.setOnClickListener(v ->
+                new android.app.AlertDialog.Builder(this)
+                    .setTitle("إنشاء بيانات دخول جديدة")
+                    .setMessage("سيتم حذف اسم المستخدم وكلمة المرور المحليين فقط. بيانات الروستر المحفوظة لن تُحذف.")
+                    .setNegativeButton("إلغاء", null)
+                    .setPositiveButton("متابعة", (dialog, which) -> {
+                        authPrefs.edit()
+                            .remove("username")
+                            .remove("password_hash")
+                            .apply();
+                        showLoginScreen(true);
+                    })
+                    .show()
+            );
+            page.addView(resetLogin);
+        }
+
         setContentView(page);
     }
 
