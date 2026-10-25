@@ -548,21 +548,31 @@ public class MainActivity extends Activity {
             "function getShiftFromTable(r) {" +
             " const id = String(r.employee_id || '').trim();" +
             " const name = String(r.name || '').replace(/\\s+/g,' ').trim().toLowerCase();" +
+            " const norm = s => String(s || '').replace(/\\s+/g,' ').trim().toLowerCase();" +
             " const timePattern = /(\\d{1,2}:\\d{2})\\s*[-–—]\\s*(\\d{1,2}:\\d{2})/;" +
-            " const normalize = el => String(el.innerText || el.textContent || '').replace(/\\s+/g,' ').trim();" +
-            " const candidates = Array.from(document.querySelectorAll('tr,[role=row],article,section,li,div'));" +
-            " let best = null;" +
-            " for (const el of candidates) {" +
-            "  const text = normalize(el);" +
-            "  if (!text || text.length > 1800) continue;" +
-            "  const hasId = id && (new RegExp('ID\\\\s*:\\\\s*' + id + '(?:\\\\D|$)').test(text) || new RegExp('(?:^|\\\\D)' + id + '(?:\\\\D|$)').test(text));" +
-            "  const hasName = name && text.toLowerCase().includes(name);" +
-            "  if (!hasId && !hasName) continue;" +
-            "  const match = text.match(timePattern);" +
-            "  if (!match) continue;" +
-            "  if (!best || text.length < best.length) best = {start:match[1],end:match[2],length:text.length};" +
+            " const tables = Array.from(document.querySelectorAll('table.cape-table, table'));" +
+            " for (const table of tables) {" +
+            "  let headers = Array.from(table.querySelectorAll('thead th, thead td'));" +
+            "  if (!headers.length) headers = Array.from(table.querySelectorAll('tr:first-child th, tr:first-child td'));" +
+            "  const labels = headers.map(c => norm(c.innerText || c.textContent));" +
+            "  let index = labels.findIndex(h => /current\\s*session|session|shift|الشيفت|الشفت|الوردية|مواعيد الشيفت/.test(h));" +
+            "  if (index < 0) continue;" +
+            "  const rows = Array.from(table.querySelectorAll('tbody tr')).filter(row => row.querySelectorAll('td').length);" +
+            "  for (const row of rows) {" +
+            "   const cells = Array.from(row.querySelectorAll('td'));" +
+            "   const text = norm(row.innerText || row.textContent);" +
+            "   const hasId = id && new RegExp('(?:^|\\\\D)' + id + '(?:\\\\D|$)').test(text);" +
+            "   const hasName = name && text.includes(name);" +
+            "   if (!hasId && !hasName) continue;" +
+            "   if (cells[index]) {" +
+            "    const match = String(cells[index].innerText || cells[index].textContent || '').match(timePattern);" +
+            "    if (match) return {start:match[1],end:match[2]};" +
+            "   }" +
+            "   const match = text.match(timePattern);" +
+            "   if (match) return {start:match[1],end:match[2]};" +
+            "  }" +
             " }" +
-            " return best ? {start:best.start,end:best.end} : {start:'',end:''};" +
+            " return {start:'',end:''};" +
             "}" +
 
             "const output = await Promise.all(riders.map(async r => {" +
