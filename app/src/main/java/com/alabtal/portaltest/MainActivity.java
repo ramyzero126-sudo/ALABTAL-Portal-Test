@@ -12,6 +12,8 @@ import android.view.View;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.webkit.CookieManager;
+import android.webkit.WebStorage;
 import android.webkit.WebChromeClient;
 import android.widget.Button;
 import android.widget.LinearLayout;
@@ -19,6 +21,9 @@ import android.widget.TextView;
 import android.widget.ScrollView;
 import android.widget.Toast;
 import android.content.ContentValues;
+import android.content.SharedPreferences;
+import android.text.InputType;
+import android.widget.EditText;
 import android.provider.MediaStore;
 import android.os.Environment;
 import android.net.Uri;
@@ -56,6 +61,10 @@ public class MainActivity extends Activity {
     private TextView summary;
     private LinearLayout cards;
     private Button inspectButton;
+    private boolean portalVisible = false;
+    private LinearLayout dashboardRoot;
+    private boolean detailVisible = false;
+    private SharedPreferences authPrefs;
 
     private boolean inspectionRunning = false;
     private boolean pageLoaded = false;
@@ -95,11 +104,17 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        authPrefs = getSharedPreferences("alabtal_local_auth", MODE_PRIVATE);
+        showLoginScreen(authPrefs.getString("username", null) == null);
+    }
 
+    private void buildDashboard() {
+        detailVisible = false;
         getWindow().setStatusBarColor(BG);
         getWindow().setNavigationBarColor(BG);
 
-        LinearLayout root = new LinearLayout(this);
+        dashboardRoot = new LinearLayout(this);
+        LinearLayout root = dashboardRoot;
         root.setOrientation(LinearLayout.VERTICAL);
         root.setBackgroundColor(BG);
         root.setPadding(dp(12), dp(5), dp(12), dp(5));
@@ -111,6 +126,8 @@ public class MainActivity extends Activity {
         brand.setPadding(dp(8), dp(5), dp(8), dp(7));
 
         TextView globe = makeText("🌐", 24, ORANGE, true);
+        globe.setGravity(Gravity.CENTER);
+        globe.setOnClickListener(v -> togglePortal());
         globe.setGravity(Gravity.CENTER);
         brand.addView(globe, new LinearLayout.LayoutParams(-1, dp(29)));
 
@@ -174,7 +191,7 @@ public class MainActivity extends Activity {
         LinearLayout controls = new LinearLayout(this);
         controls.setOrientation(LinearLayout.HORIZONTAL);
 
-        Button openButton = makeButton("فتح البوابة");
+        Button openButton = makeButton("🌐 البوابة");
         controls.addView(
             openButton, new LinearLayout.LayoutParams(0, dp(45), 1)
         );
@@ -185,10 +202,17 @@ public class MainActivity extends Activity {
         ip.setMargins(dp(7), 0, 0, 0);
         controls.addView(inspectButton, ip);
 
+        Button logoutButton = makeButton("خروج");
+        logoutButton.setBackground(round(Color.rgb(85, 30, 25), RED, 1));
+        LinearLayout.LayoutParams logoutParams =
+            new LinearLayout.LayoutParams(0, dp(45), 0.7f);
+        logoutParams.setMargins(dp(7), 0, 0, 0);
+        controls.addView(logoutButton, logoutParams);
+
         root.addView(controls);
 
         status = makeText(
-            "سجّل الدخول إلى بوابة الشركة بالأسفل.",
+            "افتح البوابة وسجّل الدخول لقراءة بيانات الروستر.",
             12, ORANGE, false
         );
         status.setPadding(2, dp(6), 2, dp(6));
@@ -197,6 +221,7 @@ public class MainActivity extends Activity {
         // Embedded portal: login and authenticated session
         webView = new WebView(this);
         webView.setBackgroundColor(BG);
+        webView.setVisibility(View.GONE);
         webView.getSettings().setJavaScriptEnabled(true);
         webView.getSettings().setDomStorageEnabled(true);
         webView.getSettings().setSupportMultipleWindows(false);
@@ -236,7 +261,7 @@ public class MainActivity extends Activity {
             new LinearLayout.LayoutParams(-1, dp(155))
         );
 
-        TextView listTitle = makeText("المندوبون والأوردرات النشطة", 16, ORANGE, true);
+        TextView listTitle = makeText("المندوبون والأوردرات", 16, ORANGE, true);
         listTitle.setPadding(0, dp(9), 0, dp(6));
         root.addView(listTitle);
 
@@ -253,7 +278,8 @@ public class MainActivity extends Activity {
 
         setContentView(root);
 
-        openButton.setOnClickListener(v -> openPortal());
+        openButton.setOnClickListener(v -> togglePortal());
+        logoutButton.setOnClickListener(v -> logoutApp());
         inspectButton.setOnClickListener(v -> inspectRoster());
 
         addEmptyCard(
@@ -361,11 +387,49 @@ public class MainActivity extends Activity {
         return box;
     }
 
+    private void togglePortal() {
+        if (webView == null) return;
+        portalVisible = !portalVisible;
+        webView.setVisibility(portalVisible ? View.VISIBLE : View.GONE);
+        if (portalVisible) {
+            if (!pageLoaded) openPortal();
+            else status.setText("البوابة مفتوحة. يمكنك تحديث البيانات.");
+        } else {
+            status.setText("تم إخفاء البوابة؛ بيانات المناديب تظل ظاهرة.");
+        }
+    }
+
     private void openPortal() {
         if (webView != null) {
+            portalVisible = true;
+            webView.setVisibility(View.VISIBLE);
             status.setText("جاري فتح بوابة الروستر...");
             webView.loadUrl(PORTAL_URL);
         }
+    }
+
+    private void logoutPortal() {
+        if (webView == null) return;
+        pageLoaded = false;
+        inspectionRunning = false;
+        inspectButton.setEnabled(true);
+        webView.stopLoading();
+        webView.clearHistory();
+        webView.clearCache(true);
+        webView.evaluateJavascript(
+            "try{localStorage.clear();sessionStorage.clear();}catch(e){}", result -> {
+                WebStorage.getInstance().deleteAllData();
+                CookieManager cm = CookieManager.getInstance();
+                cm.removeAllCookies(removed -> runOnUiThread(() -> {
+                    if (destroyed || webView == null) return;
+                    cm.flush();
+                    portalVisible = true;
+                    webView.setVisibility(View.VISIBLE);
+                    webView.loadUrl(PORTAL_URL);
+                    status.setText("تم مسح جلسة WebView المحلية؛ سجّل الدخول مجددًا.");
+                }));
+            }
+        );
     }
 
     private void inspectRoster() {
@@ -404,7 +468,7 @@ public class MainActivity extends Activity {
             " let detail = null;" +
             " let detailError = '';" +
 
-            " if (activeIds.length > 0) {" +
+            " {" +
             "  try {" +
             "   detail = await getJson(base +" +
             "    '/api/rider-live-operations/v2/external/rider/' +" +
@@ -415,11 +479,7 @@ public class MainActivity extends Activity {
             " const deliveryInfo = (detail && detail.deliveries_info) || {};" +
             " const latest = deliveryInfo.latest_deliveries || [];" +
 
-            " const activeOrders = latest.filter(o => {" +
-            "  const id = String(o.delivery_id != null ? o.delivery_id : o.order_id);" +
-            "  const s = String(o.status || '').toLowerCase();" +
-            "  return activeIds.includes(id) && s !== 'completed' && s !== 'cancelled';" +
-            " }).map(o => ({" +
+            " const activeOrders = latest.map(o => ({" +
             "  delivery_id:String(o.delivery_id != null ? o.delivery_id : o.order_id || '')," +
             "  order_code:o.order_code || ''," +
             "  status:o.status || ''," +
@@ -439,6 +499,14 @@ public class MainActivity extends Activity {
             "  wallet_balance:(r.wallet_info || {}).balance," +
             "  zone:(r.zone || {}).name || ''," +
             "  starting_point:(r.starting_point || {}).name || ''," +
+            "  shift_start:r.shift_start || r.shiftStart || (r.shift_info || {}).start_time || (r.shift || {}).start_time || ''," +
+            "  shift_end:r.shift_end || r.shiftEnd || (r.shift_info || {}).end_time || (r.shift || {}).end_time || ''," +
+            "  performance:r.performance_score || r.performance || ''," +
+            "  acceptance_rate:r.acceptance_rate || r.acceptance_percentage || r.acceptance || ''," +
+            "  worked_time:r.worked_time || r.worked_hours || r.worked || ''," +
+            "  vehicle:r.vehicle || r.vehicle_type || ''," +
+            "  total_orders:r.total_orders || r.total_deliveries_count || info.total_orders || info.total_deliveries_count || info.completed_deliveries_count || latest.length || 0," +
+            "  total_orders_source:(r.total_orders != null || r.total_deliveries_count != null || info.total_orders != null || info.total_deliveries_count != null || info.completed_deliveries_count != null) ? 'counter' : 'latest_deliveries'," +
             "  active_orders:activeOrders," +
             "  detail_error:detailError" +
             " };" +
@@ -476,7 +544,7 @@ public class MainActivity extends Activity {
 
             cards.removeAllViews();
 
-            int activeRiders = 0;
+            int ridersWithOrders = 0;
             int totalOrders = 0;
 
             for (int i = 0; i < riders.length(); i++) {
@@ -485,21 +553,17 @@ public class MainActivity extends Activity {
 
                 if (orders == null) orders = new JSONArray();
 
-                boolean hasOrders = rider.optBoolean(
-                    "has_active_deliveries",
-                    rider.optInt("active_count") > 0
-                );
-
-                if (hasOrders) activeRiders++;
-                totalOrders += rider.optInt("active_count");
+                boolean hasOrders = orders.length() > 0 || rider.optInt("active_count") > 0;
+                if (hasOrders) ridersWithOrders++;
+                totalOrders += rider.optInt("total_orders", orders.length());
 
                 addRiderCard(rider, orders);
             }
 
             summary.setText(
                 "المندوبون: " + riders.length() +
-                "    •    معهم أوردرات: " + activeRiders +
-                "    •    الأوردرات النشطة: " + totalOrders
+                "    •    مندوبون لديهم أوردرات ظاهرة: " + ridersWithOrders +
+                "    •    عدد الأوردرات المتاحة بالمصدر: " + totalOrders
             );
 
             String savedName = saveInspection(report.toString());
@@ -585,7 +649,7 @@ public class MainActivity extends Activity {
                 rider.optInt("active_count"), orders.length());
 
         addTileRow(card,
-                "📦 الأوردرات النشطة", String.valueOf(activeCount),
+                "📦 عدد الأوردرات", firstValue(rider, "total_orders"),
                 "💰 المحفظة", wallet);
 
         addTileRow(card,
@@ -610,88 +674,192 @@ public class MainActivity extends Activity {
                 "🚲 وسيلة التوصيل", firstValue(rider,
                         "vehicle", "vehicle_type"));
 
-        if (orders.length() == 0 && hasOrders) {
-            TextView missing = makeText(
-                    "⚠️ يوجد أوردر نشط، لكن تفاصيله غير متاحة في استجابة المصدر.",
-                    12, ORANGE, false);
-            missing.setPadding(0, dp(8), 0, 0);
-            card.addView(missing);
+        TextView detailsHint = makeText(orders.length() > 0
+                ? "📦 الأوردرات الظاهرة: " + orders.length() + " • اضغط لعرض التفاصيل والمراحل"
+                : "اضغط على الكارت لعرض تفاصيل المندوب والأوردرات المتاحة",
+                12, ORANGE, true);
+        detailsHint.setPadding(0, dp(10), 0, dp(2));
+        card.addView(detailsHint);
+        card.setOnClickListener(v -> showRiderDetails(rider, orders));
 
-            String error = rider.optString("detail_error", "");
-            if (!error.isEmpty()) {
-                TextView err = makeText(
-                        "تفاصيل الخطأ: " + error, 10, MUTED, false);
-                card.addView(err);
-            }
+    }
+
+    private void showRiderDetails(JSONObject rider, JSONArray orders) {
+        detailVisible = true;
+        ScrollView scroll = new ScrollView(this);
+        scroll.setFillViewport(true);
+        LinearLayout page = new LinearLayout(this);
+        page.setOrientation(LinearLayout.VERTICAL);
+        page.setPadding(dp(14), dp(14), dp(14), dp(20));
+        page.setBackgroundColor(BG);
+        scroll.addView(page);
+
+        Button back = makeButton("← رجوع إلى المندوبين");
+        back.setOnClickListener(v -> returnToDashboard());
+        page.addView(back, new LinearLayout.LayoutParams(-1, dp(46)));
+
+        TextView title = makeText("تفاصيل المندوب", 22, ORANGE, true);
+        title.setPadding(0, dp(14), 0, dp(8));
+        page.addView(title);
+        TextView name = makeText("👤 " + rider.optString("name", "مندوب بدون اسم"), 19, WHITE, true);
+        page.addView(name);
+        TextView id = makeText("رقم المندوب: " + rider.optString("employee_id", "غير متاح"), 12, MUTED, false);
+        page.addView(id);
+        TextView state = makeText("الحالة: " + translateRiderStatus(rider.optString("rider_status", "")), 13, GREEN, true);
+        state.setPadding(0, dp(6), 0, dp(10));
+        page.addView(state);
+
+        addDetailLine(page, "المحفظة", firstValue(rider, "wallet_balance", "wallet", "balance"));
+        addDetailLine(page, "بداية الشيفت", firstValue(rider, "shift_start", "planned_shift_start", "session_start"));
+        addDetailLine(page, "نهاية الشيفت", firstValue(rider, "shift_end", "planned_shift_end", "session_end"));
+        addDetailLine(page, "عدد الأوردرات", firstValue(rider, "total_orders"));
+        addDetailLine(page, "الأداء", firstValue(rider, "performance", "performance_score"));
+        addDetailLine(page, "نسبة القبول", firstValue(rider, "acceptance_rate", "acceptance", "acceptance_percentage"));
+        addDetailLine(page, "ساعات العمل", firstValue(rider, "worked_time", "worked_hours", "worked"));
+        addDetailLine(page, "المحطة", firstValue(rider, "starting_point"));
+        addDetailLine(page, "المنطقة", firstValue(rider, "zone"));
+        addDetailLine(page, "وسيلة التوصيل", firstValue(rider, "vehicle", "vehicle_type"));
+
+        TextView ordersTitle = makeText("الأوردرات ومراحلها", 18, ORANGE, true);
+        ordersTitle.setPadding(0, dp(16), 0, dp(8));
+        page.addView(ordersTitle);
+        if (orders.length() == 0) {
+            TextView none = makeText("لم تصل تفاصيل أوردرات من المصدر لهذا المندوب.", 13, MUTED, false);
+            page.addView(none);
         }
-
-        if (orders.length() == 0 && !hasOrders) {
-            TextView none = makeText(
-                    "لا توجد أوردرات نشطة ظاهرة لهذا المندوب.",
-                    12, MUTED, false);
-            none.setPadding(0, dp(8), 0, 0);
-            card.addView(none);
-        }
-
-        for (int j = 0; j < orders.length(); j++) {
-            JSONObject order = orders.optJSONObject(j);
+        for (int i = 0; i < orders.length(); i++) {
+            JSONObject order = orders.optJSONObject(i);
             if (order == null) continue;
-
-            LinearLayout orderBox = new LinearLayout(this);
-            orderBox.setOrientation(LinearLayout.VERTICAL);
-            orderBox.setPadding(dp(10), dp(10), dp(10), dp(10));
-
-            GradientDrawable orderBg = new GradientDrawable(
-                    GradientDrawable.Orientation.TOP_BOTTOM,
-                    new int[]{Color.rgb(35, 25, 17), Color.rgb(18, 19, 22)}
-            );
-            orderBg.setCornerRadius(dp(11));
-            orderBg.setStroke(dp(1), Color.rgb(190, 91, 24));
-            orderBox.setBackground(orderBg);
-
-            LinearLayout.LayoutParams op =
-                    new LinearLayout.LayoutParams(-1, -2);
-            op.setMargins(0, dp(10), 0, 0);
-            card.addView(orderBox, op);
-
+            LinearLayout box = new LinearLayout(this);
+            box.setOrientation(LinearLayout.VERTICAL);
+            box.setPadding(dp(12), dp(11), dp(12), dp(11));
+            box.setBackground(round(Color.rgb(24, 20, 17), ORANGE, 1));
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, -2);
+            params.setMargins(0, 0, 0, dp(10));
+            page.addView(box, params);
             String code = order.optString("order_code", "");
-            if (code.isEmpty()) {
-                code = order.optString("delivery_id", "غير متاح");
-            }
-
-            TextView orderTitle = makeText(
-                    "🛵  الأوردر " + (j + 1) + "  •  " + code,
-                    14, ORANGE, true);
-            orderBox.addView(orderTitle);
-
-            TextView vendor = makeText(
-                    "🍔  المطعم: " + displayValue(
-                            order.optString("vendor_name", "")),
-                    12, WHITE, true);
-            vendor.setPadding(0, dp(6), 0, 0);
-            orderBox.addView(vendor);
-
-            TextView stage = makeText(
-                    "🚦  المرحلة: " + arabicStatus(
-                            order.optString("status", "")),
-                    12, GREEN, true);
-            stage.setPadding(0, dp(6), 0, 0);
-            orderBox.addView(stage);
-
-            addAddress(orderBox, "🟠 عنوان الاستلام",
-                    order.optString("pickup_address", ""));
-            addAddress(orderBox, "📍 عنوان العميل",
-                    order.optString("dropoff_address", ""));
-
+            if (code.isEmpty()) code = order.optString("delivery_id", "غير متاح");
+            box.addView(makeText("📦 أوردر " + (i + 1) + " • " + code, 15, ORANGE, true));
+            box.addView(makeText("🚦 المرحلة: " + arabicStatus(order.optString("status", "")), 13, GREEN, true));
+            box.addView(makeText("🍔 المطعم: " + displayValue(order.optString("vendor_name", "")), 12, WHITE, false));
+            addAddress(box, "عنوان الاستلام", order.optString("pickup_address", ""));
+            addAddress(box, "عنوان العميل", order.optString("dropoff_address", ""));
             JSONArray timeline = order.optJSONArray("timeline");
             if (timeline != null && timeline.length() > 0) {
-                TextView timelineView = makeText(
-                        "🧭 أحداث التوصيل المسجلة: " + timeline.length(),
-                        10, MUTED, false);
-                timelineView.setPadding(0, dp(6), 0, 0);
-                orderBox.addView(timelineView);
+                TextView time = makeText("أحداث التوصيل المسجلة: " + timeline.length(), 11, MUTED, false);
+                time.setPadding(0, dp(6), 0, 0);
+                box.addView(time);
             }
         }
+        setContentView(scroll);
+    }
+
+    private void addDetailLine(LinearLayout parent, String label, String value) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.VERTICAL);
+        row.setPadding(dp(10), dp(8), dp(10), dp(8));
+        row.setBackground(round(PANEL, Color.rgb(55, 58, 65), 1));
+        TextView l = makeText(label, 11, MUTED, false);
+        TextView v = makeText(value, 14, WHITE, true);
+        row.addView(l);
+        row.addView(v);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, -2);
+        params.setMargins(0, 0, 0, dp(7));
+        parent.addView(row, params);
+    }
+
+    private void returnToDashboard() {
+        detailVisible = false;
+        if (dashboardRoot != null) setContentView(dashboardRoot);
+    }
+
+    private void showLoginScreen(boolean setup) {
+        LinearLayout page = new LinearLayout(this);
+        page.setOrientation(LinearLayout.VERTICAL);
+        page.setGravity(Gravity.CENTER_HORIZONTAL);
+        page.setPadding(dp(24), dp(28), dp(24), dp(24));
+        page.setBackgroundColor(BG);
+
+        TextView brand = makeText("AL ABTAL", 30, ORANGE, true);
+        brand.setGravity(Gravity.CENTER);
+        brand.setShadowLayer(dp(5), 0, 0, ORANGE);
+        page.addView(brand, new LinearLayout.LayoutParams(-1, dp(60)));
+        TextView subtitle = makeText(setup ? "إنشاء حساب الدخول للتطبيق" : "تسجيل الدخول للتطبيق", 17, WHITE, true);
+        subtitle.setGravity(Gravity.CENTER);
+        subtitle.setPadding(0, 0, 0, dp(20));
+        page.addView(subtitle);
+
+        EditText username = new EditText(this);
+        username.setSingleLine(true);
+        username.setTextColor(WHITE);
+        username.setHintTextColor(MUTED);
+        username.setHint("اسم المستخدم");
+        username.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
+        username.setPadding(dp(12), dp(8), dp(12), dp(8));
+        username.setBackground(round(PANEL, ORANGE, 1));
+        page.addView(username, new LinearLayout.LayoutParams(-1, dp(52)));
+
+        EditText password = new EditText(this);
+        password.setSingleLine(true);
+        password.setTextColor(WHITE);
+        password.setHintTextColor(MUTED);
+        password.setHint("كلمة المرور (6 أحرف على الأقل عند الإنشاء)");
+        password.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        password.setPadding(dp(12), dp(8), dp(12), dp(8));
+        password.setBackground(round(PANEL, ORANGE, 1));
+        LinearLayout.LayoutParams passParams = new LinearLayout.LayoutParams(-1, dp(52));
+        passParams.setMargins(0, dp(12), 0, dp(16));
+        page.addView(password, passParams);
+
+        Button submit = makeButton(setup ? "إنشاء الحساب والمتابعة" : "دخول");
+        page.addView(submit, new LinearLayout.LayoutParams(-1, dp(50)));
+        TextView note = makeText("تسجيل الدخول محلي على هذا الجهاز، ومنفصل عن حساب بوابة الشركة.", 11, MUTED, false);
+        note.setPadding(0, dp(16), 0, 0);
+        page.addView(note);
+        submit.setOnClickListener(v -> {
+            String u = username.getText().toString().trim();
+            String pw = password.getText().toString();
+            if (u.isEmpty() || pw.isEmpty()) {
+                Toast.makeText(this, "اكتب اسم المستخدم وكلمة المرور", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            if (setup) {
+                if (pw.length() < 6) {
+                    Toast.makeText(this, "كلمة المرور يجب أن تكون 6 أحرف على الأقل", Toast.LENGTH_LONG).show();
+                    return;
+                }
+                authPrefs.edit().putString("username", u).putString("password_hash", hashPassword(pw)).apply();
+                Toast.makeText(this, "تم إنشاء حساب الدخول على هذا الجهاز", Toast.LENGTH_SHORT).show();
+                buildDashboard();
+            } else {
+                String savedUser = authPrefs.getString("username", "");
+                String savedHash = authPrefs.getString("password_hash", "");
+                if (u.equals(savedUser) && hashPassword(pw).equals(savedHash)) {
+                    buildDashboard();
+                } else {
+                    Toast.makeText(this, "اسم المستخدم أو كلمة المرور غير صحيحة", Toast.LENGTH_LONG).show();
+                }
+            }
+        });
+        setContentView(page);
+    }
+
+    private String hashPassword(String value) {
+        try {
+            java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
+            byte[] bytes = digest.digest(value.getBytes(StandardCharsets.UTF_8));
+            StringBuilder out = new StringBuilder();
+            for (byte b : bytes) out.append(String.format(Locale.US, "%02x", b & 0xff));
+            return out.toString();
+        } catch (Exception e) {
+            return value;
+        }
+    }
+
+    private void logoutApp() {
+        detailVisible = false;
+        if (webView != null) webView.onPause();
+        showLoginScreen(false);
     }
 
     private String firstValue(JSONObject object, String... keys) {
@@ -751,9 +919,18 @@ public class MainActivity extends Activity {
             case "accepted":
                 return "المندوب قبل الأوردر";
             case "near_pickup":
-                return "اقترب من المطعم";
+                return "وصل بالقرب من المطعم";
+            case "at_pickup":
+            case "arrived_at_pickup":
+                return "وصل المطعم";
             case "picked_up":
-                return "استلم الأوردر";
+                return "استلم الأوردر من المطعم";
+            case "in_transit":
+            case "on_the_way":
+                return "في الطريق للعميل";
+            case "at_dropoff":
+            case "arrived_at_dropoff":
+                return "وصل عند العميل";
             case "left_pickup":
                 return "غادر المطعم وفي الطريق للعميل";
             case "near_dropoff":
@@ -824,7 +1001,9 @@ public class MainActivity extends Activity {
 
     @Override
     public void onBackPressed() {
-        if (webView != null && webView.canGoBack()) {
+        if (detailVisible) {
+            returnToDashboard();
+        } else if (webView != null && webView.canGoBack()) {
             webView.goBack();
         } else {
             super.onBackPressed();
