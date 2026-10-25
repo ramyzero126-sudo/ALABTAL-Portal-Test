@@ -545,6 +545,26 @@ public class MainActivity extends Activity {
                 JSONObject.quote(RIDERS_URL) + ");" +
             "const riders = data.content || data.riders || [];" +
 
+            "function getShiftFromTable(r) {" +
+            " const id = String(r.employee_id || '').trim();" +
+            " const name = String(r.name || '').replace(/\\s+/g,' ').trim().toLowerCase();" +
+            " const timePattern = /(\\d{1,2}:\\d{2})\\s*[-–—]\\s*(\\d{1,2}:\\d{2})/;" +
+            " const normalize = el => String(el.innerText || el.textContent || '').replace(/\\s+/g,' ').trim();" +
+            " const candidates = Array.from(document.querySelectorAll('tr,[role=row],article,section,li,div'));" +
+            " let best = null;" +
+            " for (const el of candidates) {" +
+            "  const text = normalize(el);" +
+            "  if (!text || text.length > 1800) continue;" +
+            "  const hasId = id && (new RegExp('ID\\\\s*:\\\\s*' + id + '(?:\\\\D|$)').test(text) || new RegExp('(?:^|\\\\D)' + id + '(?:\\\\D|$)').test(text));" +
+            "  const hasName = name && text.toLowerCase().includes(name);" +
+            "  if (!hasId && !hasName) continue;" +
+            "  const match = text.match(timePattern);" +
+            "  if (!match) continue;" +
+            "  if (!best || text.length < best.length) best = {start:match[1],end:match[2],length:text.length};" +
+            " }" +
+            " return best ? {start:best.start,end:best.end} : {start:'',end:''};" +
+            "}" +
+
             "const output = await Promise.all(riders.map(async r => {" +
             " const info = r.deliveries_info || {};" +
             " const activeIds = (info.active_delivery_ids || []).map(x => {" +
@@ -567,6 +587,7 @@ public class MainActivity extends Activity {
 
             " const deliveryInfo = (detail && detail.deliveries_info) || {};" +
             " const latest = deliveryInfo.latest_deliveries || [];" +
+            " const tableShift = getShiftFromTable(r);" +
 
             " const activeOrders = latest.filter(o => {" +
             "  const rawId = o.delivery_id != null ? o.delivery_id :" +
@@ -598,8 +619,8 @@ public class MainActivity extends Activity {
             "  wallet_balance:(r.wallet_info || {}).balance," +
             "  zone:(r.zone || {}).name || ''," +
             "  starting_point:(r.starting_point || {}).name || ''," +
-            "  shift_start:(r.shift_start || r.shiftStart || r.planned_shift_start || r.session_start || (r.shift_info || {}).start_time || (r.shift_info || {}).start || (r.shift || {}).start_time || (r.shift || {}).start || (r.session || {}).start_time || (r.session || {}).start || '')," +
-            "  shift_end:(r.shift_end || r.shiftEnd || r.planned_shift_end || r.session_end || (r.shift_info || {}).end_time || (r.shift_info || {}).end || (r.shift || {}).end_time || (r.shift || {}).end || (r.session || {}).end_time || (r.session || {}).end || '')," +
+            "  shift_start:(r.shift_start || r.shiftStart || r.planned_shift_start || r.session_start || (r.shift_info || {}).start_time || (r.shift_info || {}).start || (r.shift || {}).start_time || (r.shift || {}).start || (r.session || {}).start_time || (r.session || {}).start || tableShift.start || '')," +
+            "  shift_end:(r.shift_end || r.shiftEnd || r.planned_shift_end || r.session_end || (r.shift_info || {}).end_time || (r.shift_info || {}).end || (r.shift || {}).end_time || (r.shift || {}).end || (r.session || {}).end_time || (r.session || {}).end || tableShift.end || '')," +
             "  performance:r.performance_score ?? r.performance ?? r.performanceScore ?? (r.performance_info || {}).score ?? (r.performance_info || {}).value ?? (info || {}).performance_score ?? ''," +
             "  acceptance_rate:r.acceptance_rate ?? r.acceptance_percentage ?? r.acceptance ?? r.acceptanceRate ?? (r.acceptance_info || {}).rate ?? (r.acceptance_info || {}).percentage ?? (info || {}).acceptance_rate ?? ''," +
             "  worked_time:r.worked_time || r.worked_hours || r.worked || ''," +
