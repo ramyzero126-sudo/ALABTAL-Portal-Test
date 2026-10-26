@@ -1163,7 +1163,8 @@ public class MainActivity extends Activity {
         card.setOnClickListener(v -> {
             boolean opening = details.getVisibility() != View.VISIBLE;
             details.setVisibility(opening ? View.VISIBLE : View.GONE);
-            card.setStrokeColor(opening ? ORANGE : ORANGE_DEEP);
+            cardBg.setStroke(dp(1), opening ? ORANGE : ORANGE_DEEP);
+            card.setBackground(cardBg);
         });
     }
 
@@ -1316,8 +1317,7 @@ public class MainActivity extends Activity {
         button.setGravity(Gravity.CENTER);
         button.setMaxLines(1);
         button.setPadding(dp(2), dp(9), dp(2), dp(9));
-        button.setBackground(round(
-                Color.rgb(24, 26, 31), 8, color, 1));
+        button.setBackground(round(Color.rgb(24, 26, 31), color, 1));
 
         LinearLayout.LayoutParams params =
                 new LinearLayout.LayoutParams(0, -2, 1);
@@ -1373,7 +1373,7 @@ public class MainActivity extends Activity {
         LinearLayout box = new LinearLayout(this);
         box.setOrientation(LinearLayout.VERTICAL);
         box.setPadding(dp(8), dp(5), dp(8), dp(5));
-        box.setBackground(round(Color.rgb(19, 21, 26), 10, ORANGE_DEEP, 1));
+        box.setBackground(round(Color.rgb(19, 21, 26), ORANGE_DEEP, 1));
 
         String headingText = stage < 0
                 ? "مسار الأوردر • الحالة غير محددة"
@@ -1385,15 +1385,14 @@ public class MainActivity extends Activity {
         box.addView(lane, new LinearLayout.LayoutParams(-1, dp(25)));
 
         View rail = new View(this);
-        rail.setBackground(round(Color.rgb(65, 52, 45), 2,
-                Color.rgb(65, 52, 45), 0));
+        rail.setBackground(round(Color.rgb(65, 52, 45), Color.rgb(65, 52, 45), 0));
         FrameLayout.LayoutParams railParams = new FrameLayout.LayoutParams(
                 -1, dp(2), Gravity.CENTER_VERTICAL);
         railParams.setMargins(dp(15), 0, dp(15), 0);
         lane.addView(rail, railParams);
 
         View progress = new View(this);
-        progress.setBackground(round(ORANGE, 2, ORANGE, 0));
+        progress.setBackground(round(ORANGE, ORANGE, 0));
         FrameLayout.LayoutParams progressParams = new FrameLayout.LayoutParams(
                 1, dp(2), Gravity.CENTER_VERTICAL | Gravity.LEFT);
         progressParams.leftMargin = dp(15);
