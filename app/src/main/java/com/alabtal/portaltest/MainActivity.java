@@ -46,6 +46,7 @@ public class MainActivity extends Activity {
     private static final int BG = Color.rgb(7, 8, 10);
     private static final int PANEL = Color.rgb(17, 19, 23);
     private static final int ORANGE = Color.rgb(255, 121, 0);
+    private static final int ORANGE_DEEP = Color.rgb(190, 75, 0);
     private static final int WHITE = Color.rgb(245, 246, 248);
     private static final int MUTED = Color.rgb(160, 166, 176);
     private static final int GREEN = Color.rgb(45, 210, 125);
@@ -919,7 +920,9 @@ public class MainActivity extends Activity {
                 "walletBalance", "balance");
         String totalOrders = firstValue(rider, "total_orders",
                 "orders_count", "totalOrders");
-        String state = firstValue(rider, "state", "status", "work_status");
+        String state = firstValue(rider, "rider_status", "state", "status", "work_status");
+        String stateLabel = translateRiderStatus(state);
+        String batch = firstValue(rider, "batch", "batch_number", "patch", "patch_number", "rider_batch");
 
         LinearLayout heading = new LinearLayout(this);
         heading.setOrientation(LinearLayout.HORIZONTAL);
@@ -931,6 +934,7 @@ public class MainActivity extends Activity {
         identity.setLayoutParams(new LinearLayout.LayoutParams(0, -2, 1));
 
         TextView nameView = makeText(name, 14, Color.WHITE, true);
+        nameView.setShadowLayer(dp(5), 0, 0, ORANGE);
         nameView.setMaxLines(1);
         nameView.setEllipsize(android.text.TextUtils.TruncateAt.END);
         identity.addView(nameView);
@@ -942,27 +946,98 @@ public class MainActivity extends Activity {
 
         boolean hasOrders = orders != null && orders.length() > 0;
         TextView orderBadge = makeText(
-                hasOrders ? "● معاه أوردر" : "○ بدون أوردر",
-                10, hasOrders ? Color.rgb(110, 230, 145) : Color.LTGRAY, true);
+                "● " + stateLabel,
+                10, GREEN, true);
+        orderBadge.setShadowLayer(dp(4), 0, 0, GREEN);
         orderBadge.setGravity(Gravity.CENTER);
         orderBadge.setPadding(dp(6), dp(5), dp(6), dp(5));
         heading.addView(orderBadge);
+
+        TextView batchView = makeText(
+                batch.isEmpty() ? "باتش —" : "باتش " + batch,
+                10, ORANGE, true);
+        batchView.setPadding(dp(6), 0, 0, 0);
+        batchView.setShadowLayer(dp(4), 0, 0, ORANGE);
+        heading.addView(batchView);
         card.addView(heading);
 
         // ملخص صغير ظاهر دائمًا
         LinearLayout metrics = new LinearLayout(this);
         metrics.setOrientation(LinearLayout.HORIZONTAL);
         metrics.setGravity(Gravity.CENTER_VERTICAL);
+        metrics.setWeightSum(4f);
         LinearLayout.LayoutParams metricParams = new LinearLayout.LayoutParams(
                 -1, -2);
-        metricParams.topMargin = dp(5);
+        metricParams.topMargin = dp(8);
         card.addView(metrics, metricParams);
 
-        addCompactMetric(metrics, "المحفظة", wallet.isEmpty() ? "—" : wallet);
-        addCompactMetric(metrics, "الأوردرات",
+        addCompactMetric(metrics, "💰 المحفظة",
+                wallet.isEmpty() ? "—" : wallet);
+        addCompactMetric(metrics, "📦 الأوردرات",
                 totalOrders.isEmpty()
                         ? String.valueOf(orders == null ? 0 : orders.length())
                         : totalOrders);
+
+        addCompactMetric(metrics, "◷ الساعة",
+                firstValue(rider, "worked", "worked_time", "worked_hours",
+                        "worked_duration", "work_time").isEmpty()
+                        ? "—"
+                        : firstValue(rider, "worked", "worked_time", "worked_hours",
+                                "worked_duration", "work_time"));
+        addCompactMetric(metrics, "☕ بريك",
+                firstValue(rider, "break_time", "break_duration", "break_minutes",
+                        "breaks", "breakTime").isEmpty()
+                        ? "—"
+                        : firstValue(rider, "break_time", "break_duration",
+                                "break_minutes", "breaks", "breakTime"));
+
+        LinearLayout shiftRow = new LinearLayout(this);
+        shiftRow.setOrientation(LinearLayout.HORIZONTAL);
+        shiftRow.setGravity(Gravity.CENTER_VERTICAL);
+        shiftRow.setPadding(dp(7), dp(7), dp(7), dp(7));
+        shiftRow.setBackground(round(Color.rgb(17, 18, 21), ORANGE, 1));
+        TextView shiftStart = makeText("بداية الشيفت  " + displayValue(
+                firstValue(rider, "shift_start", "shiftStart", "shift_start_time", "session_start", "planned_shift_start")),
+                9, ORANGE, true);
+        shiftStart.setShadowLayer(dp(3), 0, 0, ORANGE_DEEP);
+        shiftStart.setLayoutParams(new LinearLayout.LayoutParams(0, -2, 1));
+        shiftRow.addView(shiftStart);
+        TextView shiftEnd = makeText("النهاية  " + displayValue(
+                firstValue(rider, "shift_end", "shiftEnd", "shift_end_time", "session_end", "planned_shift_end")),
+                9, ORANGE, true);
+        shiftEnd.setGravity(Gravity.RIGHT | Gravity.CENTER_VERTICAL);
+        shiftEnd.setShadowLayer(dp(3), 0, 0, ORANGE_DEEP);
+        shiftEnd.setLayoutParams(new LinearLayout.LayoutParams(0, -2, 1));
+        shiftRow.addView(shiftEnd);
+        LinearLayout.LayoutParams shiftParams = new LinearLayout.LayoutParams(-1, -2);
+        shiftParams.topMargin = dp(2);
+        card.addView(shiftRow, shiftParams);
+
+        if (hasOrders) {
+            JSONObject activeOrder = orders.optJSONObject(0);
+            if (activeOrder != null) {
+                LinearLayout progress = new LinearLayout(this);
+                progress.setOrientation(LinearLayout.VERTICAL);
+                addOrderProgressTrack(progress, firstValue(activeOrder,
+                        "status", "order_status", "stage", "delivery_status"));
+                card.addView(progress);
+            }
+        } else {
+            TextView noActiveOrder = makeText("○ بدون أوردر نشط", 10, Color.LTGRAY, true);
+            noActiveOrder.setPadding(dp(3), dp(5), dp(3), dp(3));
+            card.addView(noActiveOrder);
+        }
+
+        LinearLayout actions = new LinearLayout(this);
+        actions.setOrientation(LinearLayout.HORIZONTAL);
+        actions.setGravity(Gravity.CENTER);
+        actions.setPadding(0, dp(4), 0, dp(3));
+        addRiderAction(actions, rider, "☎", "اتصال", ORANGE);
+        addRiderAction(actions, rider, "🎧", "سماعة", ORANGE);
+        addRiderAction(actions, rider, "🔋", "تزويد", GREEN);
+        addRiderAction(actions, rider, "☕", "بريك", ORANGE);
+        addRiderAction(actions, rider, "✉", "رسالة", ORANGE);
+        card.addView(actions);
 
         TextView toggle = makeText("⌄ عرض التفاصيل", 11, ORANGE, true);
         toggle.setGravity(Gravity.CENTER);
@@ -1031,9 +1106,69 @@ public class MainActivity extends Activity {
             details.setVisibility(show ? View.VISIBLE : View.GONE);
             toggle.setText(show ? "⌃ إخفاء التفاصيل" : "⌄ عرض التفاصيل");
         };
-        heading.setOnClickListener(toggleDetails);
-        metrics.setOnClickListener(toggleDetails);
-        toggle.setOnClickListener(toggleDetails);
+        card.setClickable(true);
+        card.setFocusable(true);
+        card.setOnClickListener(toggleDetails);
+    }
+
+    private void addRiderAction(
+            LinearLayout parent, JSONObject rider, String symbol, String label, int glow) {
+        LinearLayout button = new LinearLayout(this);
+        button.setOrientation(LinearLayout.VERTICAL);
+        button.setGravity(Gravity.CENTER);
+        button.setPadding(dp(2), dp(4), dp(2), dp(4));
+        button.setBackground(round(Color.rgb(20, 20, 23), ORANGE_DEEP, 1));
+
+        TextView icon = makeText(symbol, 16, glow, true);
+        icon.setGravity(Gravity.CENTER);
+        icon.setShadowLayer(dp(4), 0, 0, glow);
+        button.addView(icon, new LinearLayout.LayoutParams(-1, dp(22)));
+
+        TextView caption = makeText(label, 8, Color.WHITE, true);
+        caption.setGravity(Gravity.CENTER);
+        button.addView(caption);
+
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, -2, 1f);
+        lp.setMargins(dp(2), 0, dp(2), 0);
+        parent.addView(button, lp);
+
+        button.setClickable(true);
+        button.setFocusable(true);
+        button.setOnClickListener(v -> {
+            String phone = firstValue(rider, "phone", "phone_number", "mobile",
+                    "rider_phone", "telephone", "contact_number");
+            try {
+                if ("اتصال".equals(label) || "سماعة".equals(label)) {
+                    if (phone.isEmpty() || phone.equals("غير متاح")) {
+                        Toast.makeText(this, "رقم هاتف المندوب غير متاح", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    android.content.Intent intent = new android.content.Intent(
+                            android.content.Intent.ACTION_DIAL,
+                            android.net.Uri.parse("tel:" + phone.replace(" ", "")));
+                    startActivity(intent);
+                } else if ("رسالة".equals(label)) {
+                    if (phone.isEmpty() || phone.equals("غير متاح")) {
+                        Toast.makeText(this, "رقم هاتف المندوب غير متاح", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    android.content.Intent intent = new android.content.Intent(
+                            android.content.Intent.ACTION_SENDTO,
+                            android.net.Uri.parse("smsto:" + phone.replace(" ", "")));
+                    startActivity(intent);
+                } else if ("بريك".equals(label)) {
+                    Toast.makeText(this,
+                            "زر البريك ظاهر؛ تفعيل الحالة يحتاج دعمًا من مصدر الروستر",
+                            Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(this,
+                            "زر التزويد ظاهر؛ لا يوجد إجراء تزويد مؤكد في بيانات الروستر",
+                            Toast.LENGTH_SHORT).show();
+                }
+            } catch (Exception e) {
+                Toast.makeText(this, "تعذر فتح الإجراء على هذا الجهاز", Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     private void addCompactMetric(LinearLayout parent, String label, String value) {
@@ -1048,12 +1183,19 @@ public class MainActivity extends Activity {
         bg.setStroke(dp(1), Color.rgb(100, 65, 40));
         item.setBackground(bg);
 
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, -2, 1);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, -2, 1f);
         lp.setMargins(dp(2), 0, dp(2), 0);
         parent.addView(item, lp);
 
-        item.addView(makeText(label, 10, Color.LTGRAY, false));
-        TextView val = makeText(value, 13, Color.WHITE, true);
+        TextView metricLabel = makeText(label, 9, ORANGE, true);
+        metricLabel.setShadowLayer(dp(3), 0, 0, ORANGE_DEEP);
+        metricLabel.setGravity(Gravity.CENTER);
+        metricLabel.setMaxLines(1);
+        metricLabel.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        item.addView(metricLabel);
+        TextView val = makeText(value, 12, Color.WHITE, true);
+        val.setShadowLayer(dp(4), 0, 0, ORANGE_DEEP);
+        val.setGravity(Gravity.CENTER);
         val.setMaxLines(1);
         val.setEllipsize(android.text.TextUtils.TruncateAt.END);
         item.addView(val);
@@ -1109,13 +1251,14 @@ public class MainActivity extends Activity {
         }
 
         String[] labels = {
-            "معاه أوردر", "وصل المطعم",
-            "في الطريق للعميل", "وصل عند العميل"
+            "معاه أوردر", "استلام من المطعم",
+            "في الطريق للعميل", "وصل للعميل"
         };
 
         TextView heading = makeText("مسار الأوردر  /  " + arabicStatus(rawStatus),
                 11, ORANGE, true);
         heading.setPadding(dp(2), dp(8), dp(2), dp(5));
+        heading.setShadowLayer(dp(4), 0, 0, ORANGE_DEEP);
         target.addView(heading);
 
         FrameLayout trackContainer = new FrameLayout(this);
@@ -1137,9 +1280,11 @@ public class MainActivity extends Activity {
                     reached ? "●" : "○",
                     12, led, true);
             dot.setGravity(Gravity.CENTER);
+            if (reached) dot.setShadowLayer(dp(4), 0, 0, ORANGE);
 
             TextView label = makeText(labels[i], 8,
-                    reached ? WHITE : MUTED, reached);
+                    reached ? ORANGE : MUTED, reached);
+            if (reached) label.setShadowLayer(dp(2), 0, 0, ORANGE_DEEP);
             label.setGravity(Gravity.CENTER);
             label.setMaxLines(2);
 
