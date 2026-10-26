@@ -158,7 +158,7 @@ public class MainActivity extends Activity {
         LinearLayout root = dashboardRoot;
         root.setOrientation(LinearLayout.VERTICAL);
         root.setBackgroundColor(BG);
-        root.setPadding(dp(5), dp(2), dp(5), dp(2));
+        root.setPadding(dp(4), 0, dp(4), 0);
 
         // Premium AL ABTAL LED Header
         LinearLayout portalRow = new LinearLayout(this);
@@ -167,7 +167,7 @@ public class MainActivity extends Activity {
 
         Button portalButton = makeButton("🌐 البوابة");
         LinearLayout.LayoutParams portalParams =
-                new LinearLayout.LayoutParams(-2, dp(33));
+                new LinearLayout.LayoutParams(-2, dp(27));
         portalParams.setMargins(0, 0, 0, dp(3));
         portalRow.addView(portalButton, portalParams);
         portalButton.setOnClickListener(v -> showPortalPage());
@@ -178,16 +178,16 @@ public class MainActivity extends Activity {
         brand.setGravity(Gravity.CENTER);
         brand.setPadding(dp(6), dp(2), dp(6), dp(3));
 
-        TextView title = makeText("AL ABTAL", 24, ORANGE, true);
+        TextView title = makeText("AL ABTAL", 20, ORANGE, true);
         title.setGravity(Gravity.CENTER);
         title.setTypeface(Typeface.create("sans-serif-black", Typeface.BOLD));
         title.setLetterSpacing(0.10f);
         title.setShadowLayer(dp(5), 0, 0, ORANGE);
-        brand.addView(title, new LinearLayout.LayoutParams(-1, dp(34)));
+        brand.addView(title, new LinearLayout.LayoutParams(-1, dp(26)));
 
         TextView subtitle = makeText("L I V E   O P E R A T I O N S", 9, WHITE, true);
         subtitle.setGravity(Gravity.CENTER);
-        brand.addView(subtitle, new LinearLayout.LayoutParams(-1, dp(16)));
+        brand.addView(subtitle, new LinearLayout.LayoutParams(-1, dp(12)));
 
         GradientDrawable brandBg = new GradientDrawable(
                 GradientDrawable.Orientation.TOP_BOTTOM,
@@ -198,8 +198,8 @@ public class MainActivity extends Activity {
         brand.setBackground(brandBg);
 
         LinearLayout.LayoutParams brandParams =
-                new LinearLayout.LayoutParams(-1, dp(54));
-        brandParams.setMargins(0, dp(2), 0, dp(4));
+                new LinearLayout.LayoutParams(-1, dp(41));
+        brandParams.setMargins(0, dp(1), 0, dp(2));
         root.addView(brand, brandParams);
 
         banner = makeText("", 14, ORANGE, true);
@@ -219,8 +219,8 @@ public class MainActivity extends Activity {
         banner.setBackground(ledBg);
 
         LinearLayout.LayoutParams bp =
-                new LinearLayout.LayoutParams(-1, dp(32));
-        bp.setMargins(0, 0, 0, dp(4));
+                new LinearLayout.LayoutParams(-1, dp(23));
+        bp.setMargins(0, 0, 0, dp(1));
         root.addView(banner, bp);
         handler.post(bannerRunnable);
 
@@ -230,14 +230,14 @@ public class MainActivity extends Activity {
             12, MUTED, false
         );
         summary.setTextSize(10);
-        summary.setMaxLines(2);
+        summary.setMaxLines(1);
         summary.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        summary.setPadding(0, dp(2), 0, dp(2));
+        summary.setPadding(0, 0, 0, 0);
         root.addView(summary);
 
         TextView statsTitle = makeText(
-                "⌄ ملخص التشغيل المباشر", 12, ORANGE, true);
-        statsTitle.setPadding(0, dp(2), 0, dp(2));
+                "ملخص التشغيل المباشر", 10, ORANGE, true);
+        statsTitle.setPadding(dp(1), 0, dp(1), 0);
         root.addView(statsTitle);
 
         dashboardStats = new LinearLayout(this);
@@ -257,9 +257,9 @@ public class MainActivity extends Activity {
             "في انتظار بيانات الروستر...",
             10, ORANGE, false
         );
-        status.setMaxLines(2);
+        status.setMaxLines(1);
         status.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        status.setPadding(dp(2), dp(2), dp(4), dp(2));
+        status.setPadding(dp(1), 0, dp(2), 0);
         controls.addView(
             status, new LinearLayout.LayoutParams(0, -2, 1)
         );
@@ -269,7 +269,7 @@ public class MainActivity extends Activity {
         inspectButton.setPadding(0, 0, 0, 0);
         inspectButton.setContentDescription("تحديث البيانات");
         LinearLayout.LayoutParams refreshParams =
-                new LinearLayout.LayoutParams(dp(42), dp(38));
+                new LinearLayout.LayoutParams(dp(34), dp(29));
         refreshParams.setMargins(dp(3), 0, 0, 0);
         controls.addView(inspectButton, refreshParams);
 
@@ -320,8 +320,8 @@ public class MainActivity extends Activity {
         );
 
         TextView listTitle = makeText("المندوبون والأوردرات", 16, ORANGE, true);
-        listTitle.setTextSize(14);
-        listTitle.setPadding(0, dp(4), 0, dp(3));
+        listTitle.setTextSize(12);
+        listTitle.setPadding(0, dp(2), 0, dp(1));
         root.addView(listTitle);
 
         riderSearch = new EditText(this);
@@ -330,23 +330,23 @@ public class MainActivity extends Activity {
         riderSearch.setHintTextColor(MUTED);
         riderSearch.setHint("🔎 ابحث بالاسم أو رقم المندوب");
         riderSearch.setTextSize(12);
-        riderSearch.setPadding(dp(10), 0, dp(10), 0);
+        riderSearch.setPadding(dp(8), 0, dp(8), 0);
         riderSearch.setBackground(round(PANEL, Color.rgb(75, 65, 58), 1));
         root.addView(riderSearch,
-                new LinearLayout.LayoutParams(-1, dp(38)));
+                new LinearLayout.LayoutParams(-1, dp(32)));
 
         HorizontalScrollView filterScroll = new HorizontalScrollView(this);
         filterScroll.setHorizontalScrollBarEnabled(false);
         LinearLayout filterRow = new LinearLayout(this);
         filterRow.setOrientation(LinearLayout.HORIZONTAL);
-        filterRow.setPadding(0, dp(3), 0, dp(2));
+        filterRow.setPadding(0, dp(1), 0, 0);
 
         String[] filters = {"الكل", "شغال", "بريك", "غير متصل", "معاه أوردر", "فاضي"};
         for (String filter : filters) {
             Button chip = makeButton(filter);
             chip.setTextSize(10);
             LinearLayout.LayoutParams cp =
-                    new LinearLayout.LayoutParams(-2, dp(31));
+                    new LinearLayout.LayoutParams(-2, dp(25));
             cp.setMargins(0, 0, dp(4), 0);
             filterRow.addView(chip, cp);
             chip.setOnClickListener(v -> {
@@ -361,14 +361,14 @@ public class MainActivity extends Activity {
         limitScroll.setHorizontalScrollBarEnabled(false);
         LinearLayout limitRow = new LinearLayout(this);
         limitRow.setOrientation(LinearLayout.HORIZONTAL);
-        limitRow.setPadding(0, 0, 0, dp(3));
+        limitRow.setPadding(0, 0, 0, dp(1));
         TextView limitLabel = makeText("عدد المندوبين:", 10, MUTED, true);
         limitRow.addView(limitLabel);
         for (int limit : new int[]{10, 30, 50}) {
             Button chip = makeButton(String.valueOf(limit));
             chip.setTextSize(10);
             LinearLayout.LayoutParams cp =
-                    new LinearLayout.LayoutParams(dp(48), dp(29));
+                    new LinearLayout.LayoutParams(dp(42), dp(24));
             cp.setMargins(dp(4), 0, 0, 0);
             limitRow.addView(chip, cp);
             chip.setOnClickListener(v -> {
@@ -1021,7 +1021,7 @@ public class MainActivity extends Activity {
             LinearLayout parent, String heading,
             String[] labels, String[] values, int[] colors) {
         TextView title = makeText(heading, 10, ORANGE, true);
-        title.setPadding(dp(2), dp(4), dp(2), dp(3));
+        title.setPadding(dp(1), 0, dp(1), 0);
         parent.addView(title, new LinearLayout.LayoutParams(-1, -2));
 
         LinearLayout row = new LinearLayout(this);
@@ -1035,7 +1035,7 @@ public class MainActivity extends Activity {
             LinearLayout tile = new LinearLayout(this);
             tile.setOrientation(LinearLayout.VERTICAL);
             tile.setGravity(Gravity.CENTER);
-            tile.setPadding(dp(2), dp(5), dp(2), dp(5));
+            tile.setPadding(dp(1), dp(2), dp(1), dp(2));
 
             GradientDrawable bg = new GradientDrawable();
             bg.setColor(Color.rgb(20, 20, 24));
@@ -1044,24 +1044,24 @@ public class MainActivity extends Activity {
             tile.setBackground(bg);
             tile.setElevation(dp(2));
 
-            TextView value = makeText(values[i], 13, colors[i], true);
+            TextView value = makeText(values[i], 12, colors[i], true);
             value.setGravity(Gravity.CENTER);
             tile.addView(value, new LinearLayout.LayoutParams(-1, -2));
 
-            TextView label = makeText(labels[i], 8, MUTED, false);
+            TextView label = makeText(labels[i], 7, MUTED, false);
             label.setGravity(Gravity.CENTER);
-            label.setPadding(0, dp(2), 0, 0);
+            label.setPadding(0, 0, 0, 0);
             tile.addView(label, new LinearLayout.LayoutParams(-1, -2));
 
             LinearLayout.LayoutParams tileParams =
-                    new LinearLayout.LayoutParams(0, dp(42), 1f);
-            tileParams.setMargins(dp(2), dp(2), dp(2), dp(3));
+                    new LinearLayout.LayoutParams(0, dp(32), 1f);
+            tileParams.setMargins(dp(1), dp(1), dp(1), dp(1));
             row.addView(tile, tileParams);
         }
 
         LinearLayout.LayoutParams rowParams =
                 new LinearLayout.LayoutParams(-1, -2);
-        rowParams.setMargins(0, 0, 0, dp(3));
+        rowParams.setMargins(0, 0, 0, dp(1));
         parent.addView(row, rowParams);
     }
 
@@ -1741,133 +1741,209 @@ public class MainActivity extends Activity {
     }
 
     private void showLoginScreen(boolean setup) {
+        android.widget.ScrollView scroll = new android.widget.ScrollView(this);
+        scroll.setFillViewport(true);
+        scroll.setBackgroundColor(BG);
+        scroll.setClipToPadding(false);
+
         LinearLayout page = new LinearLayout(this);
         page.setOrientation(LinearLayout.VERTICAL);
         page.setGravity(Gravity.CENTER_HORIZONTAL);
-        page.setPadding(dp(24), dp(28), dp(24), dp(24));
-        page.setBackgroundColor(BG);
+        page.setPadding(dp(22), dp(18), dp(22), dp(18));
+        scroll.addView(page, new android.widget.ScrollView.LayoutParams(-1, -1));
 
-        FrameLayout logoFrame = new FrameLayout(this);
-        logoFrame.setClipChildren(false);
-        logoFrame.setClipToPadding(false);
-        logoFrame.setBackground(round(BG, ORANGE_DEEP, 1));
+        FrameLayout hero = new FrameLayout(this);
+        hero.setClipChildren(false);
+        hero.setClipToPadding(false);
+        hero.setBackground(round(PANEL, ORANGE_DEEP, 1));
+
+        LinearLayout heroContent = new LinearLayout(this);
+        heroContent.setOrientation(LinearLayout.VERTICAL);
+        heroContent.setGravity(Gravity.CENTER);
+        heroContent.setPadding(dp(12), dp(10), dp(12), dp(10));
 
         ImageView brand = new ImageView(this);
         brand.setImageResource(com.alabtal.portaltest.R.drawable.alabtal_logo);
         brand.setScaleType(ImageView.ScaleType.FIT_CENTER);
-        brand.setAdjustViewBounds(true);
         brand.setContentDescription("شعار الأبطال");
 
-        FrameLayout.LayoutParams logoParams = new FrameLayout.LayoutParams(
-                dp(190), dp(150), Gravity.CENTER);
-        logoFrame.addView(brand, logoParams);
+        heroContent.addView(brand, new LinearLayout.LayoutParams(dp(142), dp(112)));
 
-        LinearLayout.LayoutParams logoFrameParams =
-                new LinearLayout.LayoutParams(-1, dp(170));
-        logoFrameParams.setMargins(0, 0, 0, dp(8));
-        page.addView(logoFrame, logoFrameParams);
+        TextView brandTitle = makeText("AL ABTAL", 25, ORANGE, true);
+        brandTitle.setGravity(Gravity.CENTER);
+        brandTitle.setShadowLayer(dp(8), 0, 0, ORANGE);
+        heroContent.addView(brandTitle, new LinearLayout.LayoutParams(-1, dp(36)));
+
+        TextView tagline = makeText("OPERATIONS  •  TALABAT  •  TANTA", 11, MUTED, true);
+        tagline.setGravity(Gravity.CENTER);
+        heroContent.addView(tagline, new LinearLayout.LayoutParams(-1, dp(24)));
+
+        hero.addView(heroContent, new FrameLayout.LayoutParams(-1, -2, Gravity.CENTER));
+
+        LinearLayout.LayoutParams heroParams =
+                new LinearLayout.LayoutParams(-1, dp(205));
+        heroParams.setMargins(0, 0, 0, dp(20));
+        page.addView(hero, heroParams);
 
         brand.setAlpha(0f);
         brand.setScaleX(0.72f);
         brand.setScaleY(0.72f);
         brand.setTranslationY(dp(10));
         brand.animate()
-                .alpha(1f)
-                .scaleX(1f)
-                .scaleY(1f)
-                .translationY(0f)
-                .setDuration(950)
+                .alpha(1f).scaleX(1f).scaleY(1f).translationY(0f)
+                .setDuration(900)
                 .setInterpolator(new DecelerateInterpolator())
                 .start();
 
-        ObjectAnimator logoGlow = ObjectAnimator.ofFloat(
-                logoFrame, "alpha", 0.78f, 1f, 0.88f, 1f);
-        logoGlow.setDuration(2200);
-        logoGlow.setRepeatCount(ObjectAnimator.INFINITE);
-        logoGlow.setRepeatMode(ObjectAnimator.RESTART);
-        logoGlow.start();
+        ObjectAnimator glow = ObjectAnimator.ofFloat(
+                hero, "alpha", 0.88f, 1f, 0.93f, 1f);
+        glow.setDuration(2400);
+        glow.setRepeatCount(ObjectAnimator.INFINITE);
+        glow.start();
 
-        TextView brandTitle = makeText("AL ABTAL", 21, ORANGE, true);
-        brandTitle.setGravity(Gravity.CENTER);
-        brandTitle.setShadowLayer(dp(5), 0, 0, ORANGE);
-        page.addView(brandTitle, new LinearLayout.LayoutParams(-1, dp(34)));
-        TextView subtitle = makeText(setup ? "إنشاء حساب الدخول للتطبيق" : "تسجيل الدخول للتطبيق", 17, WHITE, true);
-        subtitle.setGravity(Gravity.CENTER);
-        subtitle.setPadding(0, 0, 0, dp(20));
-        page.addView(subtitle);
+        TextView heading = makeText(
+                setup ? "إنشاء حساب التطبيق" : "مرحباً بعودتك",
+                22, WHITE, true);
+        heading.setGravity(Gravity.CENTER);
+        page.addView(heading, new LinearLayout.LayoutParams(-1, dp(34)));
 
-        EditText username = new EditText(this);
-        username.setSingleLine(true);
-        username.setTextColor(WHITE);
-        username.setHintTextColor(MUTED);
-        username.setHint("اسم المستخدم");
-        username.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
-        username.setPadding(dp(12), dp(8), dp(12), dp(8));
-        username.setBackground(round(PANEL, ORANGE, 1));
-        page.addView(username, new LinearLayout.LayoutParams(-1, dp(52)));
+        TextView description = makeText(
+                setup ? "أنشئ بيانات الدخول المحلية للمتابعة"
+                      : "سجّل الدخول لمتابعة عملياتك",
+                13, MUTED, false);
+        description.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams descParams =
+                new LinearLayout.LayoutParams(-1, dp(28));
+        descParams.setMargins(0, 0, 0, dp(16));
+        page.addView(description, descParams);
+
+        LinearLayout form = new LinearLayout(this);
+        form.setOrientation(LinearLayout.VERTICAL);
+        form.setPadding(dp(16), dp(18), dp(16), dp(16));
+        form.setBackground(round(PANEL, ORANGE_DEEP, 1));
+        page.addView(form, new LinearLayout.LayoutParams(-1, -2));
+
+        TextView emailLabel = makeText("البريد الإلكتروني", 12, ORANGE, true);
+        form.addView(emailLabel, new LinearLayout.LayoutParams(-1, dp(24)));
+
+        EditText email = new EditText(this);
+        email.setSingleLine(true);
+        email.setTextColor(WHITE);
+        email.setHintTextColor(MUTED);
+        email.setHint("name@example.com");
+        email.setTextSize(15);
+        email.setInputType(
+                InputType.TYPE_CLASS_TEXT |
+                InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS |
+                InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
+        email.setPadding(dp(12), dp(8), dp(12), dp(8));
+        email.setBackground(round(BG, ORANGE_DEEP, 1));
+        form.addView(email, new LinearLayout.LayoutParams(-1, dp(50)));
+
+        TextView passwordLabel = makeText("كلمة المرور", 12, ORANGE, true);
+        LinearLayout.LayoutParams passwordLabelParams =
+                new LinearLayout.LayoutParams(-1, dp(26));
+        passwordLabelParams.setMargins(0, dp(12), 0, 0);
+        form.addView(passwordLabel, passwordLabelParams);
 
         EditText password = new EditText(this);
         password.setSingleLine(true);
         password.setTextColor(WHITE);
         password.setHintTextColor(MUTED);
-        password.setHint("كلمة المرور (6 أحرف على الأقل عند الإنشاء)");
-        password.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        password.setHint("أدخل كلمة المرور");
+        password.setTextSize(15);
+        password.setInputType(
+                InputType.TYPE_CLASS_TEXT |
+                InputType.TYPE_TEXT_VARIATION_PASSWORD);
         password.setPadding(dp(12), dp(8), dp(12), dp(8));
-        password.setBackground(round(PANEL, ORANGE, 1));
-        LinearLayout.LayoutParams passParams = new LinearLayout.LayoutParams(-1, dp(52));
-        passParams.setMargins(0, dp(12), 0, dp(16));
-        page.addView(password, passParams);
+        password.setBackground(round(BG, ORANGE_DEEP, 1));
+        LinearLayout.LayoutParams passwordParams =
+                new LinearLayout.LayoutParams(-1, dp(50));
+        passwordParams.setMargins(0, 0, 0, dp(16));
+        form.addView(password, passwordParams);
 
-        Button submit = makeButton(setup ? "إنشاء الحساب والمتابعة" : "دخول");
-        page.addView(submit, new LinearLayout.LayoutParams(-1, dp(50)));
-        TextView note = makeText("تسجيل الدخول محلي على هذا الجهاز، ومنفصل عن حساب بوابة الشركة.", 11, MUTED, false);
-        note.setPadding(0, dp(16), 0, 0);
-        page.addView(note);
+        Button submit = makeButton(
+                setup ? "إنشاء الحساب والمتابعة" : "دخول إلى التطبيق");
+        form.addView(submit, new LinearLayout.LayoutParams(-1, dp(48)));
+
+        TextView note = makeText(
+                "حساب محلي على هذا الجهاز، منفصل عن حساب بوابة الشركة.",
+                11, MUTED, false);
+        note.setGravity(Gravity.CENTER);
+        note.setPadding(dp(4), dp(12), dp(4), 0);
+        form.addView(note, new LinearLayout.LayoutParams(-1, -2));
+
         submit.setOnClickListener(v -> {
-            String u = username.getText().toString().trim();
+            String u = email.getText().toString().trim().toLowerCase(Locale.US);
             String pw = password.getText().toString();
+
             if (u.isEmpty() || pw.isEmpty()) {
-                Toast.makeText(this, "اكتب اسم المستخدم وكلمة المرور", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this,
+                        "اكتب البريد الإلكتروني وكلمة المرور",
+                        Toast.LENGTH_SHORT).show();
                 return;
             }
+
+            if (!android.util.Patterns.EMAIL_ADDRESS.matcher(u).matches()) {
+                email.setError("اكتب بريدًا إلكترونيًا صحيحًا");
+                email.requestFocus();
+                return;
+            }
+
             if (setup) {
                 if (pw.length() < 6) {
-                    Toast.makeText(this, "كلمة المرور يجب أن تكون 6 أحرف على الأقل", Toast.LENGTH_LONG).show();
+                    password.setError("6 أحرف على الأقل");
+                    password.requestFocus();
                     return;
                 }
-                authPrefs.edit().putString("username", u).putString("password_hash", hashPassword(pw)).apply();
-                Toast.makeText(this, "تم إنشاء حساب الدخول على هذا الجهاز", Toast.LENGTH_SHORT).show();
+
+                authPrefs.edit()
+                        .putString("username", u)
+                        .putString("password_hash", hashPassword(pw))
+                        .apply();
+
+                Toast.makeText(this,
+                        "تم إنشاء حساب الدخول المحلي",
+                        Toast.LENGTH_SHORT).show();
                 buildDashboard();
             } else {
                 String savedUser = authPrefs.getString("username", "");
                 String savedHash = authPrefs.getString("password_hash", "");
+
                 if (u.equals(savedUser) && hashPassword(pw).equals(savedHash)) {
                     buildDashboard();
                 } else {
-                    Toast.makeText(this, "اسم المستخدم أو كلمة المرور غير صحيحة", Toast.LENGTH_LONG).show();
+                    Toast.makeText(this,
+                            "البريد الإلكتروني أو كلمة المرور غير صحيحة",
+                            Toast.LENGTH_LONG).show();
                 }
             }
         });
+
         if (!setup) {
             Button resetLogin = makeButton("إعادة تعيين بيانات الدخول");
+            LinearLayout.LayoutParams resetParams =
+                    new LinearLayout.LayoutParams(-1, dp(42));
+            resetParams.setMargins(0, dp(12), 0, 0);
+            page.addView(resetLogin, resetParams);
+
             resetLogin.setOnClickListener(v ->
                 new android.app.AlertDialog.Builder(this)
-                    .setTitle("إنشاء بيانات دخول جديدة")
-                    .setMessage("سيتم حذف اسم المستخدم وكلمة المرور المحليين فقط. بيانات الروستر المحفوظة لن تُحذف.")
+                    .setTitle("إعادة تعيين الدخول")
+                    .setMessage("سيتم حذف بيانات الدخول المحلية فقط. بيانات الروستر المحفوظة لن تُحذف.")
                     .setNegativeButton("إلغاء", null)
                     .setPositiveButton("متابعة", (dialog, which) -> {
                         authPrefs.edit()
-                            .remove("username")
-                            .remove("password_hash")
-                            .apply();
+                                .remove("username")
+                                .remove("password_hash")
+                                .apply();
                         showLoginScreen(true);
                     })
                     .show()
             );
-            page.addView(resetLogin);
         }
 
-        setContentView(page);
+        setContentView(scroll);
     }
 
     private String hashPassword(String value) {
