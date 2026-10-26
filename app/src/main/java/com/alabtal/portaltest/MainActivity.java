@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.animation.ObjectAnimator;
 import android.view.animation.DecelerateInterpolator;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -1746,10 +1747,50 @@ public class MainActivity extends Activity {
         page.setPadding(dp(24), dp(28), dp(24), dp(24));
         page.setBackgroundColor(BG);
 
-        TextView brand = makeText("AL ABTAL", 30, ORANGE, true);
-        brand.setGravity(Gravity.CENTER);
-        brand.setShadowLayer(dp(5), 0, 0, ORANGE);
-        page.addView(brand, new LinearLayout.LayoutParams(-1, dp(60)));
+        FrameLayout logoFrame = new FrameLayout(this);
+        logoFrame.setClipChildren(false);
+        logoFrame.setClipToPadding(false);
+        logoFrame.setBackground(round(BG, ORANGE_DEEP, 1));
+
+        ImageView brand = new ImageView(this);
+        brand.setImageResource(com.alabtal.portaltest.R.drawable.alabtal_logo);
+        brand.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        brand.setAdjustViewBounds(true);
+        brand.setContentDescription("شعار الأبطال");
+
+        FrameLayout.LayoutParams logoParams = new FrameLayout.LayoutParams(
+                dp(190), dp(150), Gravity.CENTER);
+        logoFrame.addView(brand, logoParams);
+
+        LinearLayout.LayoutParams logoFrameParams =
+                new LinearLayout.LayoutParams(-1, dp(170));
+        logoFrameParams.setMargins(0, 0, 0, dp(8));
+        page.addView(logoFrame, logoFrameParams);
+
+        brand.setAlpha(0f);
+        brand.setScaleX(0.72f);
+        brand.setScaleY(0.72f);
+        brand.setTranslationY(dp(10));
+        brand.animate()
+                .alpha(1f)
+                .scaleX(1f)
+                .scaleY(1f)
+                .translationY(0f)
+                .setDuration(950)
+                .setInterpolator(new DecelerateInterpolator())
+                .start();
+
+        ObjectAnimator logoGlow = ObjectAnimator.ofFloat(
+                logoFrame, "alpha", 0.78f, 1f, 0.88f, 1f);
+        logoGlow.setDuration(2200);
+        logoGlow.setRepeatCount(ObjectAnimator.INFINITE);
+        logoGlow.setRepeatMode(ObjectAnimator.RESTART);
+        logoGlow.start();
+
+        TextView brandTitle = makeText("AL ABTAL", 21, ORANGE, true);
+        brandTitle.setGravity(Gravity.CENTER);
+        brandTitle.setShadowLayer(dp(5), 0, 0, ORANGE);
+        page.addView(brandTitle, new LinearLayout.LayoutParams(-1, dp(34)));
         TextView subtitle = makeText(setup ? "إنشاء حساب الدخول للتطبيق" : "تسجيل الدخول للتطبيق", 17, WHITE, true);
         subtitle.setGravity(Gravity.CENTER);
         subtitle.setPadding(0, 0, 0, dp(20));
