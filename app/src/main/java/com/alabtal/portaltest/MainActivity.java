@@ -45,11 +45,16 @@ public class MainActivity extends Activity {
 
     private static final int BG = Color.rgb(7, 8, 10);
     private static final int PANEL = Color.rgb(17, 19, 23);
-    private static final int ORANGE = Color.rgb(255, 121, 0);
+    private static final int PANEL_2 = Color.rgb(25, 27, 30);
+    private static final int ORANGE = Color.rgb(255, 138, 52);
+    private static final int GOLD = Color.rgb(255, 181, 96);
+    private static final int ORANGE_DEEP = Color.rgb(130, 63, 20);
     private static final int WHITE = Color.rgb(245, 246, 248);
     private static final int MUTED = Color.rgb(160, 166, 176);
     private static final int GREEN = Color.rgb(45, 210, 125);
     private static final int RED = Color.rgb(255, 82, 82);
+    private static final int CARD_BG = Color.rgb(25, 26, 30);
+    private static final int CARD_INNER = Color.rgb(18, 19, 22);
 
     private static final String PORTAL_URL =
         "https://eg.me.logisticsbackoffice.com/dashboard/rooster/live-3pl";
@@ -129,14 +134,14 @@ public class MainActivity extends Activity {
         root.setBackgroundColor(BG);
         root.setPadding(dp(8), dp(3), dp(8), dp(3));
 
-        // Premium AL ABTAL LED Header
         LinearLayout portalRow = new LinearLayout(this);
         portalRow.setOrientation(LinearLayout.HORIZONTAL);
         portalRow.setGravity(Gravity.LEFT | Gravity.CENTER_VERTICAL);
+        portalRow.setPadding(0, 0, 0, dp(2));
 
         Button portalButton = makeButton("🌐 البوابة");
         LinearLayout.LayoutParams portalParams =
-                new LinearLayout.LayoutParams(-2, dp(33));
+                new LinearLayout.LayoutParams(-2, dp(34));
         portalParams.setMargins(0, 0, 0, dp(3));
         portalRow.addView(portalButton, portalParams);
         portalButton.setOnClickListener(v -> showPortalPage());
@@ -160,30 +165,30 @@ public class MainActivity extends Activity {
 
         GradientDrawable brandBg = new GradientDrawable(
                 GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[]{Color.rgb(65, 28, 5), Color.rgb(5, 6, 9)}
+                new int[]{Color.rgb(70, 33, 8), Color.rgb(15, 16, 20), Color.rgb(5, 6, 9)}
         );
-        brandBg.setCornerRadius(dp(12));
+        brandBg.setCornerRadius(dp(18));
         brandBg.setStroke(dp(1), ORANGE);
         brand.setBackground(brandBg);
+        brand.setElevation(dp(5));
 
         LinearLayout.LayoutParams brandParams =
-                new LinearLayout.LayoutParams(-1, dp(54));
-        brandParams.setMargins(0, dp(2), 0, dp(4));
+                new LinearLayout.LayoutParams(-1, dp(58));
+        brandParams.setMargins(0, dp(2), 0, dp(5));
         root.addView(brand, brandParams);
 
-        banner = makeText("", 14, ORANGE, true);
+        banner = makeText("", 14, GOLD, true);
         banner.setGravity(Gravity.CENTER);
         banner.setSingleLine(true);
         banner.setLetterSpacing(0.025f);
-        banner.setShadowLayer(dp(4), 0, 0, ORANGE);
-        banner.setPadding(dp(4), dp(3), dp(4), dp(3));
+        banner.setShadowLayer(dp(4), 0, 0, GOLD);
+        banner.setPadding(dp(6), dp(4), dp(6), dp(4));
 
         GradientDrawable ledBg = new GradientDrawable(
                 GradientDrawable.Orientation.LEFT_RIGHT,
-                new int[]{Color.rgb(35, 16, 4), Color.rgb(12, 12, 13),
-                          Color.rgb(35, 16, 4)}
+                new int[]{Color.rgb(44, 20, 9), Color.rgb(18, 20, 23), Color.rgb(44, 20, 9)}
         );
-        ledBg.setCornerRadius(dp(8));
+        ledBg.setCornerRadius(dp(14));
         ledBg.setStroke(dp(1), ORANGE);
         banner.setBackground(ledBg);
 
@@ -193,7 +198,6 @@ public class MainActivity extends Activity {
         root.addView(banner, bp);
         handler.post(bannerRunnable);
 
-
         summary = makeText(
             "في انتظار تحميل بيانات الروستر...",
             12, MUTED, false
@@ -201,12 +205,12 @@ public class MainActivity extends Activity {
         summary.setTextSize(10);
         summary.setMaxLines(2);
         summary.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        summary.setPadding(0, dp(2), 0, dp(2));
+        summary.setPadding(dp(4), dp(2), dp(4), dp(4));
         root.addView(summary);
 
         TextView statsTitle = makeText(
                 "⌄ ملخص التشغيل المباشر", 12, ORANGE, true);
-        statsTitle.setPadding(0, dp(2), 0, dp(2));
+        statsTitle.setPadding(dp(6), dp(4), dp(6), dp(6));
         root.addView(statsTitle);
 
         dashboardStats = new LinearLayout(this);
@@ -219,10 +223,10 @@ public class MainActivity extends Activity {
             statsTitle.setText(show ? "⌃ ملخص التشغيل المباشر" : "⌄ ملخص التشغيل المباشر");
         });
 
-        // Compact refresh control beside the status line
         LinearLayout controls = new LinearLayout(this);
         controls.setOrientation(LinearLayout.HORIZONTAL);
         controls.setGravity(Gravity.CENTER_VERTICAL);
+        controls.setPadding(0, dp(2), 0, dp(2));
 
         status = makeText(
             "في انتظار بيانات الروستر...",
@@ -230,7 +234,7 @@ public class MainActivity extends Activity {
         );
         status.setMaxLines(2);
         status.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        status.setPadding(dp(2), dp(2), dp(4), dp(2));
+        status.setPadding(dp(4), dp(2), dp(4), dp(2));
         controls.addView(
             status, new LinearLayout.LayoutParams(0, -2, 1)
         );
@@ -246,7 +250,6 @@ public class MainActivity extends Activity {
 
         root.addView(controls);
 
-        // Embedded portal: login and authenticated session
         webView = new WebView(this);
         webView.setBackgroundColor(BG);
         webView.setVisibility(View.GONE);
@@ -283,7 +286,6 @@ public class MainActivity extends Activity {
             }
         }, "AlabtalBridge");
 
-        // Keep the portal accessible while leaving most space for rider cards.
         root.addView(
             webView,
             new LinearLayout.LayoutParams(-1, dp(155))
@@ -291,13 +293,14 @@ public class MainActivity extends Activity {
 
         TextView listTitle = makeText("المندوبون والأوردرات", 16, ORANGE, true);
         listTitle.setTextSize(14);
-        listTitle.setPadding(0, dp(4), 0, dp(3));
+        listTitle.setPadding(dp(6), dp(6), dp(6), dp(4));
         root.addView(listTitle);
 
         ScrollView cardScroll = new ScrollView(this);
         cardScroll.setFillViewport(false);
         cards = new LinearLayout(this);
         cards.setOrientation(LinearLayout.VERTICAL);
+        cards.setPadding(dp(2), dp(2), dp(2), dp(8));
         cardScroll.addView(cards);
 
         root.addView(
@@ -316,7 +319,6 @@ public class MainActivity extends Activity {
 
         restoreCachedReport();
 
-        // ابدأ تحميل البوابة تلقائيًا مع الاحتفاظ بإمكانية فتحها من الزر.
         webView.loadUrl(PORTAL_URL);
     }
 
@@ -345,7 +347,15 @@ public class MainActivity extends Activity {
         b.setTextSize(13);
         b.setAllCaps(false);
         b.setTextColor(WHITE);
-        b.setBackground(round(ORANGE, ORANGE, 1));
+        b.setElevation(dp(4));
+        b.setPadding(dp(10), dp(6), dp(10), dp(6));
+        GradientDrawable d = new GradientDrawable(
+                GradientDrawable.Orientation.LEFT_RIGHT,
+                new int[]{ORANGE, Color.rgb(240, 125, 28)}
+        );
+        d.setCornerRadius(dp(18));
+        d.setStroke(dp(1), GOLD);
+        b.setBackground(d);
         return b;
     }
 
@@ -404,21 +414,21 @@ public class MainActivity extends Activity {
         target.addView(row, rp);
     }
 
-
     private LinearLayout createTile(String label, String value) {
         LinearLayout box = new LinearLayout(this);
         box.setOrientation(LinearLayout.VERTICAL);
         box.setGravity(Gravity.CENTER_VERTICAL);
         box.setMinimumHeight(dp(42));
-        box.setPadding(dp(6), dp(4), dp(6), dp(4));
+        box.setPadding(dp(8), dp(6), dp(8), dp(6));
 
         GradientDrawable tileBg = new GradientDrawable(
                 GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[]{Color.rgb(35, 25, 19), Color.rgb(12, 13, 17)});
-        tileBg.setCornerRadius(dp(13));
-        tileBg.setStroke(dp(1), Color.rgb(165, 78, 30));
+                new int[]{Color.rgb(46, 28, 14), Color.rgb(18, 20, 23)}
+        );
+        tileBg.setCornerRadius(dp(14));
+        tileBg.setStroke(dp(1), ORANGE_DEEP);
         box.setBackground(tileBg);
-        box.setElevation(dp(3));
+        box.setElevation(dp(2));
 
         TextView l = makeText(label, 10, MUTED, false);
         l.setMaxLines(2);
@@ -571,7 +581,7 @@ public class MainActivity extends Activity {
             "  for (const row of rows) {" +
             "   const cells = Array.from(row.querySelectorAll('td'));" +
             "   const text = norm(row.innerText || row.textContent);" +
-            "   const hasId = id && new RegExp('(?:^|\\\\D)' + id + '(?:\\\\D|$)').test(text);" +
+            "   const hasId = id && new RegExp('(?:^|\\D)' + id + '(?:\\D|$)').test(text);" +
             "   const hasName = name && text.includes(name);" +
             "   if (!hasId && !hasName) continue;" +
             "   if (cells[index]) {" +
@@ -609,7 +619,7 @@ public class MainActivity extends Activity {
             "  for (const tr of rows) {" +
             "   const cells = Array.from(tr.querySelectorAll('td')).map(td => norm(td.innerText || td.textContent));" +
             "   const text = cells.join(' ').toLowerCase();" +
-            "   const hasId = id && new RegExp('(?:^|\\\\D)' + id + '(?:\\\\D|$)').test(cells.join(' '));" +
+            "   const hasId = id && new RegExp('(?:^|\\D)' + id + '(?:\\D|$)').test(cells.join(' '));" +
             "   const hasName = name && text.includes(name);" +
             "   if (!hasId && !hasName) continue;" +
             "   const cell = i => i >= 0 && i < cells.length ? cells[i] : '';" +
@@ -656,13 +666,12 @@ public class MainActivity extends Activity {
             " const latest = deliveryInfo.latest_deliveries || [];" +
             " const tableShift = getShiftFromTable(r);" +
             " const tableData = getRosterRowFromTable(r);" +
-            " const perf = (detail && detail.performance && typeof detail.performance === 'object') ? detail.performance : ((r.performance_info && typeof r.performance_info === 'object') ? r.performance_info : ((r.performance && typeof r.performance === 'object') ? r.performance : {}));" +
+            " const perf = (detail && detail.performance && typeof detail.performance === 'object') ? detail.performance : ((r.performance_info && typeof r.performance_info === 'object') ? r.performance_info : {});" +
             " const timeSpent = (detail && detail.time_spent && typeof detail.time_spent === 'object') ? detail.time_spent : ((r.time_spent && typeof r.time_spent === 'object') ? r.time_spent : {});" +
-            " const perfRaw = (typeof r.performance === 'number' || typeof r.performance === 'string') ? r.performance : (perf.utilization_rate ?? perf.score ?? perf.value ?? r.performance_score ?? r.performanceScore ?? '');" +
-            " const acceptanceRaw = r.acceptance_rate ?? r.acceptance_percentage ?? r.acceptance ?? r.acceptanceRate ?? perf.acceptance_rate ?? (r.acceptance_info || {}).rate ?? (r.acceptance_info || {}).percentage ?? (info || {}).acceptance_rate ?? '';" +
+            " const perfRaw = (typeof r.performance === 'number' || typeof r.performance === 'string') ? r.performance : (perf.utilization_rate ?? perf.score ?? perf.value ?? r.performance_score ?? r.performance_value ?? r.performanceRate ?? r.score ?? r.utilization ?? 0);" +
+            " const acceptanceRaw = r.acceptance_rate ?? r.acceptance_percentage ?? r.acceptance ?? r.acceptanceRate ?? perf.acceptance_rate ?? (r.acceptance_info || {}).rate ?? (r.acceptance_info || {}).percentage ?? 0;" +
             " const perfValue = perfRaw == null ? '' : String(perfRaw);" +
             " const acceptanceValue = acceptanceRaw == null ? '' : String(acceptanceRaw);" +
-
 
             " const activeOrders = latest.filter(o => {" +
             "  const rawId = o.delivery_id != null ? o.delivery_id :" +
@@ -694,15 +703,15 @@ public class MainActivity extends Activity {
             "  wallet_balance:((r.wallet_info || {}).balance != null ? (r.wallet_info || {}).balance : (tableData.wallet_balance || ''))," +
             "  zone:(r.zone || {}).name || ''," +
             "  starting_point:(r.starting_point || {}).name || ''," +
-            "  shift_start:(r.shift_start || r.shiftStart || r.planned_shift_start || r.session_start || (r.shift_info || {}).start_time || (r.shift_info || {}).start || (r.shift || {}).start_time || (r.shift || {}).start || (r.session || {}).start_time || (r.session || {}).start || tableShift.start || '')," +
-            "  shift_end:(r.shift_end || r.shiftEnd || r.planned_shift_end || r.session_end || (r.shift_info || {}).end_time || (r.shift_info || {}).end || (r.shift || {}).end_time || (r.shift || {}).end || (r.session || {}).end_time || (r.session || {}).end || tableShift.end || '')," +
+            "  shift_start:(r.shift_start || r.shiftStart || r.planned_shift_start || r.session_start || (r.shift_info || {}).start_time || (r.shift_info || {}).start || (r.shift || {}).start_time || (r.shift || {}).start || tableShift.start)," +
+            "  shift_end:(r.shift_end || r.shiftEnd || r.planned_shift_end || r.session_end || (r.shift_info || {}).end_time || (r.shift_info || {}).end || (r.shift || {}).end_time || (r.shift || {}).end || tableShift.end)," +
             "  performance:perfValue || tableData.performance || ''," +
             "  acceptance_rate:acceptanceValue || tableData.acceptance_rate || ''," +
             "  worked_time:r.worked_time || r.worked_hours || r.worked || tableData.worked_time || ''," +
-            "  vehicle:(typeof r.vehicle === 'string' ? r.vehicle : ((r.vehicle || {}).name || (r.vehicle || {}).type || (r.vehicle || {}).vehicle_type || r.vehicle_type || r.vehicleType || (r.vehicle_info || {}).name || (r.vehicle_info || {}).type || ''))," +
-            "  total_orders:(r.total_orders != null ? r.total_orders : (r.total_deliveries_count != null ? r.total_deliveries_count : (info.total_orders != null ? info.total_orders : (info.total_deliveries_count != null ? info.total_deliveries_count : (info.completed_deliveries_count != null ? info.completed_deliveries_count : (tableData.total_orders >= 0 ? tableData.total_orders : latest.length))))))," +
-            "  total_orders_source:(r.total_orders != null || r.total_deliveries_count != null || info.total_orders != null || info.total_deliveries_count != null || info.completed_deliveries_count != null) ? 'counter' : (tableData.total_orders >= 0 ? 'roster_table' : 'latest_deliveries')," +
-            "  worked_seconds:(timeSpent.worked_seconds != null && Number.isFinite(Number(timeSpent.worked_seconds))) ? Number(timeSpent.worked_seconds) : ((detail && detail.worked_seconds != null && Number.isFinite(Number(detail.worked_seconds))) ? Number(detail.worked_seconds) : tableData.worked_seconds)," +
+            "  vehicle:(typeof r.vehicle === 'string' ? r.vehicle : ((r.vehicle || {}).name || (r.vehicle || {}).type || (r.vehicle || {}).vehicle_type || r.vehicle_type || r.vehicleType || (r.vehicle || {}).model || ''))," +
+            "  total_orders:(r.total_orders != null ? r.total_orders : (r.total_deliveries_count != null ? r.total_deliveries_count : (info.total_orders != null ? info.total_orders : (info.total_deliveries_count != null ? info.total_deliveries_count : (info.completed_deliveries_count != null ? info.completed_deliveries_count : tableData.total_orders)))))," +
+            "  total_orders_source:(r.total_orders != null || r.total_deliveries_count != null || info.total_orders != null || info.total_deliveries_count != null || info.completed_deliveries_count != null || tableData.total_orders != null) ? 'source' : 'n/a'," +
+            "  worked_seconds:(timeSpent.worked_seconds != null && Number.isFinite(Number(timeSpent.worked_seconds))) ? Number(timeSpent.worked_seconds) : ((detail && detail.worked_seconds != null) ? Number(detail.worked_seconds) : (tableData.worked_seconds >= 0 ? tableData.worked_seconds : -1))," +
             "  active_orders:activeOrders," +
             "  detail_error:detailError" +
             " };" +
@@ -796,7 +805,6 @@ public class MainActivity extends Activity {
                     " • تم تحديث البيانات بنجاح"
                 );
 
-                // لا تحفظ التقرير إلا بعد نجاح تحليله وعرض بياناته.
                 rosterCachePrefs.edit()
                     .putString("last_successful_report", report.toString())
                     .apply();
@@ -875,7 +883,6 @@ public class MainActivity extends Activity {
                 String.valueOf(ridersWithWorkTime));
     }
 
-
     private String formatWorkDuration(long seconds) {
         if (seconds < 0) return "غير متاح من المصدر";
         long hours = seconds / 3600;
@@ -892,24 +899,23 @@ public class MainActivity extends Activity {
         }
     }
 
-
-
     private void addRiderCard(JSONObject rider, JSONArray orders) {
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(dp(10), dp(7), dp(10), dp(6));
+        card.setPadding(dp(10), dp(8), dp(10), dp(8));
 
         GradientDrawable cardBg = new GradientDrawable(
                 GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[]{Color.rgb(27, 25, 23), Color.rgb(11, 12, 15)}
+                new int[]{Color.rgb(35, 31, 27), Color.rgb(12, 12, 16)}
         );
-        cardBg.setCornerRadius(dp(13));
-        cardBg.setStroke(dp(1), Color.rgb(125, 70, 37));
+        cardBg.setCornerRadius(dp(18));
+        cardBg.setStroke(dp(1), ORANGE_DEEP);
         card.setBackground(cardBg);
+        card.setElevation(dp(6));
 
         LinearLayout.LayoutParams cardParams =
                 new LinearLayout.LayoutParams(-1, -2);
-        cardParams.setMargins(dp(3), dp(3), dp(3), dp(5));
+        cardParams.setMargins(dp(3), dp(4), dp(3), dp(6));
         cards.addView(card, cardParams);
 
         String name = firstValue(
@@ -950,7 +956,6 @@ public class MainActivity extends Activity {
             stateColor = RED;
         }
 
-        // Header: rider name, ID and live status
         LinearLayout heading = new LinearLayout(this);
         heading.setOrientation(LinearLayout.HORIZONTAL);
         heading.setGravity(Gravity.CENTER_VERTICAL);
@@ -977,7 +982,7 @@ public class MainActivity extends Activity {
 
         LinearLayout statusPill = new LinearLayout(this);
         statusPill.setGravity(Gravity.CENTER);
-        statusPill.setPadding(dp(7), dp(4), dp(7), dp(4));
+        statusPill.setPadding(dp(8), dp(5), dp(8), dp(5));
         GradientDrawable pillBg = new GradientDrawable();
         pillBg.setColor(Color.rgb(25, 29, 29));
         pillBg.setCornerRadius(dp(18));
@@ -993,17 +998,16 @@ public class MainActivity extends Activity {
 
         card.addView(heading);
 
-        // Actual order indicator
         TextView orderBadge = makeText(
                 hasOrders ? "● معاه أوردر" : "○ بدون أوردر",
                 10, hasOrders ? GREEN : MUTED, true);
-        orderBadge.setPadding(0, dp(4), 0, dp(1));
+        orderBadge.setPadding(0, dp(6), 0, dp(1));
         card.addView(orderBadge);
 
-        // Four equal compact metrics
         LinearLayout metrics = new LinearLayout(this);
         metrics.setOrientation(LinearLayout.HORIZONTAL);
         metrics.setGravity(Gravity.CENTER_VERTICAL);
+        metrics.setPadding(0, dp(2), 0, 0);
 
         LinearLayout.LayoutParams metricParams =
                 new LinearLayout.LayoutParams(-1, -2);
@@ -1024,17 +1028,16 @@ public class MainActivity extends Activity {
         addCompactMetric(metrics, "وقت العمل",
                 workTime.equals("غير متاح") ? "—" : workTime);
 
-        // Expandable details
         TextView toggle = makeText(
                 "⌄ التفاصيل والأوردرات", 11, ORANGE, true);
         toggle.setGravity(Gravity.CENTER);
-        toggle.setPadding(0, dp(4), 0, dp(1));
+        toggle.setPadding(0, dp(6), 0, dp(2));
         card.addView(toggle);
 
         LinearLayout details = new LinearLayout(this);
         details.setOrientation(LinearLayout.VERTICAL);
         details.setVisibility(View.GONE);
-        details.setPadding(dp(2), dp(4), dp(2), 0);
+        details.setPadding(dp(2), dp(6), dp(2), 0);
         card.addView(details);
 
         addCompactDetail(details, "الحالة", state);
@@ -1110,19 +1113,18 @@ public class MainActivity extends Activity {
         toggle.setOnClickListener(toggleDetails);
     }
 
-
     private void addCompactMetric(
             LinearLayout parent, String label, String value) {
         LinearLayout item = new LinearLayout(this);
         item.setOrientation(LinearLayout.VERTICAL);
         item.setGravity(Gravity.CENTER);
         item.setMinimumHeight(dp(49));
-        item.setPadding(dp(2), dp(5), dp(2), dp(5));
+        item.setPadding(dp(4), dp(5), dp(4), dp(5));
 
         GradientDrawable bg = new GradientDrawable();
         bg.setColor(Color.rgb(20, 21, 23));
-        bg.setCornerRadius(dp(9));
-        bg.setStroke(dp(1), Color.rgb(105, 66, 40));
+        bg.setCornerRadius(dp(11));
+        bg.setStroke(dp(1), ORANGE_DEEP);
         item.setBackground(bg);
 
         LinearLayout.LayoutParams lp =
@@ -1153,7 +1155,7 @@ public class MainActivity extends Activity {
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(dp(2), dp(3), dp(2), dp(3));
+        row.setPadding(dp(4), dp(4), dp(4), dp(4));
 
         TextView key = makeText(label, 11, Color.LTGRAY, false);
         key.setLayoutParams(new LinearLayout.LayoutParams(dp(94), -2));
@@ -1164,7 +1166,6 @@ public class MainActivity extends Activity {
         row.addView(val);
         parent.addView(row);
     }
-
 
     private void addOrderProgressTrack(LinearLayout target, String rawStatus) {
         String st = rawStatus == null ? "" : rawStatus.trim().toLowerCase(Locale.ROOT);
