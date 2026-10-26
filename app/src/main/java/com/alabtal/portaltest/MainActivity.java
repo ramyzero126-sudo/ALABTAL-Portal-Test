@@ -1168,12 +1168,7 @@ public class MainActivity extends Activity {
             details.addView(noOrder);
         }
 
-        card.setOnClickListener(v -> {
-            boolean opening = details.getVisibility() != View.VISIBLE;
-            details.setVisibility(opening ? View.VISIBLE : View.GONE);
-            cardBg.setStroke(dp(1), opening ? ORANGE : ORANGE_DEEP);
-            card.setBackground(cardBg);
-        });
+        card.setOnClickListener(v -> showRiderDetails(rider, orders));
     }
 
     private void addDetailChip(LinearLayout parent, String label, String value) {
