@@ -1108,7 +1108,7 @@ public class MainActivity extends Activity {
         };
         card.setClickable(true);
         card.setFocusable(true);
-        card.setOnClickListener(toggleDetails);
+        card.setOnClickListener(v -> showRiderDetails(rider, orders));
     }
 
     private void addRiderAction(
