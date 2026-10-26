@@ -1092,6 +1092,8 @@ public class MainActivity extends Activity {
             card.addView(noOrder);
         }
 
+        addRiderActionButtons(card, rider, name, id);
+
         LinearLayout details = new LinearLayout(this);
         details.setOrientation(LinearLayout.VERTICAL);
         details.setPadding(dp(4), dp(4), dp(4), dp(4));
@@ -1235,6 +1237,93 @@ public class MainActivity extends Activity {
         val.setLayoutParams(new LinearLayout.LayoutParams(0, -2, 1));
         row.addView(val);
         parent.addView(row);
+    }
+
+    private void addRiderActionButtons(
+            LinearLayout card, JSONObject rider, String name, String id) {
+
+        String phone = firstValue(rider,
+                "phone", "phone_number", "mobile",
+                "mobile_number", "contact_number");
+
+        LinearLayout actions = new LinearLayout(this);
+        actions.setOrientation(LinearLayout.HORIZONTAL);
+        actions.setGravity(Gravity.CENTER_VERTICAL);
+        actions.setPadding(0, dp(5), 0, dp(3));
+
+        addRiderActionButton(actions, "＋ تزويد", ORANGE, () ->
+                android.widget.Toast.makeText(this,
+                        "زر التزويد جاهز؛ ربط إجراء البوابة مطلوب",
+                        android.widget.Toast.LENGTH_SHORT).show());
+
+        addRiderActionButton(actions, "☕ بريك", ORANGE, () ->
+                android.widget.Toast.makeText(this,
+                        "زر البريك جاهز؛ ربط إجراء البوابة مطلوب",
+                        android.widget.Toast.LENGTH_SHORT).show());
+
+        addRiderActionButton(actions, "☎ اتصال", GREEN, () -> {
+            String number = phone == null ? "" :
+                    phone.replaceAll("[^+0-9]", "");
+
+            if (number.isEmpty() || number.equals("غير متاح")) {
+                android.widget.Toast.makeText(this,
+                        "رقم هاتف المندوب غير متاح",
+                        android.widget.Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            try {
+                android.content.Intent intent = new android.content.Intent(
+                        android.content.Intent.ACTION_DIAL,
+                        android.net.Uri.parse("tel:" + number));
+                startActivity(intent);
+            } catch (Exception e) {
+                android.widget.Toast.makeText(this,
+                        "تعذر فتح الاتصال",
+                        android.widget.Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        addRiderActionButton(actions, "✉ رسالة", GREEN, () -> {
+            String number = phone == null ? "" :
+                    phone.replaceAll("[^+0-9]", "");
+
+            if (number.isEmpty() || number.equals("غير متاح")) {
+                android.widget.Toast.makeText(this,
+                        "رقم هاتف المندوب غير متاح",
+                        android.widget.Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            try {
+                android.content.Intent intent = new android.content.Intent(
+                        android.content.Intent.ACTION_SENDTO,
+                        android.net.Uri.parse("smsto:" + number));
+                startActivity(intent);
+            } catch (Exception e) {
+                android.widget.Toast.makeText(this,
+                        "تعذر فتح الرسائل",
+                        android.widget.Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        card.addView(actions);
+    }
+
+    private void addRiderActionButton(
+            LinearLayout parent, String label, int color, Runnable action) {
+        TextView button = makeText(label, 10, color, true);
+        button.setGravity(Gravity.CENTER);
+        button.setMaxLines(1);
+        button.setPadding(dp(2), dp(9), dp(2), dp(9));
+        button.setBackground(round(
+                Color.rgb(24, 26, 31), 8, color, 1));
+
+        LinearLayout.LayoutParams params =
+                new LinearLayout.LayoutParams(0, -2, 1);
+        params.setMargins(dp(2), 0, dp(2), 0);
+        parent.addView(button, params);
+        button.setOnClickListener(v -> action.run());
     }
 
     private void addOrderProgressTrack(LinearLayout target, String rawStatus) {
