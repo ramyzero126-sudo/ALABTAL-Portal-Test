@@ -706,9 +706,17 @@ public class MainActivity extends Activity {
             "   (o.deliveryId != null ? o.deliveryId : o.orderId))))," +
             "  order_code:o.order_code || ''," +
             "  status:o.status || ''," +
-            "  vendor_name:o.vendor_name || ''," +
-            "  pickup_address:o.pickup_address || ''," +
-            "  dropoff_address:o.dropoff_address || ''," +
+            "  vendor_name:o.vendor_name || o.restaurant_name || o.merchant_name || ''," +
+            "  vendor_address:o.vendor_address || o.restaurant_address || o.pickup_address || ''," +
+            "  vendor_lat:o.vendor_lat || o.vendor_latitude || o.pickup_lat || o.pickup_latitude || ''," +
+            "  vendor_lng:o.vendor_lng || o.vendor_longitude || o.pickup_lng || o.pickup_longitude || ''," +
+            "  vendor_map_url:o.vendor_map_url || o.restaurant_map_url || o.pickup_map_url || ''," +
+            "  pickup_address:o.pickup_address || o.pickup_location || ''," +
+            "  customer_address:o.customer_address || o.dropoff_address || o.delivery_address || ''," +
+            "  customer_lat:o.customer_lat || o.customer_latitude || o.dropoff_lat || o.dropoff_latitude || ''," +
+            "  customer_lng:o.customer_lng || o.customer_longitude || o.dropoff_lng || o.dropoff_longitude || ''," +
+            "  customer_map_url:o.customer_map_url || o.dropoff_map_url || o.delivery_map_url || ''," +
+            "  dropoff_address:o.dropoff_address || o.delivery_address || ''," +
             "  timeline:o.timeline || []" +
             " }));" +
 
@@ -1447,102 +1455,255 @@ public class MainActivity extends Activity {
 
     private void showRiderDetails(JSONObject rider, JSONArray orders) {
         detailVisible = true;
+
         ScrollView scroll = new ScrollView(this);
         scroll.setFillViewport(true);
+        scroll.setBackgroundColor(BG);
+
         LinearLayout page = new LinearLayout(this);
         page.setOrientation(LinearLayout.VERTICAL);
-        page.setPadding(dp(14), dp(14), dp(14), dp(20));
+        page.setPadding(dp(12), dp(10), dp(12), dp(18));
         page.setBackgroundColor(BG);
         scroll.addView(page);
 
-        Button back = makeButton("← رجوع إلى المندوبين");
+        Button back = makeButton("← رجوع للمندوبين");
         back.setOnClickListener(v -> returnToDashboard());
-        page.addView(back, new LinearLayout.LayoutParams(-1, dp(46)));
+        page.addView(back, new LinearLayout.LayoutParams(-1, dp(42)));
 
-        TextView title = makeText("تفاصيل المندوب", 22, ORANGE, true);
-        title.setPadding(0, dp(14), 0, dp(8));
-        page.addView(title);
-        TextView name = makeText("👤 " + rider.optString("name", "مندوب بدون اسم"), 19, WHITE, true);
-        page.addView(name);
-        TextView id = makeText("رقم المندوب: " + rider.optString("employee_id", "غير متاح"), 12, MUTED, false);
-        page.addView(id);
-        TextView state = makeText("الحالة: " + translateRiderStatus(rider.optString("rider_status", "")), 13, GREEN, true);
-        state.setPadding(0, dp(6), 0, dp(10));
-        page.addView(state);
+        TextView heading = makeText("تفاصيل المندوب", 19, ORANGE, true);
+        heading.setPadding(0, dp(12), 0, dp(5));
+        page.addView(heading);
 
-        addDetailLine(page, "المحفظة", firstValue(rider, "wallet_balance", "wallet", "balance"));
-        addDetailLine(page, "بداية الشيفت", firstValue(rider, "shift_start", "planned_shift_start", "session_start"));
-        addDetailLine(page, "نهاية الشيفت", firstValue(rider, "shift_end", "planned_shift_end", "session_end"));
-        addDetailLine(page, "عدد الأوردرات", firstValue(rider, "total_orders"));
-        addDetailLine(page, "الأداء", firstValue(rider, "performance", "performance_score"));
-        addDetailLine(page, "نسبة القبول", firstValue(rider, "acceptance_rate", "acceptance", "acceptance_percentage"));
-        addDetailLine(page, "ساعات العمل", firstValue(rider, "worked_time", "worked_hours", "worked"));
-        addDetailLine(page, "المحطة", firstValue(rider, "starting_point"));
-        addDetailLine(page, "المنطقة", firstValue(rider, "zone"));
-        addDetailLine(page, "وسيلة التوصيل", firstValue(rider, "vehicle", "vehicle_type"));
+        page.addView(makeText(
+                "👤 " + displayValue(rider.optString("name", "")),
+                18, WHITE, true));
 
-        TextView ordersTitle = makeText("تفاصيل الأوردر النشط", 18, ORANGE, true);
-        ordersTitle.setPadding(0, dp(16), 0, dp(8));
-        page.addView(ordersTitle);
+        TextView identity = makeText(
+                "رقم المندوب: " +
+                displayValue(rider.optString("employee_id", "")),
+                11, MUTED, false);
+        identity.setPadding(0, dp(3), 0, dp(8));
+        page.addView(identity);
 
-        if (orders.length() == 0) {
+        TextView state = makeText(
+                "● " + translateRiderStatus(
+                        rider.optString("rider_status", "")),
+                12, GREEN, true);
+        state.setPadding(dp(10), dp(7), dp(10), dp(7));
+        state.setBackground(round(PANEL, Color.rgb(43, 95, 68), 1));
+
+        LinearLayout.LayoutParams stateParams =
+                new LinearLayout.LayoutParams(-2, -2);
+        stateParams.bottomMargin = dp(8);
+        page.addView(state, stateParams);
+
+        addDetailSectionV2(page, "ملخص الشيفت");
+
+        addTileRow(page, "المحفظة",
+                firstValue(rider, "wallet_balance", "wallet", "balance"),
+                "بداية الشيفت",
+                firstValue(rider, "shift_start", "planned_shift_start",
+                        "session_start"));
+
+        addTileRow(page, "نهاية الشيفت",
+                firstValue(rider, "shift_end", "planned_shift_end",
+                        "session_end"),
+                "ساعات العمل",
+                firstValue(rider, "worked_time", "worked_hours", "worked"));
+
+        addTileRow(page, "الأداء",
+                firstValue(rider, "performance", "performance_score"),
+                "نسبة القبول",
+                firstValue(rider, "acceptance_rate", "acceptance",
+                        "acceptance_percentage"));
+
+        addTileRow(page, "إجمالي الأوردرات",
+                firstValue(rider, "total_orders"),
+                "وسيلة التوصيل",
+                firstValue(rider, "vehicle", "vehicle_type"));
+
+        addTileRow(page, "المحطة",
+                firstValue(rider, "starting_point"),
+                "المنطقة",
+                firstValue(rider, "zone"));
+
+        addDetailSectionV2(page, "الأوردر النشط");
+
+        if (orders == null || orders.length() == 0) {
             boolean activeConfirmed =
                     rider.optBoolean("has_active_deliveries", false)
                     || rider.optInt("active_count") > 0;
 
-            String message = activeConfirmed
-                    ? "المصدر يؤكد وجود أوردر نشط، لكن تفاصيله غير متاحة حاليًا."
-                    : "لا يوجد أوردر نشط مؤكد لهذا المندوب.";
+            TextView empty = makeText(
+                    activeConfirmed
+                    ? "يوجد أوردر نشط، لكن تفاصيله لم تصل من المصدر."
+                    : "لا يوجد أوردر نشط مؤكد لهذا المندوب.",
+                    12, MUTED, false);
 
-            page.addView(makeText(message, 14, MUTED, false));
+            empty.setPadding(dp(12), dp(12), dp(12), dp(12));
+            empty.setBackground(round(PANEL,
+                    Color.rgb(55, 58, 65), 1));
+            page.addView(empty);
         } else {
             JSONObject order = orders.optJSONObject(0);
 
             if (order == null) {
                 page.addView(makeText(
-                        "تعذر قراءة تفاصيل الأوردر النشط.",
-                        14, MUTED, false));
+                        "تعذر قراءة بيانات الأوردر.",
+                        12, MUTED, false));
             } else {
                 LinearLayout box = new LinearLayout(this);
                 box.setOrientation(LinearLayout.VERTICAL);
-                box.setPadding(dp(12), dp(12), dp(12), dp(12));
+                box.setPadding(dp(11), dp(11), dp(11), dp(11));
                 box.setBackground(round(
                         Color.rgb(24, 20, 17), ORANGE, 1));
 
-                LinearLayout.LayoutParams params =
+                LinearLayout.LayoutParams boxParams =
                         new LinearLayout.LayoutParams(-1, -2);
-                params.setMargins(0, 0, 0, dp(10));
-                page.addView(box, params);
+                boxParams.bottomMargin = dp(8);
+                page.addView(box, boxParams);
 
-                String code = order.optString("order_code", "");
-                if (code.isEmpty()) {
-                    code = order.optString("delivery_id", "غير متاح");
-                }
+                String code = firstValue(
+                        order, "order_code", "delivery_id");
 
                 box.addView(makeText(
-                        "📦 رقم الأوردر: " + code, 15, ORANGE, true));
+                        "📦 رقم الأوردر: " + displayValue(code),
+                        14, ORANGE, true));
+
+                String rawStatus = order.optString("status", "");
                 box.addView(makeText(
-                        "🚦 المرحلة: "
-                                + arabicStatus(order.optString("status", "")),
-                        14, GREEN, true));
-                box.addView(makeText(
-                        "🍔 المطعم: "
-                                + displayValue(order.optString("vendor_name", "")),
-                        13, WHITE, false));
-                addAddress(box, "عنوان الاستلام",
-                        order.optString("pickup_address", ""));
-                addAddress(box, "عنوان العميل",
-                        order.optString("dropoff_address", ""));
+                        "المرحلة: " + arabicStatus(rawStatus),
+                        12, GREEN, true));
+
+                addOrderProgressTrack(box, rawStatus);
+
+                addOrderLocationV2(
+                        box, "🍔 المطعم",
+                        firstValue(order, "vendor_name", "restaurant_name"),
+                        firstValue(order, "vendor_address", "pickup_address"),
+                        firstValue(order, "vendor_lat", "vendor_latitude",
+                                "pickup_lat", "pickup_latitude"),
+                        firstValue(order, "vendor_lng", "vendor_longitude",
+                                "pickup_lng", "pickup_longitude"),
+                        firstValue(order, "vendor_map_url", "pickup_map_url"));
+
+                addOrderLocationV2(
+                        box, "📍 موقع العميل", "عنوان التوصيل",
+                        firstValue(order, "customer_address",
+                                "dropoff_address", "delivery_address"),
+                        firstValue(order, "customer_lat",
+                                "customer_latitude", "dropoff_lat",
+                                "dropoff_latitude"),
+                        firstValue(order, "customer_lng",
+                                "customer_longitude", "dropoff_lng",
+                                "dropoff_longitude"),
+                        firstValue(order, "customer_map_url",
+                                "dropoff_map_url", "delivery_map_url"));
 
                 JSONArray timeline = order.optJSONArray("timeline");
                 if (timeline != null && timeline.length() > 0) {
-                    box.addView(makeText(
+                    TextView history = makeText(
                             "أحداث التوصيل المسجلة: " + timeline.length(),
-                            11, MUTED, false));
+                            10, MUTED, false);
+                    history.setPadding(0, dp(7), 0, 0);
+                    box.addView(history);
                 }
             }
         }
+
         setContentView(scroll);
+    }
+
+    private void addDetailSectionV2(LinearLayout parent, String title) {
+        TextView heading = makeText(title, 13, ORANGE, true);
+        heading.setPadding(dp(2), dp(9), dp(2), dp(5));
+        parent.addView(heading);
+    }
+
+    private void addOrderLocationV2(
+            LinearLayout parent, String title, String subtitle,
+            String address, String latText, String lngText, String mapUrl) {
+
+        String addr = address == null ? "" : address.trim();
+        boolean hasAddress = !addr.isEmpty()
+                && !addr.equalsIgnoreCase("null")
+                && !addr.equals("غير متاح");
+
+        double lat = Double.NaN;
+        double lng = Double.NaN;
+
+        try {
+            lat = Double.parseDouble(latText);
+            lng = Double.parseDouble(lngText);
+        } catch (Exception ignored) {
+        }
+
+        final double mapLat = lat;
+        final double mapLng = lng;
+        boolean hasCoordinates = validOrderCoordinatesV2(lat, lng);
+        boolean hasMapUrl = mapUrl != null
+                && (mapUrl.startsWith("https://")
+                    || mapUrl.startsWith("http://"));
+
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(dp(9), dp(8), dp(9), dp(8));
+        card.setBackground(round(PANEL, Color.rgb(55, 58, 65), 1));
+
+        LinearLayout.LayoutParams cardParams =
+                new LinearLayout.LayoutParams(-1, -2);
+        cardParams.topMargin = dp(7);
+        parent.addView(card, cardParams);
+
+        card.addView(makeText(title, 12, ORANGE, true));
+        card.addView(makeText(displayValue(subtitle), 11, WHITE, true));
+
+        String shownLocation = hasAddress ? addr
+                : hasCoordinates
+                    ? String.format(java.util.Locale.US,
+                            "%.6f, %.6f", lat, lng)
+                    : "الموقع غير متاح من بيانات الأوردر";
+
+        card.addView(makeText(shownLocation, 11, MUTED, false));
+
+        if (hasMapUrl || hasCoordinates || hasAddress) {
+            Button mapButton = makeButton("فتح الموقع على الخرائط");
+            mapButton.setOnClickListener(v -> {
+                try {
+                    android.net.Uri uri;
+
+                    if (hasMapUrl) {
+                        uri = android.net.Uri.parse(mapUrl);
+                    } else {
+                        String query = hasCoordinates
+                                ? mapLat + "," + mapLng : addr;
+
+                        uri = android.net.Uri.parse(
+                                "https://www.google.com/maps/search/?api=1&query="
+                                + android.net.Uri.encode(query));
+                    }
+
+                    startActivity(new android.content.Intent(
+                            android.content.Intent.ACTION_VIEW, uri));
+                } catch (Exception ex) {
+                    android.widget.Toast.makeText(
+                            this, "تعذر فتح الموقع",
+                            android.widget.Toast.LENGTH_SHORT).show();
+                }
+            });
+
+            LinearLayout.LayoutParams buttonParams =
+                    new LinearLayout.LayoutParams(-1, dp(37));
+            buttonParams.topMargin = dp(4);
+            card.addView(mapButton, buttonParams);
+        }
+    }
+
+    private boolean validOrderCoordinatesV2(double lat, double lng) {
+        return !Double.isNaN(lat) && !Double.isNaN(lng)
+                && !Double.isInfinite(lat) && !Double.isInfinite(lng)
+                && lat >= -90 && lat <= 90
+                && lng >= -180 && lng <= 180;
     }
 
     private void addDetailLine(LinearLayout parent, String label, String value) {
