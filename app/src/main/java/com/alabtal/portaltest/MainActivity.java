@@ -727,8 +727,8 @@ public class MainActivity extends Activity {
             "  performance:perfValue || tableData.performance || ''," +
             "  acceptance_rate:acceptanceValue || tableData.acceptance_rate || ''," +
             "  worked_time:r.worked_time || r.worked_hours || r.worked || tableData.worked_time || ''," +
-            "  vehicle:(typeof r.vehicle === 'string' ? r.vehicle : ((r.vehicle || {}).name || (r.vehicle || {}).type || (r.vehicle || {}).vehicle_type || r.vehicle_type || r.vehicleType || (r.vehicle || {}).vehicleName || '')))," +
-            "  total_orders:(r.total_orders != null ? r.total_orders : (r.total_deliveries_count != null ? r.total_deliveries_count : (info.total_orders != null ? info.total_orders : (info.total_deliveries_count != null ? info.total_deliveries_count : (info.completed_deliveries_count != null ? info.completed_deliveries_count : tableData.total_orders))))," +
+            "  vehicle:(typeof r.vehicle === 'string' ? r.vehicle : ((r.vehicle || {}).name || (r.vehicle || {}).type || (r.vehicle || {}).vehicle_type || r.vehicle_type || r.vehicleType || (r.vehicle || {}).vehicleName || ''))," +
+            "  total_orders:(r.total_orders != null ? r.total_orders : (r.total_deliveries_count != null ? r.total_deliveries_count : (info.total_orders != null ? info.total_orders : (info.total_deliveries_count != null ? info.total_deliveries_count : (info.completed_deliveries_count != null ? info.completed_deliveries_count : tableData.total_orders)))))," +
             "  total_orders_source:(r.total_orders != null || r.total_deliveries_count != null || info.total_orders != null || info.total_deliveries_count != null || info.completed_deliveries_count != null || tableData.total_orders > 0) ? 'source' : 'missing'," +
             "  worked_seconds:(timeSpent.worked_seconds != null && Number.isFinite(Number(timeSpent.worked_seconds))) ? Number(timeSpent.worked_seconds) : ((detail && detail.worked_seconds != null && Number.isFinite(Number(detail.worked_seconds))) ? Number(detail.worked_seconds) : (tableData.worked_seconds > -1 ? tableData.worked_seconds : -1))," +
             "  active_orders:activeOrders," +
