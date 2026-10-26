@@ -1063,6 +1063,9 @@ public class MainActivity extends Activity {
         card.addView(details);
 
         addDetailChip(details, "الحالة", state);
+        addDetailChip(details, "وقت البريك",
+                displayValue(firstValue(rider, "break_time", "break_duration",
+                        "break_minutes", "breaks", "breakTime")));
         addDetailChip(details, "المنطقة", displayValue(firstValue(rider, "zone", "area", "city")));
         addDetailChip(details, "الأداء", performance.equals("غير متاح") ? "—" : performance);
         addDetailChip(details, "نسبة القبول",
