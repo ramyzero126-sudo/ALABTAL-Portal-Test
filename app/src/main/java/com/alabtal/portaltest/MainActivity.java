@@ -78,6 +78,11 @@ public class MainActivity extends Activity {
     private boolean inspectionRunning = false;
     private boolean pageLoaded = false;
     private boolean destroyed = false;
+    private int consecutiveSyncFailures = 0;
+    private long nextSyncDelayMs = 30000L;
+    private static final long SYNC_INTERVAL_MS = 30000L;
+    private static final long SYNC_RETRY_MIN_MS = 5000L;
+    private static final long SYNC_RETRY_MAX_MS = 60000L;
 
     private int bannerPosition = 0;
     private final String bannerMessage = "AL ABTAL  •  TALABAT  •  طنطا";
@@ -85,15 +90,32 @@ public class MainActivity extends Activity {
     private final Runnable refreshRunnable = new Runnable() {
         @Override
         public void run() {
-            if (destroyed) return;
+            if (destroyed || !portalPageVisible) return;
 
             if (pageLoaded && !inspectionRunning) {
                 inspectRoster();
+            } else if (!inspectionRunning) {
+                scheduleNextSync();
             }
-
-            handler.postDelayed(this, 30000);
         }
     };
+
+    private void scheduleNextSync() {
+        handler.removeCallbacks(refreshRunnable);
+        if (!destroyed && portalPageVisible) {
+            handler.postDelayed(refreshRunnable, nextSyncDelayMs);
+        }
+    }
+
+    private void recordSyncFailure() {
+        consecutiveSyncFailures++;
+        long delay = SYNC_RETRY_MIN_MS;
+        for (int i = 1; i < consecutiveSyncFailures && delay < SYNC_RETRY_MAX_MS; i++) {
+            delay = Math.min(delay * 2, SYNC_RETRY_MAX_MS);
+        }
+        nextSyncDelayMs = delay;
+        scheduleNextSync();
+    }
 
     private final Runnable bannerRunnable = new Runnable() {
         @Override
@@ -259,10 +281,11 @@ public class MainActivity extends Activity {
             @Override
             public void onPageFinished(WebView view, String url) {
                 pageLoaded = true;
-                status.setText("تم تحميل صفحة البوابة؛ جاري التحقق من الجلسة...");
 
-                handler.removeCallbacks(refreshRunnable);
-                handler.post(refreshRunnable);
+                if (portalPageVisible) {
+                    status.setText("تم تحميل صفحة البوابة؛ جاري التحقق من الجلسة...");
+                    inspectRoster();
+                }
             }
         });
 
@@ -278,11 +301,13 @@ public class MainActivity extends Activity {
                     inspectionRunning = false;
                     inspectButton.setEnabled(true);
                     status.setText("تعذر جلب البيانات: " + message);
+                    if (portalPageVisible) recordSyncFailure();
                 });
             }
         }, "AlabtalBridge");
 
         // Keep the portal accessible while leaving most space for rider cards.
+        webView.setVisibility(View.GONE);
         root.addView(
             webView,
             new LinearLayout.LayoutParams(-1, dp(155))
@@ -306,7 +331,7 @@ public class MainActivity extends Activity {
 
         setContentView(root);
 
-        inspectButton.setOnClickListener(v -> inspectRoster());
+        inspectButton.setOnClickListener(v -> showPortalPage());
 
         addEmptyCard(
             "بانتظار البيانات",
@@ -315,8 +340,7 @@ public class MainActivity extends Activity {
 
         restoreCachedReport();
 
-        // ابدأ تحميل البوابة تلقائيًا مع الاحتفاظ بإمكانية فتحها من الزر.
-        webView.loadUrl(PORTAL_URL);
+        // لا تفتح البوابة تلقائيًا؛ تُفتح فقط بطلب المستخدم.
     }
 
     private int dp(float value) {
@@ -485,9 +509,12 @@ public class MainActivity extends Activity {
         portalPageVisible = true;
         portalVisible = true;
         setContentView(portalRoot);
+        webView.onResume();
 
         if (!pageLoaded) {
             openPortal();
+        } else {
+            inspectRoster();
         }
     }
 
@@ -525,7 +552,7 @@ public class MainActivity extends Activity {
     }
 
     private void inspectRoster() {
-        if (inspectionRunning || destroyed) return;
+        if (inspectionRunning || destroyed || !portalPageVisible) return;
 
         if (webView == null || !pageLoaded) {
             status.setText("افتح البوابة وانتظر تحميلها أولًا.");
@@ -799,11 +826,18 @@ public class MainActivity extends Activity {
                 rosterCachePrefs.edit()
                     .putString("last_successful_report", report.toString())
                     .apply();
+
+                consecutiveSyncFailures = 0;
+                nextSyncDelayMs = SYNC_INTERVAL_MS;
+                scheduleNextSync();
             }
 
         } catch (Exception e) {
             status.setText("تعذر عرض التقرير: " + e.getMessage());
             Toast.makeText(this, "فشل قراءة بيانات الروستر", Toast.LENGTH_LONG).show();
+            if (portalPageVisible) {
+                recordSyncFailure();
+            }
         }
     }
 
@@ -1515,9 +1549,11 @@ public class MainActivity extends Activity {
 
     private void returnToDashboard() {
         detailVisible = false;
+        handler.removeCallbacks(refreshRunnable);
 
         if (portalPageVisible && webView != null
                 && dashboardRoot != null) {
+            webView.onPause();
             if (webView.getParent() instanceof ViewGroup) {
                 ((ViewGroup) webView.getParent()).removeView(webView);
             }
