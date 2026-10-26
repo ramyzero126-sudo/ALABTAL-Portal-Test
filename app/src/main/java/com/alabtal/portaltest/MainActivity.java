@@ -43,17 +43,19 @@ import java.util.Locale;
 
 public class MainActivity extends Activity {
 
-    private static final int BG = Color.rgb(7, 8, 10);
-    private static final int PANEL = Color.rgb(17, 19, 23);
-    private static final int PANEL_2 = Color.rgb(25, 27, 30);
-    private static final int ORANGE = Color.rgb(255, 138, 52);
-    private static final int GOLD = Color.rgb(255, 181, 96);
+    private static final int BG = Color.rgb(7, 11, 17);
+    private static final int BG_2 = Color.rgb(14, 19, 25);
+    private static final int PANEL = Color.rgb(19, 23, 30);
+    private static final int PANEL_2 = Color.rgb(26, 31, 38);
+    private static final int ORANGE = Color.rgb(255, 142, 68);
+    private static final int ORANGE_SOFT = Color.rgb(255, 176, 98);
+    private static final int GOLD = Color.rgb(255, 204, 120);
     private static final int ORANGE_DEEP = Color.rgb(130, 63, 20);
     private static final int WHITE = Color.rgb(245, 246, 248);
     private static final int MUTED = Color.rgb(160, 166, 176);
     private static final int GREEN = Color.rgb(45, 210, 125);
     private static final int RED = Color.rgb(255, 82, 82);
-    private static final int CARD_BG = Color.rgb(25, 26, 30);
+    private static final int CARD_BG = Color.rgb(22, 25, 31);
     private static final int CARD_INNER = Color.rgb(18, 19, 22);
 
     private static final String PORTAL_URL =
@@ -134,6 +136,12 @@ public class MainActivity extends Activity {
         root.setBackgroundColor(BG);
         root.setPadding(dp(8), dp(3), dp(8), dp(3));
 
+        GradientDrawable rootBg = new GradientDrawable(
+                GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{Color.rgb(7, 10, 15), Color.rgb(12, 17, 23), Color.rgb(8, 12, 17)}
+        );
+        root.setBackground(rootBg);
+
         LinearLayout portalRow = new LinearLayout(this);
         portalRow.setOrientation(LinearLayout.HORIZONTAL);
         portalRow.setGravity(Gravity.LEFT | Gravity.CENTER_VERTICAL);
@@ -150,7 +158,7 @@ public class MainActivity extends Activity {
         LinearLayout brand = new LinearLayout(this);
         brand.setOrientation(LinearLayout.VERTICAL);
         brand.setGravity(Gravity.CENTER);
-        brand.setPadding(dp(6), dp(2), dp(6), dp(3));
+        brand.setPadding(dp(8), dp(2), dp(8), dp(3));
 
         TextView title = makeText("AL ABTAL", 24, ORANGE, true);
         title.setGravity(Gravity.CENTER);
@@ -165,12 +173,12 @@ public class MainActivity extends Activity {
 
         GradientDrawable brandBg = new GradientDrawable(
                 GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[]{Color.rgb(70, 33, 8), Color.rgb(15, 16, 20), Color.rgb(5, 6, 9)}
+                new int[]{Color.rgb(70, 33, 8), Color.rgb(22, 24, 29), Color.rgb(8, 11, 17)}
         );
-        brandBg.setCornerRadius(dp(18));
+        brandBg.setCornerRadius(dp(20));
         brandBg.setStroke(dp(1), ORANGE);
         brand.setBackground(brandBg);
-        brand.setElevation(dp(5));
+        brand.setElevation(dp(6));
 
         LinearLayout.LayoutParams brandParams =
                 new LinearLayout.LayoutParams(-1, dp(58));
@@ -182,19 +190,19 @@ public class MainActivity extends Activity {
         banner.setSingleLine(true);
         banner.setLetterSpacing(0.025f);
         banner.setShadowLayer(dp(4), 0, 0, GOLD);
-        banner.setPadding(dp(6), dp(4), dp(6), dp(4));
+        banner.setPadding(dp(8), dp(4), dp(8), dp(4));
 
         GradientDrawable ledBg = new GradientDrawable(
                 GradientDrawable.Orientation.LEFT_RIGHT,
-                new int[]{Color.rgb(44, 20, 9), Color.rgb(18, 20, 23), Color.rgb(44, 20, 9)}
+                new int[]{Color.rgb(45, 25, 12), Color.rgb(18, 20, 23), Color.rgb(45, 25, 12)}
         );
-        ledBg.setCornerRadius(dp(14));
+        ledBg.setCornerRadius(dp(16));
         ledBg.setStroke(dp(1), ORANGE);
         banner.setBackground(ledBg);
 
         LinearLayout.LayoutParams bp =
                 new LinearLayout.LayoutParams(-1, dp(32));
-        bp.setMargins(0, 0, 0, dp(4));
+        bp.setMargins(0, 0, 0, dp(5));
         root.addView(banner, bp);
         handler.post(bannerRunnable);
 
@@ -205,17 +213,23 @@ public class MainActivity extends Activity {
         summary.setTextSize(10);
         summary.setMaxLines(2);
         summary.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        summary.setPadding(dp(4), dp(2), dp(4), dp(4));
+        summary.setPadding(dp(12), dp(8), dp(12), dp(8));
+        summary.setBackground(round(PANEL_2, ORANGE, 1));
+        summary.setMinHeight(dp(42));
         root.addView(summary);
 
         TextView statsTitle = makeText(
-                "⌄ ملخص التشغيل المباشر", 12, ORANGE, true);
-        statsTitle.setPadding(dp(6), dp(4), dp(6), dp(6));
+                "⌄ ملخص التشغيل المباشر", 12, ORANGE_SOFT, true);
+        statsTitle.setPadding(dp(8), dp(8), dp(8), dp(8));
+        statsTitle.setBackgroundColor(Color.argb(30, 255, 142, 68));
+        statsTitle.setMinHeight(dp(30));
         root.addView(statsTitle);
 
         dashboardStats = new LinearLayout(this);
         dashboardStats.setOrientation(LinearLayout.VERTICAL);
         dashboardStats.setVisibility(View.GONE);
+        dashboardStats.setPadding(dp(8), dp(8), dp(8), dp(8));
+        dashboardStats.setBackground(round(PANEL_2, ORANGE, 1));
         root.addView(dashboardStats);
         statsTitle.setOnClickListener(v -> {
             boolean show = dashboardStats.getVisibility() != View.VISIBLE;
@@ -230,11 +244,12 @@ public class MainActivity extends Activity {
 
         status = makeText(
             "في انتظار بيانات الروستر...",
-            10, ORANGE, false
+            10, ORANGE_SOFT, false
         );
         status.setMaxLines(2);
         status.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        status.setPadding(dp(4), dp(2), dp(4), dp(2));
+        status.setPadding(dp(10), dp(6), dp(10), dp(6));
+        status.setBackground(round(PANEL, ORANGE, 1));
         controls.addView(
             status, new LinearLayout.LayoutParams(0, -2, 1)
         );
@@ -291,16 +306,18 @@ public class MainActivity extends Activity {
             new LinearLayout.LayoutParams(-1, dp(155))
         );
 
-        TextView listTitle = makeText("المندوبون والأوردرات", 16, ORANGE, true);
+        TextView listTitle = makeText("المندوبون والأوردرات", 16, ORANGE_SOFT, true);
         listTitle.setTextSize(14);
-        listTitle.setPadding(dp(6), dp(6), dp(6), dp(4));
+        listTitle.setPadding(dp(8), dp(8), dp(8), dp(4));
+        listTitle.setBackgroundColor(Color.argb(20, 255, 142, 68));
         root.addView(listTitle);
 
         ScrollView cardScroll = new ScrollView(this);
         cardScroll.setFillViewport(false);
+        cardScroll.setBackgroundColor(BG_2);
         cards = new LinearLayout(this);
         cards.setOrientation(LinearLayout.VERTICAL);
-        cards.setPadding(dp(2), dp(2), dp(2), dp(8));
+        cards.setPadding(dp(4), dp(4), dp(4), dp(8));
         cardScroll.addView(cards);
 
         root.addView(
@@ -668,8 +685,8 @@ public class MainActivity extends Activity {
             " const tableData = getRosterRowFromTable(r);" +
             " const perf = (detail && detail.performance && typeof detail.performance === 'object') ? detail.performance : ((r.performance_info && typeof r.performance_info === 'object') ? r.performance_info : {});" +
             " const timeSpent = (detail && detail.time_spent && typeof detail.time_spent === 'object') ? detail.time_spent : ((r.time_spent && typeof r.time_spent === 'object') ? r.time_spent : {});" +
-            " const perfRaw = (typeof r.performance === 'number' || typeof r.performance === 'string') ? r.performance : (perf.utilization_rate ?? perf.score ?? perf.value ?? r.performance_score ?? r.performance_value ?? r.performanceRate ?? r.score ?? r.utilization ?? 0);" +
-            " const acceptanceRaw = r.acceptance_rate ?? r.acceptance_percentage ?? r.acceptance ?? r.acceptanceRate ?? perf.acceptance_rate ?? (r.acceptance_info || {}).rate ?? (r.acceptance_info || {}).percentage ?? 0;" +
+            " const perfRaw = (typeof r.performance === 'number' || typeof r.performance === 'string') ? r.performance : (perf.utilization_rate ?? perf.score ?? perf.value ?? r.performance_score ?? r.avg_performance ?? r.performanceRate ?? r.performance_rate ?? (r.performance_info || {}).rate ?? '');" +
+            " const acceptanceRaw = r.acceptance_rate ?? r.acceptance_percentage ?? r.acceptance ?? r.acceptanceRate ?? perf.acceptance_rate ?? (r.acceptance_info || {}).rate ?? (r.acceptance_info || {}).percentage ?? '';" +
             " const perfValue = perfRaw == null ? '' : String(perfRaw);" +
             " const acceptanceValue = acceptanceRaw == null ? '' : String(acceptanceRaw);" +
 
@@ -708,10 +725,10 @@ public class MainActivity extends Activity {
             "  performance:perfValue || tableData.performance || ''," +
             "  acceptance_rate:acceptanceValue || tableData.acceptance_rate || ''," +
             "  worked_time:r.worked_time || r.worked_hours || r.worked || tableData.worked_time || ''," +
-            "  vehicle:(typeof r.vehicle === 'string' ? r.vehicle : ((r.vehicle || {}).name || (r.vehicle || {}).type || (r.vehicle || {}).vehicle_type || r.vehicle_type || r.vehicleType || (r.vehicle || {}).model || ''))," +
-            "  total_orders:(r.total_orders != null ? r.total_orders : (r.total_deliveries_count != null ? r.total_deliveries_count : (info.total_orders != null ? info.total_orders : (info.total_deliveries_count != null ? info.total_deliveries_count : (info.completed_deliveries_count != null ? info.completed_deliveries_count : tableData.total_orders)))))," +
-            "  total_orders_source:(r.total_orders != null || r.total_deliveries_count != null || info.total_orders != null || info.total_deliveries_count != null || info.completed_deliveries_count != null || tableData.total_orders != null) ? 'source' : 'n/a'," +
-            "  worked_seconds:(timeSpent.worked_seconds != null && Number.isFinite(Number(timeSpent.worked_seconds))) ? Number(timeSpent.worked_seconds) : ((detail && detail.worked_seconds != null) ? Number(detail.worked_seconds) : (tableData.worked_seconds >= 0 ? tableData.worked_seconds : -1))," +
+            "  vehicle:(typeof r.vehicle === 'string' ? r.vehicle : ((r.vehicle || {}).name || (r.vehicle || {}).type || (r.vehicle || {}).vehicle_type || r.vehicle_type || r.vehicleType || (r.vehicle || {}).vehicleName || '')))," +
+            "  total_orders:(r.total_orders != null ? r.total_orders : (r.total_deliveries_count != null ? r.total_deliveries_count : (info.total_orders != null ? info.total_orders : (info.total_deliveries_count != null ? info.total_deliveries_count : (info.completed_deliveries_count != null ? info.completed_deliveries_count : tableData.total_orders))))," +
+            "  total_orders_source:(r.total_orders != null || r.total_deliveries_count != null || info.total_orders != null || info.total_deliveries_count != null || info.completed_deliveries_count != null || tableData.total_orders > 0) ? 'source' : 'missing'," +
+            "  worked_seconds:(timeSpent.worked_seconds != null && Number.isFinite(Number(timeSpent.worked_seconds))) ? Number(timeSpent.worked_seconds) : ((detail && detail.worked_seconds != null && Number.isFinite(Number(detail.worked_seconds))) ? Number(detail.worked_seconds) : (tableData.worked_seconds > -1 ? tableData.worked_seconds : -1))," +
             "  active_orders:activeOrders," +
             "  detail_error:detailError" +
             " };" +
@@ -1029,7 +1046,7 @@ public class MainActivity extends Activity {
                 workTime.equals("غير متاح") ? "—" : workTime);
 
         TextView toggle = makeText(
-                "⌄ التفاصيل والأوردرات", 11, ORANGE, true);
+                "⌄ التفاصيل والأوردرات", 11, ORANGE_SOFT, true);
         toggle.setGravity(Gravity.CENTER);
         toggle.setPadding(0, dp(6), 0, dp(2));
         card.addView(toggle);
@@ -1067,7 +1084,7 @@ public class MainActivity extends Activity {
                 if (order == null) continue;
 
                 TextView orderTitle = makeText(
-                        "📦 أوردر " + (i + 1), 12, ORANGE, true);
+                        "📦 أوردر " + (i + 1), 12, ORANGE_SOFT, true);
                 LinearLayout.LayoutParams op =
                         new LinearLayout.LayoutParams(-1, -2);
                 op.topMargin = dp(5);
@@ -1121,8 +1138,10 @@ public class MainActivity extends Activity {
         item.setMinimumHeight(dp(49));
         item.setPadding(dp(4), dp(5), dp(4), dp(5));
 
-        GradientDrawable bg = new GradientDrawable();
-        bg.setColor(Color.rgb(20, 21, 23));
+        GradientDrawable bg = new GradientDrawable(
+                GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{Color.rgb(24, 27, 31), Color.rgb(16, 18, 23)}
+        );
         bg.setCornerRadius(dp(11));
         bg.setStroke(dp(1), ORANGE_DEEP);
         item.setBackground(bg);
@@ -1142,7 +1161,7 @@ public class MainActivity extends Activity {
         TextView val = makeText(
                 value == null || value.trim().isEmpty()
                         ? "—" : value,
-                11, WHITE, true);
+                11, ORANGE_SOFT, true);
         val.setGravity(Gravity.CENTER);
         val.setMaxLines(1);
         val.setEllipsize(
