@@ -580,7 +580,9 @@ public class MainActivity extends Activity {
 
             "const data = await getJson(base + " +
                 JSONObject.quote(RIDERS_URL) + ");" +
-            "const riders = data.content || data.riders || [];" +
+            "const riders = Array.isArray(data) ? data : (Array.isArray(data.content) ? data.content : (Array.isArray(data.riders) ? data.riders : (Array.isArray(data.data) ? data.data : null)));" +
+            "if (!riders) throw new Error('شكل رد API غير متوقع؛ keys=' + Object.keys(data || {}).join(','));" +
+            "if (riders.length === 0) throw new Error('قائمة المندوبين فارغة؛ keys=' + Object.keys(data || {}).join(',') + '; total=' + String(data.total_elements ?? data.totalElements ?? 'غير متاح'));" +
 
             "function getShiftFromTable(r) {" +
             " const id = String(r.employee_id || '').trim();" +
