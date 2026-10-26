@@ -128,7 +128,7 @@ public class MainActivity extends Activity {
         LinearLayout root = dashboardRoot;
         root.setOrientation(LinearLayout.VERTICAL);
         root.setBackgroundColor(BG);
-        root.setPadding(dp(8), dp(3), dp(8), dp(3));
+        root.setPadding(dp(5), dp(2), dp(5), dp(2));
 
         // Premium AL ABTAL LED Header
         LinearLayout portalRow = new LinearLayout(this);
@@ -212,13 +212,11 @@ public class MainActivity extends Activity {
 
         dashboardStats = new LinearLayout(this);
         dashboardStats.setOrientation(LinearLayout.VERTICAL);
-        dashboardStats.setVisibility(View.GONE);
+        // Keep all live statistics visible on the main screen.
+        dashboardStats.setVisibility(View.VISIBLE);
         root.addView(dashboardStats);
-        statsTitle.setOnClickListener(v -> {
-            boolean show = dashboardStats.getVisibility() != View.VISIBLE;
-            dashboardStats.setVisibility(show ? View.VISIBLE : View.GONE);
-            statsTitle.setText(show ? "⌃ ملخص التشغيل المباشر" : "⌄ ملخص التشغيل المباشر");
-        });
+        statsTitle.setText("ملخص التشغيل المباشر");
+        statsTitle.setClickable(false);
 
         // Compact refresh control beside the status line
         LinearLayout controls = new LinearLayout(this);
@@ -814,68 +812,93 @@ public class MainActivity extends Activity {
         if (dashboardStats == null) return;
         dashboardStats.removeAllViews();
 
-        int working = 0;
-        int onBreak = 0;
-        int ready = 0;
-        int late = 0;
+        int working = 0, onBreak = 0, offline = 0;
+        int utrCount = 0, lowUtr = 0, walletOver2300 = 0;
+        double utrSum = 0.0;
         long totalWorkedSeconds = 0;
-        int ridersWithWorkTime = 0;
+        int workedTimeCount = 0;
 
         for (int i = 0; i < riders.length(); i++) {
             JSONObject rider = riders.optJSONObject(i);
             if (rider == null) continue;
 
-            long workedSeconds = rider.optLong("worked_seconds", -1);
-            if (workedSeconds >= 0) {
-                totalWorkedSeconds += workedSeconds;
-                ridersWithWorkTime++;
+            String state = rider.optString("rider_status",
+                    rider.optString("status", ""))
+                    .trim().toLowerCase(Locale.ROOT)
+                    .replace('-', '_').replace(' ', '_');
+
+            if (state.equals("working") || state.equals("active")
+                    || state.equals("on_delivery")
+                    || state.equals("on_delivery_order")) {
+                working++;
+            } else if (state.equals("break") || state.equals("on_break")
+                    || state.equals("onbreak")) {
+                onBreak++;
+            } else if (state.equals("offline") || state.equals("inactive")) {
+                offline++;
             }
 
-            String state = rider.optString(
-                    "rider_status", rider.optString("status", ""))
-                    .trim().toLowerCase(Locale.ROOT);
+            long seconds = rider.optLong("worked_seconds", -1);
+            if (seconds >= 0) {
+                totalWorkedSeconds += seconds;
+                workedTimeCount++;
+            }
 
-            if (state.contains("break")) {
-                onBreak++;
-            } else if (state.contains("late")) {
-                late++;
-            } else if (state.contains("working")
-                    || state.contains("on_delivery")
-                    || state.contains("on delivery")) {
-                working++;
-            } else if (state.contains("ready")
-                    || state.contains("available")
-                    || state.contains("idle")) {
-                ready++;
+            String performance = rider.optString("performance", "")
+                    .trim().replace(',', '.');
+            if (performance.matches("-?\\d+(?:\\.\\d+)?")) {
+                try {
+                    double value = Double.parseDouble(performance);
+                    if (Double.isFinite(value) && value >= 0 && value <= 100) {
+                        utrSum += value;
+                        utrCount++;
+                        if (value < 1.4) lowUtr++;
+                    }
+                } catch (NumberFormatException ignored) { }
+            }
+
+            String wallet = rider.optString("wallet_balance", "")
+                    .trim().replace(" ", "").replace(",", "");
+            java.util.regex.Matcher wm = java.util.regex.Pattern
+                    .compile("-?\\d+(?:\\.\\d+)?").matcher(wallet);
+            if (wm.find()) {
+                try {
+                    if (Double.parseDouble(wm.group()) > 2300) {
+                        walletOver2300++;
+                    }
+                } catch (NumberFormatException ignored) { }
             }
         }
 
-        addTileRow(dashboardStats,
-                "👥 إجمالي المندوبين", String.valueOf(riders.length()),
-                "📦 معاهم أوردر", String.valueOf(ridersWithOrders));
+        String hours = workedTimeCount > 0
+                ? String.format(Locale.US, "%.1f", totalWorkedSeconds / 3600.0)
+                : "—";
+        String averageUtr = utrCount > 0
+                ? String.format(Locale.US, "%.2f", utrSum / utrCount)
+                : "—";
 
-        addTileRow(dashboardStats,
-                "🧾 الأوردرات بالمصدر", String.valueOf(totalOrders),
-                "⭕ بدون أوردر ظاهر",
-                String.valueOf(Math.max(0, riders.length() - ridersWithOrders)));
+        addMicroStatSection(dashboardStats, "حالات التشغيل",
+                new String[]{"شغال", "بريك الآن", "غير متصل"},
+                new String[]{String.valueOf(working), String.valueOf(onBreak),
+                        String.valueOf(offline)},
+                new int[]{GREEN, ORANGE, MUTED});
 
-        addTileRow(dashboardStats,
-                "🟢 شغال", String.valueOf(working),
-                "☕ بريك", String.valueOf(onBreak));
+        addMicroStatSection(dashboardStats, "الأوردرات والتشغيل",
+                new String[]{"معاه أوردر", "فاضي", "إجمالي الأوردرات",
+                        "إجمالي الساعات"},
+                new String[]{String.valueOf(ridersWithOrders),
+                        String.valueOf(Math.max(0, riders.length() - ridersWithOrders)),
+                        String.valueOf(totalOrders), hours},
+                new int[]{GREEN, MUTED, ORANGE, Color.WHITE});
 
-        addTileRow(dashboardStats,
-                "🟠 جاهز / متاح", String.valueOf(ready),
-                "⏰ متأخر", String.valueOf(late));
-
-        addTileRow(dashboardStats,
-                "⏱️ إجمالي ساعات العمل اليوم",
-                ridersWithWorkTime > 0
-                    ? formatWorkDuration(totalWorkedSeconds)
-                    : "غير متاح من المصدر",
-                "👤 مندوبون ببيانات وقت العمل",
-                String.valueOf(ridersWithWorkTime));
+        addMicroStatSection(dashboardStats, "الأداء والمحافظ",
+                new String[]{"UTR متوسط", "UTR أقل من 1.4",
+                        "محفظة أعلى من 2300"},
+                new String[]{averageUtr,
+                        utrCount > 0 ? String.valueOf(lowUtr) : "—",
+                        String.valueOf(walletOver2300)},
+                new int[]{Color.WHITE, lowUtr > 0 ? Color.RED : GREEN, ORANGE});
     }
-
 
     private String formatWorkDuration(long seconds) {
         if (seconds < 0) return "غير متاح من المصدر";
