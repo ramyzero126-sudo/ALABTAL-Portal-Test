@@ -27,7 +27,10 @@ import android.widget.Toast;
 import android.content.ContentValues;
 import android.content.SharedPreferences;
 import android.text.InputType;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.widget.EditText;
+import android.widget.HorizontalScrollView;
 import android.provider.MediaStore;
 import android.os.Environment;
 import android.net.Uri;
@@ -56,7 +59,7 @@ public class MainActivity extends Activity {
         "https://eg.me.logisticsbackoffice.com/dashboard/rooster/live-3pl";
 
     private static final String RIDERS_URL =
-        "/api/rider-live-operations/v1/external/city/214/riders?page=0&size=10";
+        "/api/rider-live-operations/v1/external/city/214/riders?page=0&size=50";
 
     private final Handler handler = new Handler(Looper.getMainLooper());
 
@@ -67,6 +70,10 @@ public class MainActivity extends Activity {
     private LinearLayout dashboardStats;
     private LinearLayout cards;
     private Button inspectButton;
+    private EditText riderSearch;
+    private JSONArray currentRiders = new JSONArray();
+    private String riderFilter = "الكل";
+    private int riderLimit = 10;
     private boolean portalVisible = false;
     private boolean portalPageVisible = false;
     private LinearLayout portalRoot;
@@ -90,11 +97,11 @@ public class MainActivity extends Activity {
     private final Runnable refreshRunnable = new Runnable() {
         @Override
         public void run() {
-            if (destroyed || !portalPageVisible) return;
+            if (destroyed) return;
 
             if (pageLoaded && !inspectionRunning) {
                 inspectRoster();
-            } else if (!inspectionRunning) {
+            } else if (!inspectionRunning && pageLoaded) {
                 scheduleNextSync();
             }
         }
@@ -102,7 +109,7 @@ public class MainActivity extends Activity {
 
     private void scheduleNextSync() {
         handler.removeCallbacks(refreshRunnable);
-        if (!destroyed && portalPageVisible) {
+        if (!destroyed && pageLoaded) {
             handler.postDelayed(refreshRunnable, nextSyncDelayMs);
         }
     }
@@ -282,10 +289,8 @@ public class MainActivity extends Activity {
             public void onPageFinished(WebView view, String url) {
                 pageLoaded = true;
 
-                if (portalPageVisible) {
-                    status.setText("تم تحميل صفحة البوابة؛ جاري التحقق من الجلسة...");
-                    inspectRoster();
-                }
+                status.setText("تم الاتصال بالبوابة؛ جاري تحديث بيانات المندوبين...");
+                inspectRoster();
             }
         });
 
@@ -301,7 +306,7 @@ public class MainActivity extends Activity {
                     inspectionRunning = false;
                     inspectButton.setEnabled(true);
                     status.setText("تعذر جلب البيانات: " + message);
-                    if (portalPageVisible) recordSyncFailure();
+                    recordSyncFailure();
                 });
             }
         }, "AlabtalBridge");
@@ -318,6 +323,71 @@ public class MainActivity extends Activity {
         listTitle.setPadding(0, dp(4), 0, dp(3));
         root.addView(listTitle);
 
+        riderSearch = new EditText(this);
+        riderSearch.setSingleLine(true);
+        riderSearch.setTextColor(WHITE);
+        riderSearch.setHintTextColor(MUTED);
+        riderSearch.setHint("🔎 ابحث بالاسم أو رقم المندوب");
+        riderSearch.setTextSize(12);
+        riderSearch.setPadding(dp(10), 0, dp(10), 0);
+        riderSearch.setBackground(round(PANEL, Color.rgb(75, 65, 58), 1));
+        root.addView(riderSearch,
+                new LinearLayout.LayoutParams(-1, dp(38)));
+
+        HorizontalScrollView filterScroll = new HorizontalScrollView(this);
+        filterScroll.setHorizontalScrollBarEnabled(false);
+        LinearLayout filterRow = new LinearLayout(this);
+        filterRow.setOrientation(LinearLayout.HORIZONTAL);
+        filterRow.setPadding(0, dp(3), 0, dp(2));
+
+        String[] filters = {"الكل", "شغال", "بريك", "غير متصل", "معاه أوردر", "فاضي"};
+        for (String filter : filters) {
+            Button chip = makeButton(filter);
+            chip.setTextSize(10);
+            LinearLayout.LayoutParams cp =
+                    new LinearLayout.LayoutParams(-2, dp(31));
+            cp.setMargins(0, 0, dp(4), 0);
+            filterRow.addView(chip, cp);
+            chip.setOnClickListener(v -> {
+                riderFilter = filter;
+                renderRiderCards();
+            });
+        }
+        filterScroll.addView(filterRow);
+        root.addView(filterScroll);
+
+        HorizontalScrollView limitScroll = new HorizontalScrollView(this);
+        limitScroll.setHorizontalScrollBarEnabled(false);
+        LinearLayout limitRow = new LinearLayout(this);
+        limitRow.setOrientation(LinearLayout.HORIZONTAL);
+        limitRow.setPadding(0, 0, 0, dp(3));
+        TextView limitLabel = makeText("عدد المندوبين:", 10, MUTED, true);
+        limitRow.addView(limitLabel);
+        for (int limit : new int[]{10, 30, 50}) {
+            Button chip = makeButton(String.valueOf(limit));
+            chip.setTextSize(10);
+            LinearLayout.LayoutParams cp =
+                    new LinearLayout.LayoutParams(dp(48), dp(29));
+            cp.setMargins(dp(4), 0, 0, 0);
+            limitRow.addView(chip, cp);
+            chip.setOnClickListener(v -> {
+                riderLimit = limit;
+                renderRiderCards();
+            });
+        }
+        limitScroll.addView(limitRow);
+        root.addView(limitScroll);
+
+        riderSearch.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start,
+                    int count, int after) { }
+            @Override public void onTextChanged(CharSequence s, int start,
+                    int before, int count) {
+                renderRiderCards();
+            }
+            @Override public void afterTextChanged(Editable e) { }
+        });
+
         ScrollView cardScroll = new ScrollView(this);
         cardScroll.setFillViewport(false);
         cards = new LinearLayout(this);
@@ -331,7 +401,9 @@ public class MainActivity extends Activity {
 
         setContentView(root);
 
-        inspectButton.setOnClickListener(v -> showPortalPage());
+        inspectButton.setText("↻ تحديث");
+        inspectButton.setTextSize(12);
+        inspectButton.setOnClickListener(v -> requestRosterRefresh());
 
         addEmptyCard(
             "بانتظار البيانات",
@@ -477,19 +549,12 @@ public class MainActivity extends Activity {
                     new LinearLayout.LayoutParams(0, dp(46), 1));
             backButton.setOnClickListener(v -> returnToDashboard());
 
-            Button syncButton = makeButton("⟳ تحديث");
+            Button syncButton = makeButton("↻ تحديث");
             LinearLayout.LayoutParams syncParams =
                     new LinearLayout.LayoutParams(0, dp(46), 1);
             syncParams.setMargins(dp(6), 0, 0, 0);
             toolbar.addView(syncButton, syncParams);
-            syncButton.setOnClickListener(v -> {
-                if (pageLoaded) {
-                    inspectRoster();
-                } else {
-                    status.setText("انتظر تحميل البوابة وتسجيل الدخول أولًا.");
-                    if (webView != null) webView.reload();
-                }
-            });
+            syncButton.setOnClickListener(v -> requestRosterRefresh());
 
             portalRoot.addView(toolbar);
             TextView portalTitle =
@@ -551,11 +616,28 @@ public class MainActivity extends Activity {
         );
     }
 
+    private void requestRosterRefresh() {
+        if (destroyed || webView == null) return;
+
+        if (inspectionRunning) {
+            status.setText("المزامنة جارية بالفعل...");
+            return;
+        }
+
+        if (!pageLoaded) {
+            status.setText("جاري الاتصال بالبوابة لتحديث البيانات...");
+            webView.loadUrl(PORTAL_URL);
+            return;
+        }
+
+        inspectRoster();
+    }
+
     private void inspectRoster() {
-        if (inspectionRunning || destroyed || !portalPageVisible) return;
+        if (inspectionRunning || destroyed) return;
 
         if (webView == null || !pageLoaded) {
-            status.setText("افتح البوابة وانتظر تحميلها أولًا.");
+            status.setText("اضغط تحديث للاتصال بالبوابة.");
             return;
         }
 
@@ -784,7 +866,7 @@ public class MainActivity extends Activity {
                 throw new Exception("بيانات المندوبين غير موجودة");
             }
 
-            cards.removeAllViews();
+            currentRiders = riders;
 
             int ridersWithOrders = 0;
             int totalOrders = 0;
@@ -799,8 +881,9 @@ public class MainActivity extends Activity {
                 if (hasOrders) ridersWithOrders++;
                 totalOrders += rider.optInt("total_orders", orders.length());
 
-                addRiderCard(rider, orders);
             }
+
+            renderRiderCards();
 
             summary.setText(
                 "المندوبون: " + riders.length() +
@@ -835,9 +918,7 @@ public class MainActivity extends Activity {
         } catch (Exception e) {
             status.setText("تعذر عرض التقرير: " + e.getMessage());
             Toast.makeText(this, "فشل قراءة بيانات الروستر", Toast.LENGTH_LONG).show();
-            if (portalPageVisible) {
-                recordSyncFailure();
-            }
+            recordSyncFailure();
         }
     }
 
@@ -999,6 +1080,65 @@ public class MainActivity extends Activity {
         }
     }
 
+
+    private void renderRiderCards() {
+        if (cards == null) return;
+        cards.removeAllViews();
+
+        String query = riderSearch == null ? "" :
+                riderSearch.getText().toString().trim().toLowerCase(Locale.ROOT);
+        int shown = 0;
+        int matched = 0;
+
+        for (int i = 0; i < currentRiders.length(); i++) {
+            JSONObject rider = currentRiders.optJSONObject(i);
+            if (rider == null) continue;
+
+            String name = firstValue(rider, "name", "employee_name", "rider_name");
+            String id = firstValue(rider, "employee_id", "id", "rider_id");
+            String state = rider.optString("rider_status",
+                    rider.optString("status", "")).toLowerCase(Locale.ROOT)
+                    .replace('-', '_').replace(' ', '_');
+            JSONArray orders = rider.optJSONArray("active_orders");
+            if (orders == null) orders = new JSONArray();
+            boolean hasOrders = orders.length() > 0
+                    || rider.optInt("active_count") > 0
+                    || rider.optBoolean("has_active_deliveries", false);
+
+            if (!query.isEmpty()
+                    && !name.toLowerCase(Locale.ROOT).contains(query)
+                    && !id.toLowerCase(Locale.ROOT).contains(query)) {
+                continue;
+            }
+
+            boolean working = state.equals("working") || state.equals("active")
+                    || state.equals("on_delivery") || state.equals("on_delivery_order");
+            boolean onBreak = state.equals("break") || state.equals("on_break")
+                    || state.equals("onbreak");
+            boolean offline = state.equals("offline") || state.equals("inactive");
+
+            if (riderFilter.equals("شغال") && !working) continue;
+            if (riderFilter.equals("بريك") && !onBreak) continue;
+            if (riderFilter.equals("غير متصل") && !offline) continue;
+            if (riderFilter.equals("معاه أوردر") && !hasOrders) continue;
+            if (riderFilter.equals("فاضي") && hasOrders) continue;
+
+            matched++;
+            if (shown >= riderLimit) continue;
+
+            addRiderCard(rider, orders);
+            shown++;
+        }
+
+        if (shown == 0) {
+            addEmptyCard("لا توجد نتائج", "غيّر البحث أو الفلتر لعرض مندوبين.");
+        }
+
+        if (status != null && currentRiders.length() > 0) {
+            status.setText("عرض " + shown + " من " + matched
+                    + " نتيجة مطابقة • تحديث البيانات من زر ↻");
+        }
+    }
 
     private void addRiderCard(JSONObject rider, JSONArray orders) {
         LinearLayout card = new LinearLayout(this);
@@ -1433,100 +1573,131 @@ public class MainActivity extends Activity {
         });
     }
 
+    private void addDetailPair(LinearLayout parent,
+            String label1, String value1, String label2, String value2) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+
+        LinearLayout.LayoutParams a =
+                new LinearLayout.LayoutParams(0, -2, 1f);
+        a.setMargins(0, 0, dp(4), dp(4));
+        row.addView(createTile(label1, displayValue(value1)), a);
+
+        LinearLayout.LayoutParams b =
+                new LinearLayout.LayoutParams(0, -2, 1f);
+        b.setMargins(dp(4), 0, 0, dp(4));
+        row.addView(createTile(label2, displayValue(value2)), b);
+        parent.addView(row);
+    }
+
     private void showRiderDetails(JSONObject rider, JSONArray orders) {
         detailVisible = true;
         ScrollView scroll = new ScrollView(this);
-        scroll.setFillViewport(true);
+        scroll.setFillViewport(false);
+        scroll.setBackgroundColor(BG);
+
         LinearLayout page = new LinearLayout(this);
         page.setOrientation(LinearLayout.VERTICAL);
-        page.setPadding(dp(14), dp(14), dp(14), dp(20));
+        page.setPadding(dp(8), dp(7), dp(8), dp(10));
         page.setBackgroundColor(BG);
         scroll.addView(page);
 
-        Button back = makeButton("← رجوع إلى المندوبين");
+        LinearLayout toolbar = new LinearLayout(this);
+        toolbar.setOrientation(LinearLayout.HORIZONTAL);
+        toolbar.setGravity(Gravity.CENTER_VERTICAL);
+
+        Button back = makeButton("← رجوع");
+        back.setTextSize(11);
         back.setOnClickListener(v -> returnToDashboard());
-        page.addView(back, new LinearLayout.LayoutParams(-1, dp(46)));
+        toolbar.addView(back, new LinearLayout.LayoutParams(dp(90), dp(36)));
 
-        TextView title = makeText("تفاصيل المندوب", 22, ORANGE, true);
-        title.setPadding(0, dp(14), 0, dp(8));
-        page.addView(title);
-        TextView name = makeText("👤 " + rider.optString("name", "مندوب بدون اسم"), 19, WHITE, true);
-        page.addView(name);
-        TextView id = makeText("رقم المندوب: " + rider.optString("employee_id", "غير متاح"), 12, MUTED, false);
-        page.addView(id);
-        TextView state = makeText("الحالة: " + translateRiderStatus(rider.optString("rider_status", "")), 13, GREEN, true);
-        state.setPadding(0, dp(6), 0, dp(10));
-        page.addView(state);
+        TextView title = makeText("تفاصيل المندوب", 15, ORANGE, true);
+        title.setPadding(dp(8), 0, 0, 0);
+        toolbar.addView(title);
+        page.addView(toolbar);
 
-        addDetailLine(page, "المحفظة", firstValue(rider, "wallet_balance", "wallet", "balance"));
-        addDetailLine(page, "بداية الشيفت", firstValue(rider, "shift_start", "planned_shift_start", "session_start"));
-        addDetailLine(page, "نهاية الشيفت", firstValue(rider, "shift_end", "planned_shift_end", "session_end"));
-        addDetailLine(page, "عدد الأوردرات", firstValue(rider, "total_orders"));
-        addDetailLine(page, "الأداء", firstValue(rider, "performance", "performance_score"));
-        addDetailLine(page, "نسبة القبول", firstValue(rider, "acceptance_rate", "acceptance", "acceptance_percentage"));
-        addDetailLine(page, "ساعات العمل", firstValue(rider, "worked_time", "worked_hours", "worked"));
-        addDetailLine(page, "المحطة", firstValue(rider, "starting_point"));
-        addDetailLine(page, "المنطقة", firstValue(rider, "zone"));
-        addDetailLine(page, "وسيلة التوصيل", firstValue(rider, "vehicle", "vehicle_type"));
+        LinearLayout identity = new LinearLayout(this);
+        identity.setOrientation(LinearLayout.VERTICAL);
+        identity.setPadding(dp(9), dp(7), dp(9), dp(7));
+        identity.setBackground(round(PANEL, ORANGE, 1));
 
-        TextView ordersTitle = makeText("تفاصيل الأوردر النشط", 18, ORANGE, true);
-        ordersTitle.setPadding(0, dp(16), 0, dp(8));
+        identity.addView(makeText(
+                "👤 " + rider.optString("name", "مندوب بدون اسم"),
+                16, WHITE, true));
+        identity.addView(makeText(
+                "ID: " + rider.optString("employee_id", "غير متاح")
+                        + "  •  " + translateRiderStatus(
+                                rider.optString("rider_status", "")),
+                10, GREEN, true));
+        LinearLayout.LayoutParams ip =
+                new LinearLayout.LayoutParams(-1, -2);
+        ip.setMargins(0, dp(6), 0, dp(5));
+        page.addView(identity, ip);
+
+        addDetailPair(page, "المحفظة",
+                firstValue(rider, "wallet_balance", "wallet", "balance"),
+                "إجمالي الأوردرات", firstValue(rider, "total_orders"));
+        addDetailPair(page, "بداية الشيفت",
+                firstValue(rider, "shift_start", "planned_shift_start", "session_start"),
+                "نهاية الشيفت",
+                firstValue(rider, "shift_end", "planned_shift_end", "session_end"));
+        addDetailPair(page, "الأداء",
+                firstValue(rider, "performance", "performance_score"),
+                "نسبة القبول",
+                firstValue(rider, "acceptance_rate", "acceptance", "acceptance_percentage"));
+        addDetailPair(page, "ساعات العمل",
+                firstValue(rider, "worked_time", "worked_hours", "worked"),
+                "المحطة", firstValue(rider, "starting_point"));
+        addDetailPair(page, "المنطقة", firstValue(rider, "zone"),
+                "وسيلة التوصيل", firstValue(rider, "vehicle", "vehicle_type"));
+
+        TextView ordersTitle = makeText("الأوردرات النشطة", 13, ORANGE, true);
+        ordersTitle.setPadding(dp(2), dp(5), dp(2), dp(4));
         page.addView(ordersTitle);
 
-        if (orders.length() == 0) {
+        if (orders == null || orders.length() == 0) {
             boolean activeConfirmed =
                     rider.optBoolean("has_active_deliveries", false)
                     || rider.optInt("active_count") > 0;
-
-            String message = activeConfirmed
-                    ? "المصدر يؤكد وجود أوردر نشط، لكن تفاصيله غير متاحة حاليًا."
-                    : "لا يوجد أوردر نشط مؤكد لهذا المندوب.";
-
-            page.addView(makeText(message, 14, MUTED, false));
+            page.addView(makeText(
+                    activeConfirmed
+                        ? "يوجد أوردر نشط لكن تفاصيله غير متاحة حاليًا."
+                        : "لا يوجد أوردر نشط مؤكد.",
+                    11, MUTED, false));
         } else {
-            JSONObject order = orders.optJSONObject(0);
+            for (int i = 0; i < orders.length(); i++) {
+                JSONObject order = orders.optJSONObject(i);
+                if (order == null) continue;
 
-            if (order == null) {
-                page.addView(makeText(
-                        "تعذر قراءة تفاصيل الأوردر النشط.",
-                        14, MUTED, false));
-            } else {
                 LinearLayout box = new LinearLayout(this);
                 box.setOrientation(LinearLayout.VERTICAL);
-                box.setPadding(dp(12), dp(12), dp(12), dp(12));
+                box.setPadding(dp(8), dp(7), dp(8), dp(7));
                 box.setBackground(round(
-                        Color.rgb(24, 20, 17), ORANGE, 1));
+                        Color.rgb(24, 20, 17), ORANGE_DEEP, 1));
 
                 LinearLayout.LayoutParams params =
                         new LinearLayout.LayoutParams(-1, -2);
-                params.setMargins(0, 0, 0, dp(10));
+                params.setMargins(0, 0, 0, dp(5));
                 page.addView(box, params);
 
                 String code = order.optString("order_code", "");
-                if (code.isEmpty()) {
-                    code = order.optString("delivery_id", "غير متاح");
-                }
+                if (code.isEmpty()) code = order.optString("delivery_id", "غير متاح");
 
-                box.addView(makeText(
-                        "📦 رقم الأوردر: " + code, 15, ORANGE, true));
-                box.addView(makeText(
-                        "🚦 المرحلة: "
-                                + arabicStatus(order.optString("status", "")),
-                        14, GREEN, true));
-                box.addView(makeText(
-                        "🍔 المطعم: "
-                                + displayValue(order.optString("vendor_name", "")),
-                        13, WHITE, false));
-                addAddress(box, "عنوان الاستلام",
-                        order.optString("pickup_address", ""));
-                addAddress(box, "عنوان العميل",
-                        order.optString("dropoff_address", ""));
+                box.addView(makeText("📦 " + code, 12, ORANGE, true));
+                box.addView(makeText("🚦 " +
+                        arabicStatus(order.optString("status", "")),
+                        11, GREEN, true));
+                box.addView(makeText("🍔 " +
+                        displayValue(order.optString("vendor_name", "")),
+                        10, WHITE, false));
+                addAddress(box, "الاستلام", order.optString("pickup_address", ""));
+                addAddress(box, "التسليم", order.optString("dropoff_address", ""));
 
                 JSONArray timeline = order.optJSONArray("timeline");
                 if (timeline != null && timeline.length() > 0) {
                     box.addView(makeText(
-                            "أحداث التوصيل المسجلة: " + timeline.length(),
-                            11, MUTED, false));
+                            "الأحداث المسجلة: " + timeline.length(),
+                            9, MUTED, false));
                 }
             }
         }
@@ -1549,11 +1720,9 @@ public class MainActivity extends Activity {
 
     private void returnToDashboard() {
         detailVisible = false;
-        handler.removeCallbacks(refreshRunnable);
 
         if (portalPageVisible && webView != null
                 && dashboardRoot != null) {
-            webView.onPause();
             if (webView.getParent() instanceof ViewGroup) {
                 ((ViewGroup) webView.getParent()).removeView(webView);
             }
