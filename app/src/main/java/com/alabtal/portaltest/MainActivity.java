@@ -130,13 +130,16 @@ public class MainActivity extends Activity {
         public void run() {
             if (destroyed || banner == null) return;
 
-            bannerPosition++;
-            if (bannerPosition > bannerMessage.length()) {
+            if (bannerPosition >= bannerMessage.length()) {
                 bannerPosition = 0;
+                banner.setText("");
+                handler.postDelayed(this, 650);
+                return;
             }
 
+            bannerPosition++;
             banner.setText(bannerMessage.substring(0, bannerPosition));
-            handler.postDelayed(this, 130);
+            handler.postDelayed(this, 115);
         }
     };
 
@@ -165,10 +168,14 @@ public class MainActivity extends Activity {
         portalRow.setOrientation(LinearLayout.HORIZONTAL);
         portalRow.setGravity(Gravity.LEFT | Gravity.CENTER_VERTICAL);
 
-        Button portalButton = makeButton("🌐 البوابة");
+        Button portalButton = makeButton("🌐");
+        portalButton.setTextSize(16);
+        portalButton.setPadding(0, 0, 0, 0);
+        portalButton.setContentDescription("فتح بوابة الشركة");
+        portalButton.setBackground(round(PANEL, ORANGE_DEEP, 1));
         LinearLayout.LayoutParams portalParams =
-                new LinearLayout.LayoutParams(-2, dp(27));
-        portalParams.setMargins(0, 0, 0, dp(3));
+                new LinearLayout.LayoutParams(dp(38), dp(30));
+        portalParams.setMargins(dp(2), 0, 0, dp(3));
         portalRow.addView(portalButton, portalParams);
         portalButton.setOnClickListener(v -> showPortalPage());
         root.addView(portalRow);
@@ -264,12 +271,14 @@ public class MainActivity extends Activity {
             status, new LinearLayout.LayoutParams(0, -2, 1)
         );
 
-        inspectButton = makeButton("⟳");
+        inspectButton = makeButton("↻");
         inspectButton.setTextSize(22);
+        inspectButton.setTextColor(ORANGE);
         inspectButton.setPadding(0, 0, 0, 0);
-        inspectButton.setContentDescription("تحديث البيانات");
+        inspectButton.setBackground(round(PANEL, ORANGE_DEEP, 1));
+        inspectButton.setContentDescription("تحديث البيانات الآن");
         LinearLayout.LayoutParams refreshParams =
-                new LinearLayout.LayoutParams(dp(34), dp(29));
+                new LinearLayout.LayoutParams(dp(38), dp(30));
         refreshParams.setMargins(dp(3), 0, 0, 0);
         controls.addView(inspectButton, refreshParams);
 
@@ -324,17 +333,6 @@ public class MainActivity extends Activity {
         listTitle.setPadding(0, dp(2), 0, dp(1));
         root.addView(listTitle);
 
-        riderSearch = new EditText(this);
-        riderSearch.setSingleLine(true);
-        riderSearch.setTextColor(WHITE);
-        riderSearch.setHintTextColor(MUTED);
-        riderSearch.setHint("🔎 ابحث بالاسم أو رقم المندوب");
-        riderSearch.setTextSize(12);
-        riderSearch.setPadding(dp(8), 0, dp(8), 0);
-        riderSearch.setBackground(round(PANEL, Color.rgb(75, 65, 58), 1));
-        root.addView(riderSearch,
-                new LinearLayout.LayoutParams(-1, dp(32)));
-
         HorizontalScrollView filterScroll = new HorizontalScrollView(this);
         filterScroll.setHorizontalScrollBarEnabled(false);
         LinearLayout filterRow = new LinearLayout(this);
@@ -344,10 +342,14 @@ public class MainActivity extends Activity {
         String[] filters = {"الكل", "شغال", "بريك", "غير متصل", "معاه أوردر", "فاضي"};
         for (String filter : filters) {
             Button chip = makeButton(filter);
-            chip.setTextSize(10);
+            chip.setTextSize(9);
+            chip.setTextColor(ORANGE);
+            chip.setPadding(dp(7), 0, dp(7), 0);
+            chip.setMinWidth(0);
+            chip.setBackground(round(PANEL, ORANGE_DEEP, 1));
             LinearLayout.LayoutParams cp =
-                    new LinearLayout.LayoutParams(-2, dp(25));
-            cp.setMargins(0, 0, dp(4), 0);
+                    new LinearLayout.LayoutParams(-2, dp(23));
+            cp.setMargins(0, 0, dp(3), 0);
             filterRow.addView(chip, cp);
             chip.setOnClickListener(v -> {
                 riderFilter = filter;
@@ -366,10 +368,14 @@ public class MainActivity extends Activity {
         limitRow.addView(limitLabel);
         for (int limit : new int[]{10, 30, 50}) {
             Button chip = makeButton(String.valueOf(limit));
-            chip.setTextSize(10);
+            chip.setTextSize(9);
+            chip.setTextColor(ORANGE);
+            chip.setPadding(0, 0, 0, 0);
+            chip.setMinWidth(0);
+            chip.setBackground(round(PANEL, ORANGE_DEEP, 1));
             LinearLayout.LayoutParams cp =
-                    new LinearLayout.LayoutParams(dp(42), dp(24));
-            cp.setMargins(dp(4), 0, 0, 0);
+                    new LinearLayout.LayoutParams(dp(34), dp(22));
+            cp.setMargins(dp(3), 0, 0, 0);
             limitRow.addView(chip, cp);
             chip.setOnClickListener(v -> {
                 riderLimit = limit;
@@ -378,16 +384,6 @@ public class MainActivity extends Activity {
         }
         limitScroll.addView(limitRow);
         root.addView(limitScroll);
-
-        riderSearch.addTextChangedListener(new TextWatcher() {
-            @Override public void beforeTextChanged(CharSequence s, int start,
-                    int count, int after) { }
-            @Override public void onTextChanged(CharSequence s, int start,
-                    int before, int count) {
-                renderRiderCards();
-            }
-            @Override public void afterTextChanged(Editable e) { }
-        });
 
         ScrollView cardScroll = new ScrollView(this);
         cardScroll.setFillViewport(false);
@@ -402,8 +398,8 @@ public class MainActivity extends Activity {
 
         setContentView(root);
 
-        inspectButton.setText("↻ تحديث");
-        inspectButton.setTextSize(12);
+        inspectButton.setText("↻");
+        inspectButton.setTextSize(22);
         inspectButton.setOnClickListener(v -> requestRosterRefresh());
 
         addEmptyCard(
@@ -1086,8 +1082,7 @@ public class MainActivity extends Activity {
         if (cards == null) return;
         cards.removeAllViews();
 
-        String query = riderSearch == null ? "" :
-                riderSearch.getText().toString().trim().toLowerCase(Locale.ROOT);
+        String query = ""; // تم حذف البحث النصي من الواجهة.
         int shown = 0;
         int matched = 0;
 
@@ -1132,7 +1127,7 @@ public class MainActivity extends Activity {
         }
 
         if (shown == 0) {
-            addEmptyCard("لا توجد نتائج", "غيّر البحث أو الفلتر لعرض مندوبين.");
+            addEmptyCard("لا توجد نتائج", "جرّب فلترًا آخر لعرض المندوبين.");
         }
 
         if (status != null && currentRiders.length() > 0) {
