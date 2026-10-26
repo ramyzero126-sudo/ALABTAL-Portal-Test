@@ -900,6 +900,55 @@ public class MainActivity extends Activity {
                 new int[]{Color.WHITE, lowUtr > 0 ? Color.RED : GREEN, ORANGE});
     }
 
+
+    private void addMicroStatSection(
+            LinearLayout parent, String heading,
+            String[] labels, String[] values, int[] colors) {
+        TextView title = makeText(heading, 10, ORANGE, true);
+        title.setPadding(dp(2), dp(4), dp(2), dp(3));
+        parent.addView(title, new LinearLayout.LayoutParams(-1, -2));
+
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+
+        int count = Math.min(labels.length,
+                Math.min(values.length, colors.length));
+
+        for (int i = 0; i < count; i++) {
+            LinearLayout tile = new LinearLayout(this);
+            tile.setOrientation(LinearLayout.VERTICAL);
+            tile.setGravity(Gravity.CENTER);
+            tile.setPadding(dp(2), dp(5), dp(2), dp(5));
+
+            GradientDrawable bg = new GradientDrawable();
+            bg.setColor(Color.rgb(20, 20, 24));
+            bg.setCornerRadius(dp(8));
+            bg.setStroke(dp(1), Color.rgb(80, 55, 38));
+            tile.setBackground(bg);
+            tile.setElevation(dp(2));
+
+            TextView value = makeText(values[i], 13, colors[i], true);
+            value.setGravity(Gravity.CENTER);
+            tile.addView(value, new LinearLayout.LayoutParams(-1, -2));
+
+            TextView label = makeText(labels[i], 8, MUTED, false);
+            label.setGravity(Gravity.CENTER);
+            label.setPadding(0, dp(2), 0, 0);
+            tile.addView(label, new LinearLayout.LayoutParams(-1, -2));
+
+            LinearLayout.LayoutParams tileParams =
+                    new LinearLayout.LayoutParams(0, dp(42), 1f);
+            tileParams.setMargins(dp(2), dp(2), dp(2), dp(3));
+            row.addView(tile, tileParams);
+        }
+
+        LinearLayout.LayoutParams rowParams =
+                new LinearLayout.LayoutParams(-1, -2);
+        rowParams.setMargins(0, 0, 0, dp(3));
+        parent.addView(row, rowParams);
+    }
+
     private String formatWorkDuration(long seconds) {
         if (seconds < 0) return "غير متاح من المصدر";
         long hours = seconds / 3600;
