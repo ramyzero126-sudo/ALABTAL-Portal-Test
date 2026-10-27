@@ -33,6 +33,10 @@ jobs:
           chmod 600 "$HOME/.android/debug.keystore"
           test -s "$HOME/.android/debug.keystore"
 
+      - name: Verify restored signing certificate
+        run: |
+          keytool -list -v -keystore "$HOME/.android/debug.keystore" -storepass android | grep -E 'Alias name:|SHA1:|SHA256:'
+
       - name: Build debug APK
         run: gradle assembleDebug
 
