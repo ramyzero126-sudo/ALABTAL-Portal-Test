@@ -301,8 +301,24 @@ public class MainActivity extends Activity {
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public void onPageFinished(WebView view, String url) {
-                pageLoaded = true;
+                String finishedUrl = url == null ? "" : url.toLowerCase(Locale.ROOT);
 
+                if (finishedUrl.contains("cloudflareaccess.com")
+                        || finishedUrl.contains("/cdn-cgi/access/login")) {
+                    pageLoaded = false;
+                    inspectionRunning = false;
+                    if (inspectButton != null) inspectButton.setEnabled(true);
+                    status.setText("سجّل الدخول في Cloudflare للوصول إلى الروستر.");
+                    return;
+                }
+
+                if (!finishedUrl.startsWith("https://eg.me.logisticsbackoffice.com/")) {
+                    pageLoaded = false;
+                    status.setText("في انتظار صفحة بوابة الشركة الموثّقة...");
+                    return;
+                }
+
+                pageLoaded = true;
                 status.setText("تم الاتصال بالبوابة؛ جاري تحديث بيانات المندوبين...");
                 inspectRoster();
             }
@@ -922,6 +938,11 @@ public class MainActivity extends Activity {
                 consecutiveSyncFailures = 0;
                 nextSyncDelayMs = SYNC_INTERVAL_MS;
                 scheduleNextSync();
+
+                // إخفاء البوابة بعد نجاح جلب البيانات مع الاحتفاظ بنفس الجلسة.
+                if (portalPageVisible) {
+                    returnToDashboard();
+                }
             }
 
         } catch (Exception e) {
