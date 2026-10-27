@@ -2824,6 +2824,10 @@ public class MainActivity extends Activity {
 
         new Thread(() -> {
             try {
+                String titles = fetchSheetTitles(token);
+                throw new IOException("أسماء التبويبات التي وجدها Google: " + titles);
+                // فحص تشخيصي مؤقت؛ لم يتم تغيير قراءة الردود.
+                /*
                 JSONArray shifts = fetchSheetRows(
                     token, "'تزويدات شيفتات الطيارين'!A:H"
                 );
@@ -2832,6 +2836,7 @@ public class MainActivity extends Activity {
                 );
 
                 String html = buildSheetHtml(shifts, breaks);
+                */
                 runOnUiThread(() -> {
                     if (sheetView != null) {
                         sheetView.loadDataWithBaseURL(
@@ -2850,6 +2855,57 @@ public class MainActivity extends Activity {
                 showSheetError("سبب الخطأ: " + detail);
             }
         }).start();
+    }
+
+    private String fetchSheetTitles(String token) throws IOException {
+        URL url = new URL(
+            "https://sheets.googleapis.com/v4/spreadsheets/"
+            + SHEET_ID + "?fields=sheets.properties.title"
+        );
+        HttpURLConnection connection =
+            (HttpURLConnection) url.openConnection();
+        connection.setRequestMethod("GET");
+        connection.setConnectTimeout(15000);
+        connection.setReadTimeout(20000);
+        connection.setRequestProperty("Authorization", "Bearer " + token);
+
+        try {
+            int code = connection.getResponseCode();
+            InputStream stream = code >= 200 && code < 300
+                ? connection.getInputStream() : connection.getErrorStream();
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            if (stream != null) {
+                try (InputStream in = stream) {
+                    byte[] buffer = new byte[4096];
+                    int count;
+                    while ((count = in.read(buffer)) != -1) {
+                        out.write(buffer, 0, count);
+                    }
+                }
+            }
+            String body = new String(out.toByteArray(), StandardCharsets.UTF_8);
+            if (code < 200 || code >= 300) {
+                throw new IOException("Metadata API HTTP " + code + ": " + body);
+            }
+            JSONObject json = new JSONObject(body);
+            JSONArray sheets = json.optJSONArray("sheets");
+            StringBuilder titles = new StringBuilder();
+            if (sheets != null) {
+                for (int i = 0; i < sheets.length(); i++) {
+                    JSONObject properties = sheets.getJSONObject(i)
+                        .optJSONObject("properties");
+                    if (properties != null) {
+                        if (titles.length() > 0) titles.append(" | ");
+                        titles.append(properties.optString("title", ""));
+                    }
+                }
+            }
+            return titles.toString();
+        } catch (org.json.JSONException e) {
+            throw new IOException("تعذر قراءة أسماء التبويبات.", e);
+        } finally {
+            connection.disconnect();
+        }
     }
 
     private JSONArray fetchSheetRows(String token, String range)
