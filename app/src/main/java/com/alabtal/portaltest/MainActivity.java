@@ -1628,8 +1628,23 @@ public class MainActivity extends Activity {
                 ".leaflet-popup-content-wrapper{background:#111317;color:#fff}" +
                 ".leaflet-popup-tip{background:#111317}</style></head><body>" +
                 "<div id='map'></div><div id='note' class='note'>جاري تجهيز الخريطة...</div>" +
-                "<script src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'></script>" +
                 "<script>" +
+                "window.mapLibraryReady=false;" +
+                "function loadLeafletFallback(){" +
+                "if(window.mapLibraryReady)return;" +
+                "var note=document.getElementById('note');" +
+                "note.textContent='تعذر تحميل مكتبة الخريطة؛ جارٍ تجربة مصدر بديل...';" +
+                "var css=document.createElement('link');css.rel='stylesheet';" +
+                "css.href='https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css';" +
+                "document.head.appendChild(css);" +
+                "var js=document.createElement('script');" +
+                "js.src='https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js';" +
+                "js.onload=function(){window.mapLibraryReady=true;initRiderMap();};" +
+                "js.onerror=function(){note.textContent='تعذر تحميل الخريطة. تحقق من الإنترنت ثم أعد فتح التبويب.';};" +
+                "document.head.appendChild(js);" +
+                "}" +
+                "function initRiderMap(){" +
+                "if(typeof L==='undefined'){loadLeafletFallback();return;}" +
                 "const map=L.map('map').setView([30.7865,31.0004],12);" +
                 "L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'," +
                 "{maxZoom:19,attribution:'&copy; OpenStreetMap'}).addTo(map);" +
@@ -1646,6 +1661,12 @@ public class MainActivity extends Activity {
                 "if(pts.length>1)map.fitBounds(L.latLngBounds(pts.map(p=>[p.lat,p.lon]))," +
                 "{padding:[25,25],maxZoom:15});else map.setView([pts[0].lat,pts[0].lon],15);" +
                 "}else{note.textContent='لا توجد إحداثيات GPS حقيقية للمندوبين في البيانات الحالية.';}" +
+                "}" +
+                "var primary=document.createElement('script');" +
+                "primary.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';" +
+                "primary.onload=function(){window.mapLibraryReady=true;initRiderMap();};" +
+                "primary.onerror=loadLeafletFallback;" +
+                "document.head.appendChild(primary);" +
                 "</script></body></html>";
 
             riderMapView.loadDataWithBaseURL(
