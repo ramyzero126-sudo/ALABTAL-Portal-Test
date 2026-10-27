@@ -76,6 +76,9 @@ public class MainActivity extends Activity {
     private TextView summary;
     private LinearLayout dashboardStats;
     private LinearLayout cards;
+    private ScrollView riderCardsScroll;
+    private WebView riderMapView;
+    private boolean mapTabActive = false;
     private Button inspectButton;
     private EditText riderSearch;
     private JSONArray currentRiders = new JSONArray();
@@ -407,42 +410,66 @@ public class MainActivity extends Activity {
         filterScroll.addView(filterRow);
         root.addView(filterScroll);
 
-        HorizontalScrollView limitScroll = new HorizontalScrollView(this);
-        limitScroll.setHorizontalScrollBarEnabled(false);
-        LinearLayout limitRow = new LinearLayout(this);
-        limitRow.setOrientation(LinearLayout.HORIZONTAL);
-        limitRow.setPadding(0, 0, 0, dp(1));
-        TextView limitLabel = makeText("عدد المندوبين:", 10, MUTED, true);
-        limitRow.addView(limitLabel);
-        for (int limit : new int[]{10, 30, 50}) {
-            Button chip = makeButton(String.valueOf(limit));
-            chip.setTextSize(9);
-            chip.setTextColor(ORANGE);
-            chip.setPadding(0, 0, 0, 0);
-            chip.setMinWidth(0);
-            chip.setBackground(round(PANEL, ORANGE_DEEP, 1));
-            LinearLayout.LayoutParams cp =
-                    new LinearLayout.LayoutParams(dp(34), dp(22));
-            cp.setMargins(dp(3), 0, 0, 0);
-            limitRow.addView(chip, cp);
-            chip.setOnClickListener(v -> {
-                riderLimit = limit;
-                renderRiderCards();
-            });
-        }
-        limitScroll.addView(limitRow);
-        root.addView(limitScroll);
+        // تبويبات مضغوطة: المناديب والخريطة
+        LinearLayout mapTabs = new LinearLayout(this);
+        mapTabs.setOrientation(LinearLayout.HORIZONTAL);
+        mapTabs.setPadding(0, dp(3), 0, dp(4));
 
-        ScrollView cardScroll = new ScrollView(this);
-        cardScroll.setFillViewport(false);
+        Button ridersTab = makeButton("☷ المناديب");
+        Button mapTab = makeButton("⌖ الخريطة");
+        ridersTab.setTextSize(11);
+        mapTab.setTextSize(11);
+        ridersTab.setBackground(round(PANEL, ORANGE_DEEP, 1));
+        mapTab.setBackground(round(PANEL, ORANGE_DEEP, 1));
+
+        LinearLayout.LayoutParams tabParams =
+                new LinearLayout.LayoutParams(0, dp(34), 1);
+        tabParams.setMargins(0, 0, dp(4), 0);
+        mapTabs.addView(ridersTab, tabParams);
+        LinearLayout.LayoutParams mapTabParams =
+                new LinearLayout.LayoutParams(0, dp(34), 1);
+        mapTabs.addView(mapTab, mapTabParams);
+        root.addView(mapTabs);
+
+        FrameLayout contentFrame = new FrameLayout(this);
+
+        riderCardsScroll = new ScrollView(this);
+        riderCardsScroll.setFillViewport(false);
         cards = new LinearLayout(this);
         cards.setOrientation(LinearLayout.VERTICAL);
-        cardScroll.addView(cards);
+        riderCardsScroll.addView(cards);
 
-        root.addView(
-            cardScroll,
-            new LinearLayout.LayoutParams(-1, 0, 1)
-        );
+        riderMapView = new WebView(this);
+        riderMapView.setBackgroundColor(BG);
+        riderMapView.getSettings().setJavaScriptEnabled(true);
+        riderMapView.getSettings().setDomStorageEnabled(true);
+        riderMapView.setVisibility(View.GONE);
+
+        contentFrame.addView(riderCardsScroll,
+                new FrameLayout.LayoutParams(-1, -1));
+        contentFrame.addView(riderMapView,
+                new FrameLayout.LayoutParams(-1, -1));
+
+        root.addView(contentFrame,
+                new LinearLayout.LayoutParams(-1, 0, 1));
+
+        ridersTab.setOnClickListener(v -> {
+            mapTabActive = false;
+            riderCardsScroll.setVisibility(View.VISIBLE);
+            riderMapView.setVisibility(View.GONE);
+            ridersTab.setTextColor(ORANGE);
+            mapTab.setTextColor(WHITE);
+            renderRiderCards();
+        });
+
+        mapTab.setOnClickListener(v -> {
+            mapTabActive = true;
+            riderCardsScroll.setVisibility(View.GONE);
+            riderMapView.setVisibility(View.VISIBLE);
+            mapTab.setTextColor(ORANGE);
+            ridersTab.setTextColor(WHITE);
+            renderRiderMap();
+        });
 
         setContentView(root);
 
@@ -1001,6 +1028,7 @@ public class MainActivity extends Activity {
             }
 
             renderRiderCards();
+            if (mapTabActive) renderRiderMap();
 
             summary.setText("المندوبون: " + riders.length());
 
@@ -1521,6 +1549,112 @@ public class MainActivity extends Activity {
                 new LinearLayout.LayoutParams(-1, -2);
         params.setMargins(0, dp(5), 0, dp(2));
         card.addView(alert, params);
+    }
+
+
+    private double mapCoordinate(JSONObject rider, String... keys) {
+        for (String key : keys) {
+            double value = rider.optDouble(key, Double.NaN);
+            if (Double.isFinite(value)) return value;
+        }
+        return Double.NaN;
+    }
+
+    private double nestedMapCoordinate(JSONObject rider, String objectKey,
+                                       String... keys) {
+        JSONObject nested = rider.optJSONObject(objectKey);
+        if (nested == null) return Double.NaN;
+        return mapCoordinate(nested, keys);
+    }
+
+    private void renderRiderMap() {
+        if (riderMapView == null || !mapTabActive) return;
+
+        try {
+            JSONArray points = new JSONArray();
+
+            for (int i = 0; i < currentRiders.length(); i++) {
+                JSONObject rider = currentRiders.optJSONObject(i);
+                if (rider == null) continue;
+
+                double lat = mapCoordinate(rider,
+                        "latitude", "lat", "current_latitude", "currentLatitude");
+                double lon = mapCoordinate(rider,
+                        "longitude", "lng", "lon", "current_longitude",
+                        "currentLongitude");
+
+                if (!Double.isFinite(lat) || !Double.isFinite(lon)) {
+                    lat = nestedMapCoordinate(rider, "location",
+                            "latitude", "lat");
+                    lon = nestedMapCoordinate(rider, "location",
+                            "longitude", "lng", "lon");
+                }
+
+                if (!Double.isFinite(lat) || !Double.isFinite(lon)) {
+                    lat = nestedMapCoordinate(rider, "current_location",
+                            "latitude", "lat");
+                    lon = nestedMapCoordinate(rider, "current_location",
+                            "longitude", "lng", "lon");
+                }
+
+                // لا نرسم علامات لمواقع غير حقيقية أو إحداثيات غير صالحة.
+                if (!Double.isFinite(lat) || !Double.isFinite(lon)
+                        || lat < -90 || lat > 90 || lon < -180 || lon > 180
+                        || (lat == 0 && lon == 0)) {
+                    continue;
+                }
+
+                JSONObject point = new JSONObject();
+                point.put("lat", lat);
+                point.put("lon", lon);
+                point.put("name", firstValue(rider,
+                        "name", "employee_name", "rider_name"));
+                point.put("status", translateRiderStatus(firstValue(rider,
+                        "rider_status", "status", "work_status")));
+                JSONArray orders = rider.optJSONArray("active_orders");
+                point.put("orders", orders == null ? rider.optInt("active_count")
+                        : orders.length());
+                points.put(point);
+            }
+
+            String html =
+                "<!doctype html><html><head><meta charset='utf-8'>" +
+                "<meta name='viewport' content='width=device-width,initial-scale=1'>" +
+                "<link rel='stylesheet' href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'>" +
+                "<style>html,body,#map{height:100%;margin:0;background:#07080a;color:#fff}" +
+                ".note{position:absolute;z-index:999;bottom:12px;left:12px;right:12px;" +
+                "background:#111317;border:1px solid #ff7900;border-radius:10px;" +
+                "padding:10px;text-align:center;font:14px sans-serif;color:#fff}" +
+                ".leaflet-popup-content-wrapper{background:#111317;color:#fff}" +
+                ".leaflet-popup-tip{background:#111317}</style></head><body>" +
+                "<div id='map'></div><div id='note' class='note'>جاري تجهيز الخريطة...</div>" +
+                "<script src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'></script>" +
+                "<script>" +
+                "const map=L.map('map').setView([30.7865,31.0004],12);" +
+                "L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'," +
+                "{maxZoom:19,attribution:'&copy; OpenStreetMap'}).addTo(map);" +
+                "const safe=s=>String(s??'').replace(/[&<>\\\"']/g,c=>" +
+                "({'&':'&amp;','<':'&lt;','>':'&gt;','\\\"':'&quot;',\\\"'\\\":'&#39;'}[c]));" +
+                "const pts=" + points.toString() + ";" +
+                "pts.forEach(p=>{const color=/بريك|استراحة/.test(p.status)?'#ff5252':" +
+                "(/شغال|عمل|توصيل/.test(p.status)?'#2dd27d':'#ffb52e');" +
+                "L.circleMarker([p.lat,p.lon],{radius:8,color:color,fillColor:color," +
+                "fillOpacity:.9,weight:2}).addTo(map).bindPopup(" +
+                "'<b>'+safe(p.name)+'</b><br>'+safe(p.status)+'<br>أوردرات نشطة: '+p.orders);});" +
+                "const note=document.getElementById('note');" +
+                "if(pts.length){note.textContent='المندوبون على الخريطة: '+pts.length;" +
+                "if(pts.length>1)map.fitBounds(L.latLngBounds(pts.map(p=>[p.lat,p.lon]))," +
+                "{padding:[25,25],maxZoom:15});else map.setView([pts[0].lat,pts[0].lon],15);" +
+                "}else{note.textContent='لا توجد إحداثيات GPS حقيقية للمندوبين في البيانات الحالية.';}" +
+                "</script></body></html>";
+
+            riderMapView.loadDataWithBaseURL(
+                    "https://local.alabtal.invalid/", html, "text/html", "UTF-8", null);
+
+        } catch (Exception e) {
+            Toast.makeText(this, "تعذر تجهيز الخريطة: " + e.getMessage(),
+                    Toast.LENGTH_LONG).show();
+        }
     }
 
     private void renderRiderCards() {
