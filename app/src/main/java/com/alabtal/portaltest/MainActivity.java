@@ -94,7 +94,7 @@ public class MainActivity extends Activity {
     private boolean destroyed = false;
     private int consecutiveSyncFailures = 0;
     private long nextSyncDelayMs = 30000L;
-    private static final long SYNC_INTERVAL_MS = 15000L;
+    private static final long SYNC_INTERVAL_MS = 10000L;
     private static final long SYNC_RETRY_MIN_MS = 5000L;
     private static final long SYNC_RETRY_MAX_MS = 60000L;
 
@@ -381,16 +381,11 @@ public class MainActivity extends Activity {
             new LinearLayout.LayoutParams(-1, dp(155))
         );
 
-        TextView listTitle = makeText("المندوبون والأوردرات", 16, ORANGE, true);
-        listTitle.setTextSize(12);
-        listTitle.setPadding(0, dp(2), 0, dp(1));
-        root.addView(listTitle);
-
         HorizontalScrollView filterScroll = new HorizontalScrollView(this);
         filterScroll.setHorizontalScrollBarEnabled(false);
         LinearLayout filterRow = new LinearLayout(this);
         filterRow.setOrientation(LinearLayout.HORIZONTAL);
-        filterRow.setPadding(0, dp(1), 0, 0);
+        filterRow.setPadding(0, 0, 0, 0);
 
         String[] filters = {"الكل", "شغال", "بريك", "معاه أوردر", "فاضي"};
         for (String filter : filters) {
@@ -1007,11 +1002,7 @@ public class MainActivity extends Activity {
 
             renderRiderCards();
 
-            summary.setText(
-                "المندوبون: " + riders.length() +
-                "    •    لديهم أوردرات ظاهرة: " + ridersWithOrders +
-                "    •    الأوردرات بالمصدر: " + totalOrders
-            );
+            summary.setText("المندوبون: " + riders.length());
 
             renderDashboardStats(riders, ridersWithOrders, totalOrders);
 
@@ -1120,11 +1111,6 @@ public class MainActivity extends Activity {
         String averageUtr = utrCount > 0
                 ? String.format(Locale.US, "%.2f", utrSum / utrCount)
                 : "—";
-
-        addMicroStatSection(dashboardStats, "حالات التشغيل",
-                new String[]{"شغال", "بريك الآن"},
-                new String[]{String.valueOf(working), String.valueOf(onBreak)},
-                new int[]{GREEN, ORANGE});
 
         addMicroStatSection(dashboardStats, "الأوردرات والتشغيل",
                 new String[]{"معاه أوردر", "فاضي", "إجمالي الأوردرات",
@@ -1668,15 +1654,24 @@ public class MainActivity extends Activity {
                 10, stateColor, true);
         orderBadge.setShadowLayer(dp(4), 0, 0, stateColor);
         orderBadge.setGravity(Gravity.CENTER);
-        orderBadge.setPadding(dp(6), dp(5), dp(6), dp(5));
+        orderBadge.setPadding(dp(6), dp(4), dp(6), dp(4));
+
+        android.graphics.drawable.GradientDrawable stateBadgeBg =
+                new android.graphics.drawable.GradientDrawable();
+        stateBadgeBg.setColor(Color.TRANSPARENT);
+        stateBadgeBg.setCornerRadius(dp(7));
+        stateBadgeBg.setStroke(dp(1), stateColor);
+        orderBadge.setBackground(stateBadgeBg);
         heading.addView(orderBadge);
 
-        TextView batchView = makeText(
-                batch.isEmpty() ? "باتش —" : "باتش " + batch,
-                10, ORANGE, true);
-        batchView.setPadding(dp(6), 0, 0, 0);
-        batchView.setShadowLayer(dp(4), 0, 0, ORANGE);
-        heading.addView(batchView);
+        if (!batch.isEmpty()) {
+            TextView batchView = makeText(
+                    "باتش " + batch,
+                    10, ORANGE, true);
+            batchView.setPadding(dp(6), 0, 0, 0);
+            batchView.setShadowLayer(dp(4), 0, 0, ORANGE);
+            heading.addView(batchView);
+        }
         card.addView(heading);
 
         // ملخص صغير ظاهر دائمًا
