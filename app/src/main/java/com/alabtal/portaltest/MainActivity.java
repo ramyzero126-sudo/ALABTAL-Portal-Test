@@ -62,6 +62,9 @@ public class MainActivity extends Activity {
     private static final String FORM_URL =
         "https://docs.google.com/forms/d/e/1FAIpQLSekxaUQPgiWq-Y_IPfsTx7wTANA324a2JklFJZ_Gxg9CGPaKA/viewform";
 
+    private static final String SHEET_URL =
+        "https://docs.google.com/spreadsheets/d/1gM2Mm0fUwJrPz3KZciXoNt9xatNB2j96ecsMPcog-uc/edit";
+
     private static final String RIDERS_URL =
         "/api/rider-live-operations/v1/external/city/214/riders?page=0&size=50";
 
@@ -78,7 +81,9 @@ public class MainActivity extends Activity {
     private LinearLayout cards;
     private ScrollView riderCardsScroll;
     private WebView riderMapView;
+    private WebView sheetView;
     private boolean mapTabActive = false;
+    private boolean sheetTabActive = false;
     private Button inspectButton;
     private EditText riderSearch;
     private JSONArray currentRiders = new JSONArray();
@@ -417,18 +422,32 @@ public class MainActivity extends Activity {
 
         Button ridersTab = makeButton("☷ المناديب");
         Button mapTab = makeButton("⌖ الخريطة");
-        ridersTab.setTextSize(11);
-        mapTab.setTextSize(11);
+        Button sheetTab = makeButton("▤ ردود الشيت");
+        Button bookingsTab = makeButton("📦 الحجوزات");
+        ridersTab.setTextSize(10);
+        mapTab.setTextSize(10);
+        sheetTab.setTextSize(9);
+        bookingsTab.setTextSize(9);
         ridersTab.setBackground(round(PANEL, ORANGE_DEEP, 1));
         mapTab.setBackground(round(PANEL, ORANGE_DEEP, 1));
+        sheetTab.setBackground(round(PANEL, ORANGE_DEEP, 1));
+        bookingsTab.setBackground(round(PANEL, ORANGE_DEEP, 1));
 
         LinearLayout.LayoutParams tabParams =
                 new LinearLayout.LayoutParams(0, dp(34), 1);
-        tabParams.setMargins(0, 0, dp(4), 0);
+        tabParams.setMargins(0, 0, dp(3), 0);
         mapTabs.addView(ridersTab, tabParams);
         LinearLayout.LayoutParams mapTabParams =
                 new LinearLayout.LayoutParams(0, dp(34), 1);
+        mapTabParams.setMargins(0, 0, dp(3), 0);
         mapTabs.addView(mapTab, mapTabParams);
+        LinearLayout.LayoutParams sheetTabParams =
+                new LinearLayout.LayoutParams(0, dp(34), 1);
+        sheetTabParams.setMargins(0, 0, dp(3), 0);
+        mapTabs.addView(sheetTab, sheetTabParams);
+        LinearLayout.LayoutParams bookingsParams =
+                new LinearLayout.LayoutParams(0, dp(34), 1);
+        mapTabs.addView(bookingsTab, bookingsParams);
         root.addView(mapTabs);
 
         FrameLayout contentFrame = new FrameLayout(this);
@@ -445,9 +464,21 @@ public class MainActivity extends Activity {
         riderMapView.getSettings().setDomStorageEnabled(true);
         riderMapView.setVisibility(View.GONE);
 
+        // شاشة مستقلة للشيت حتى لا تتأثر جلسة بوابة الشركة.
+        sheetView = new WebView(this);
+        sheetView.setBackgroundColor(BG);
+        sheetView.getSettings().setJavaScriptEnabled(true);
+        sheetView.getSettings().setDomStorageEnabled(true);
+        sheetView.getSettings().setSupportMultipleWindows(false);
+        sheetView.setWebChromeClient(new WebChromeClient());
+        sheetView.setWebViewClient(new WebViewClient());
+        sheetView.setVisibility(View.GONE);
+
         contentFrame.addView(riderCardsScroll,
                 new FrameLayout.LayoutParams(-1, -1));
         contentFrame.addView(riderMapView,
+                new FrameLayout.LayoutParams(-1, -1));
+        contentFrame.addView(sheetView,
                 new FrameLayout.LayoutParams(-1, -1));
 
         root.addView(contentFrame,
@@ -455,20 +486,50 @@ public class MainActivity extends Activity {
 
         ridersTab.setOnClickListener(v -> {
             mapTabActive = false;
+            sheetTabActive = false;
             riderCardsScroll.setVisibility(View.VISIBLE);
             riderMapView.setVisibility(View.GONE);
+            sheetView.setVisibility(View.GONE);
             ridersTab.setTextColor(ORANGE);
             mapTab.setTextColor(WHITE);
+            sheetTab.setTextColor(WHITE);
             renderRiderCards();
         });
 
         mapTab.setOnClickListener(v -> {
             mapTabActive = true;
+            sheetTabActive = false;
             riderCardsScroll.setVisibility(View.GONE);
             riderMapView.setVisibility(View.VISIBLE);
+            sheetView.setVisibility(View.GONE);
             mapTab.setTextColor(ORANGE);
             ridersTab.setTextColor(WHITE);
+            sheetTab.setTextColor(WHITE);
             renderRiderMap();
+        });
+
+        bookingsTab.setOnClickListener(v ->
+                new AlertDialog.Builder(MainActivity.this)
+                        .setTitle("📦 الحجوزات")
+                        .setMessage("قسم الحجوزات قيد التجهيز")
+                        .setPositiveButton("حسنًا", null)
+                        .show()
+        );
+
+        sheetTab.setOnClickListener(v -> {
+            mapTabActive = false;
+            sheetTabActive = true;
+            riderCardsScroll.setVisibility(View.GONE);
+            riderMapView.setVisibility(View.GONE);
+            sheetView.setVisibility(View.VISIBLE);
+            sheetTab.setTextColor(ORANGE);
+            ridersTab.setTextColor(WHITE);
+            mapTab.setTextColor(WHITE);
+
+            if (sheetView.getUrl() == null ||
+                    !sheetView.getUrl().startsWith(SHEET_URL)) {
+                sheetView.loadUrl(SHEET_URL);
+            }
         });
 
         setContentView(root);
