@@ -183,7 +183,15 @@ public class MainActivity extends Activity {
         authPrefs = getSharedPreferences("alabtal_local_auth", MODE_PRIVATE);
         rosterCachePrefs = getSharedPreferences(
                 "alabtal_roster_cache", MODE_PRIVATE);
-        showLoginScreen(authPrefs.getString("username", null) == null);
+        String savedUser = authPrefs.getString("username", null);
+        boolean loggedIn = authPrefs.getBoolean("logged_in", false);
+        if (savedUser == null) {
+            showLoginScreen(true);
+        } else if (loggedIn) {
+            buildDashboard();
+        } else {
+            showLoginScreen(false);
+        }
     }
 
     private void buildDashboard() {
@@ -2629,6 +2637,7 @@ public class MainActivity extends Activity {
                 authPrefs.edit()
                         .putString("username", u)
                         .putString("password_hash", hashPassword(pw))
+                        .putBoolean("logged_in", true)
                         .apply();
 
                 Toast.makeText(this,
@@ -2640,6 +2649,7 @@ public class MainActivity extends Activity {
                 String savedHash = authPrefs.getString("password_hash", "");
 
                 if (u.equals(savedUser) && hashPassword(pw).equals(savedHash)) {
+                    authPrefs.edit().putBoolean("logged_in", true).apply();
                     buildDashboard();
                 } else {
                     Toast.makeText(this,
@@ -2665,6 +2675,7 @@ public class MainActivity extends Activity {
                         authPrefs.edit()
                                 .remove("username")
                                 .remove("password_hash")
+                                .remove("logged_in")
                                 .apply();
                         showLoginScreen(true);
                     })
@@ -2716,6 +2727,7 @@ public class MainActivity extends Activity {
 
     private void logoutApp() {
         detailVisible = false;
+        authPrefs.edit().putBoolean("logged_in", false).apply();
         if (webView != null) webView.onPause();
         showLoginScreen(false);
     }
