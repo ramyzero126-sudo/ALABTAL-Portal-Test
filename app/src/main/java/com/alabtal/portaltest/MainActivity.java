@@ -59,12 +59,17 @@ public class MainActivity extends Activity {
     private static final String PORTAL_URL =
         "https://eg.me.logisticsbackoffice.com/dashboard/rooster/live-3pl";
 
+    private static final String FORM_URL =
+        "https://docs.google.com/forms/d/e/1FAIpQLSekxaUQPgiWq-Y_IPfsTx7wTANA324a2JklFJZ_Gxg9CGPaKA/viewform";
+
     private static final String RIDERS_URL =
         "/api/rider-live-operations/v1/external/city/214/riders?page=0&size=50";
 
     private final Handler handler = new Handler(Looper.getMainLooper());
 
     private WebView webView;
+    private WebView formWebView;
+    private LinearLayout formRoot;
     private TextView status;
     private TextView banner;
     private TextView summary;
@@ -562,6 +567,59 @@ public class MainActivity extends Activity {
         box.addView(v);
 
         return box;
+    }
+
+    private void showFormPage() {
+        if (dashboardRoot == null) return;
+
+        if (formRoot == null) {
+            formRoot = new LinearLayout(this);
+            formRoot.setOrientation(LinearLayout.VERTICAL);
+            formRoot.setPadding(dp(8), dp(8), dp(8), dp(8));
+            formRoot.setBackgroundColor(BG);
+
+            LinearLayout toolbar = new LinearLayout(this);
+            toolbar.setOrientation(LinearLayout.HORIZONTAL);
+
+            Button backButton = makeButton("← رجوع");
+            toolbar.addView(backButton,
+                    new LinearLayout.LayoutParams(0, dp(44), 1));
+            backButton.setOnClickListener(v -> {
+                if (formWebView != null && formWebView.canGoBack()) {
+                    formWebView.goBack();
+                } else {
+                    returnToDashboard();
+                }
+            });
+
+            Button exitButton = makeButton("✕ خروج");
+            LinearLayout.LayoutParams exitParams =
+                    new LinearLayout.LayoutParams(0, dp(44), 1);
+            exitParams.setMargins(dp(6), 0, 0, 0);
+            toolbar.addView(exitButton, exitParams);
+            exitButton.setOnClickListener(v -> returnToDashboard());
+            formRoot.addView(toolbar);
+
+            TextView title = makeText(
+                    "نموذج التزويد والبريك", 15, ORANGE, true);
+            title.setPadding(dp(4), dp(8), dp(4), dp(8));
+            formRoot.addView(title);
+
+            formWebView = new WebView(this);
+            formWebView.setBackgroundColor(Color.WHITE);
+            formWebView.getSettings().setJavaScriptEnabled(true);
+            formWebView.getSettings().setDomStorageEnabled(true);
+            formWebView.getSettings().setSupportMultipleWindows(false);
+            formWebView.setWebChromeClient(new WebChromeClient());
+            formWebView.setWebViewClient(new WebViewClient());
+
+            formRoot.addView(
+                    formWebView, new LinearLayout.LayoutParams(-1, 0, 1));
+        }
+
+        setContentView(formRoot);
+        formWebView.onResume();
+        formWebView.loadUrl(FORM_URL);
     }
 
     private void showPortalPage() {
@@ -1456,7 +1514,9 @@ public class MainActivity extends Activity {
             String phone = firstValue(rider, "phone", "phone_number", "mobile",
                     "rider_phone", "telephone", "contact_number");
             try {
-                if ("اتصال".equals(label) || "سماعة".equals(label)) {
+                if ("تزويد".equals(label) || "بريك".equals(label)) {
+                    showFormPage();
+                } else if ("اتصال".equals(label) || "سماعة".equals(label)) {
                     if (phone.isEmpty() || phone.equals("غير متاح")) {
                         Toast.makeText(this, "رقم هاتف المندوب غير متاح", Toast.LENGTH_SHORT).show();
                         return;
