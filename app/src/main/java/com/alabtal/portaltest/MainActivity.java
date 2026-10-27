@@ -94,7 +94,7 @@ public class MainActivity extends Activity {
     private boolean destroyed = false;
     private int consecutiveSyncFailures = 0;
     private long nextSyncDelayMs = 30000L;
-    private static final long SYNC_INTERVAL_MS = 10000L;
+    private static final long SYNC_INTERVAL_MS = 15000L;
     private static final long SYNC_RETRY_MIN_MS = 5000L;
     private static final long SYNC_RETRY_MAX_MS = 60000L;
 
