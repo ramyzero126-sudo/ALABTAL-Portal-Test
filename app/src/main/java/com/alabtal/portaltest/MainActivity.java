@@ -1648,8 +1648,7 @@ public class MainActivity extends Activity {
                 "const map=L.map('map').setView([30.7865,31.0004],12);" +
                 "L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'," +
                 "{maxZoom:19,attribution:'&copy; OpenStreetMap'}).addTo(map);" +
-                "const safe=s=>String(s??'').replace(/[&<>\\\"']/g,c=>" +
-                "({'&':'&amp;','<':'&lt;','>':'&gt;','\\\"':'&quot;',\\\"'\\\":'&#39;'}[c]));" +
+                "const safe=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');" +
                 "const pts=" + points.toString() + ";" +
                 "pts.forEach(p=>{const color=/بريك|استراحة/.test(p.status)?'#ff5252':" +
                 "(/شغال|عمل|توصيل/.test(p.status)?'#2dd27d':'#ffb52e');" +
