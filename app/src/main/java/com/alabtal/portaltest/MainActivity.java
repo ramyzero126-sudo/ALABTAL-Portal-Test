@@ -2841,9 +2841,13 @@ public class MainActivity extends Activity {
                     }
                 });
             } catch (Exception e) {
-                showSheetError(
-                    "تعذر تحميل الردود. تحقق من صلاحية الحساب وتفعيل Google Sheets API."
-                );
+                String detail = e.getMessage();
+                if (detail == null || detail.trim().isEmpty()) {
+                    detail = e.getClass().getSimpleName();
+                }
+                android.util.Log.e("ALABTAL_SHEETS",
+                    "Failed to load private sheets", e);
+                showSheetError("سبب الخطأ: " + detail);
             }
         }).start();
     }
@@ -2886,7 +2890,7 @@ public class MainActivity extends Activity {
             }
 
             if (code < 200 || code >= 300) {
-                throw new IOException("Sheets API HTTP " + code);
+                throw new IOException("Sheets API HTTP " + code + ": " + body);
             }
 
             JSONObject json = new JSONObject(body);
