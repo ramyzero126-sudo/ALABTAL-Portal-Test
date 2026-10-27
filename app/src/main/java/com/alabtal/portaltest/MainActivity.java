@@ -1523,15 +1523,18 @@ public class MainActivity extends Activity {
 
 
     private void addOrderProgressTrack(LinearLayout target, String rawStatus) {
-        String st = rawStatus == null ? "" : rawStatus.trim().toLowerCase(Locale.ROOT);
+        String st = rawStatus == null
+                ? "" : rawStatus.trim().toLowerCase(Locale.ROOT);
 
         int active = -1;
+
         if (st.equals("dispatched") || st.equals("courier_notified")
-                || st.equals("accepted") || st.equals("assigned")) {
+                || st.equals("accepted") || st.equals("assigned")
+                || st.equals("accepted order")) {
             active = 0;
         } else if (st.equals("near_pickup") || st.equals("at_pickup")
                 || st.equals("arrived_at_pickup") || st.equals("picked_up")
-                || st.equals("left_pickup")) {
+                || st.equals("left_pickup") || st.equals("picked up")) {
             active = 1;
         } else if (st.equals("in_transit") || st.equals("on_the_way")
                 || st.equals("near_dropoff")) {
@@ -1540,13 +1543,16 @@ public class MainActivity extends Activity {
             active = 3;
         }
 
-        if (st.equals("completed")) {
-            TextView done = makeText("✓ تم تسليم الأوردر", 11, GREEN, true);
+        if (st.equals("completed") || st.equals("delivered")) {
+            TextView done = makeText("✅ وصل للعميل — تم التسليم",
+                    11, GREEN, true);
             done.setPadding(dp(3), dp(8), dp(3), dp(2));
+            done.setShadowLayer(dp(4), 0, 0, GREEN);
             target.addView(done);
             return;
         }
-        if (st.equals("cancelled")) {
+
+        if (st.equals("cancelled") || st.equals("canceled")) {
             TextView cancelled = makeText("✕ الأوردر ملغي", 11, RED, true);
             cancelled.setPadding(dp(3), dp(8), dp(3), dp(2));
             target.addView(cancelled);
@@ -1557,77 +1563,113 @@ public class MainActivity extends Activity {
             "معاه أوردر", "استلام من المطعم",
             "في الطريق للعميل", "وصل للعميل"
         };
+        String[] symbols = {"📦", "🏪", "🚲", "✅"};
 
-        TextView heading = makeText("مسار الأوردر  /  " + arabicStatus(rawStatus),
-                11, ORANGE, true);
-        heading.setPadding(dp(2), dp(8), dp(2), dp(5));
-        heading.setShadowLayer(dp(4), 0, 0, ORANGE_DEEP);
+        TextView heading = makeText("مراحل الأوردر", 11, ORANGE, true);
+        heading.setPadding(dp(2), dp(7), dp(2), dp(4));
+        heading.setShadowLayer(dp(3), 0, 0, ORANGE_DEEP);
         target.addView(heading);
 
-        FrameLayout trackContainer = new FrameLayout(this);
+        if (active < 0) {
+            TextView current = makeText(
+                    "● معاه أوردر", 10, ORANGE, true);
+            current.setPadding(dp(3), dp(4), dp(3), dp(4));
+            target.addView(current);
+            return;
+        }
+
+        FrameLayout container = new FrameLayout(this);
 
         LinearLayout track = new LinearLayout(this);
         track.setOrientation(LinearLayout.HORIZONTAL);
         track.setGravity(Gravity.CENTER_VERTICAL);
 
         for (int i = 0; i < labels.length; i++) {
+            final boolean reached = active >= i;
+            final boolean currentStage = active == i;
+
             LinearLayout station = new LinearLayout(this);
             station.setOrientation(LinearLayout.VERTICAL);
             station.setGravity(Gravity.CENTER);
-            station.setPadding(dp(2), dp(22), dp(2), dp(5));
+            station.setPadding(dp(1), dp(22), dp(1), dp(4));
 
-            boolean reached = active >= i;
-            int led = reached ? ORANGE : Color.rgb(72, 53, 47);
+            int stageColor = reached ? ORANGE : Color.rgb(105, 93, 86);
 
-            TextView dot = makeText(
-                    reached ? "●" : "○",
-                    12, led, true);
-            dot.setGravity(Gravity.CENTER);
-            if (reached) dot.setShadowLayer(dp(4), 0, 0, ORANGE);
+            TextView symbol = makeText(
+                    symbols[i], i == 2 ? 15 : 13,
+                    stageColor, true);
+            symbol.setGravity(Gravity.CENTER);
+            symbol.setMinHeight(dp(22));
 
-            TextView label = makeText(labels[i], 8,
-                    reached ? ORANGE : MUTED, reached);
-            if (reached) label.setShadowLayer(dp(2), 0, 0, ORANGE_DEEP);
+            if (currentStage) {
+                symbol.setShadowLayer(dp(5), 0, 0, ORANGE);
+            }
+
+            TextView label = makeText(
+                    labels[i], 8,
+                    reached ? Color.rgb(255, 176, 83) : MUTED,
+                    reached);
             label.setGravity(Gravity.CENTER);
             label.setMaxLines(2);
 
-            station.addView(dot);
+            station.addView(symbol);
             station.addView(label);
 
-            LinearLayout.LayoutParams sp =
-                    new LinearLayout.LayoutParams(0, -2, 1);
-            track.addView(station, sp);
+            track.addView(station,
+                    new LinearLayout.LayoutParams(0, -2, 1f));
+
+            if (currentStage) {
+                ObjectAnimator pulse = ObjectAnimator.ofFloat(
+                        symbol, View.ALPHA, 0.55f, 1f);
+                pulse.setDuration(850);
+                pulse.setRepeatMode(ObjectAnimator.REVERSE);
+                pulse.setRepeatCount(ObjectAnimator.INFINITE);
+                pulse.start();
+            }
         }
 
-        trackContainer.addView(track, new FrameLayout.LayoutParams(-1, -2));
+        container.addView(track,
+                new FrameLayout.LayoutParams(-1, -2));
 
-        TextView bike = makeText("🏍️", 17, ORANGE, true);
-        bike.setGravity(Gravity.CENTER);
+        // الدراجة المتحركة تظهر فقط عند مرحلة الطريق للعميل.
+        if (active == 2) {
+            TextView bike = makeText("🚲", 17, ORANGE, true);
+            bike.setGravity(Gravity.CENTER);
 
-        FrameLayout.LayoutParams bikeParams = new FrameLayout.LayoutParams(
-                dp(27), dp(24), Gravity.TOP | Gravity.LEFT);
-        trackContainer.addView(bike, bikeParams);
+            FrameLayout.LayoutParams bikeParams =
+                    new FrameLayout.LayoutParams(dp(30), dp(24),
+                            Gravity.TOP | Gravity.LEFT);
+            container.addView(bike, bikeParams);
 
-        LinearLayout.LayoutParams tp =
+            container.post(() -> {
+                if (container.getWidth() <= dp(30)
+                        || !bike.isAttachedToWindow()) {
+                    return;
+                }
+
+                float maxTravel = container.getWidth() - dp(30);
+                float destination = maxTravel * (2f / 3f);
+                float wiggle = Math.min(dp(12), maxTravel / 8f);
+
+                bike.setTranslationX(Math.max(0, destination - wiggle));
+
+                ObjectAnimator ride = ObjectAnimator.ofFloat(
+                        bike, View.TRANSLATION_X,
+                        Math.max(0, destination - wiggle),
+                        Math.min(maxTravel, destination + wiggle));
+
+                ride.setDuration(650);
+                ride.setRepeatMode(ObjectAnimator.REVERSE);
+                ride.setRepeatCount(ObjectAnimator.INFINITE);
+                ride.setInterpolator(new DecelerateInterpolator());
+                ride.start();
+            });
+        }
+
+        LinearLayout.LayoutParams params =
                 new LinearLayout.LayoutParams(-1, -2);
-        tp.setMargins(0, 0, 0, dp(3));
-        target.addView(trackContainer, tp);
-
-        final int targetStage = active;
-        trackContainer.post(() -> {
-            if (trackContainer.getWidth() <= dp(27)) return;
-
-            float maxTravel = trackContainer.getWidth() - dp(27);
-            float destination = maxTravel *
-                    (Math.max(0, Math.min(3, targetStage)) / 3.0f);
-
-            bike.setTranslationX(0f);
-            ObjectAnimator animator = ObjectAnimator.ofFloat(
-                    bike, View.TRANSLATION_X, 0f, destination);
-            animator.setDuration(1100);
-            animator.setInterpolator(new DecelerateInterpolator());
-            animator.start();
-        });
+        params.setMargins(0, 0, 0, dp(3));
+        target.addView(container, params);
     }
 
     private void addDetailPair(LinearLayout parent,
