@@ -2402,25 +2402,25 @@ public class MainActivity extends Activity {
         LinearLayout page = new LinearLayout(this);
         page.setOrientation(LinearLayout.VERTICAL);
         page.setGravity(Gravity.CENTER_HORIZONTAL);
-        page.setPadding(dp(22), dp(18), dp(22), dp(18));
+        page.setPadding(dp(14), dp(10), dp(14), dp(14));
         scroll.addView(page, new android.widget.ScrollView.LayoutParams(-1, -1));
 
         FrameLayout hero = new FrameLayout(this);
         hero.setClipChildren(false);
         hero.setClipToPadding(false);
-        hero.setBackground(round(PANEL, ORANGE_DEEP, 1));
+        hero.setBackground(round(PANEL, ORANGE, 1));
 
         LinearLayout heroContent = new LinearLayout(this);
         heroContent.setOrientation(LinearLayout.VERTICAL);
         heroContent.setGravity(Gravity.CENTER);
-        heroContent.setPadding(dp(12), dp(10), dp(12), dp(10));
+        heroContent.setPadding(dp(8), dp(8), dp(8), dp(8));
 
         ImageView brand = new ImageView(this);
         brand.setImageResource(com.alabtal.portaltest.R.drawable.alabtal_logo);
         brand.setScaleType(ImageView.ScaleType.FIT_CENTER);
         brand.setContentDescription("شعار الأبطال");
 
-        heroContent.addView(brand, new LinearLayout.LayoutParams(dp(142), dp(112)));
+        heroContent.addView(brand, new LinearLayout.LayoutParams(dp(228), dp(178)));
 
         TextView brandTitle = makeText("AL ABTAL", 25, ORANGE, true);
         brandTitle.setGravity(Gravity.CENTER);
@@ -2434,8 +2434,8 @@ public class MainActivity extends Activity {
         hero.addView(heroContent, new FrameLayout.LayoutParams(-1, -2, Gravity.CENTER));
 
         LinearLayout.LayoutParams heroParams =
-                new LinearLayout.LayoutParams(-1, dp(205));
-        heroParams.setMargins(0, 0, 0, dp(20));
+                new LinearLayout.LayoutParams(-1, dp(270));
+        heroParams.setMargins(0, 0, 0, dp(12));
         page.addView(hero, heroParams);
 
         brand.setAlpha(0f);
@@ -2449,10 +2449,31 @@ public class MainActivity extends Activity {
                 .start();
 
         ObjectAnimator glow = ObjectAnimator.ofFloat(
-                hero, "alpha", 0.88f, 1f, 0.93f, 1f);
+                hero, "alpha", 0.90f, 1f, 0.94f, 1f);
         glow.setDuration(2400);
         glow.setRepeatCount(ObjectAnimator.INFINITE);
         glow.start();
+
+        // حركة منظور وطفو ناعمة للنسر مع الحفاظ على ظهوره بالكامل.
+        ObjectAnimator eagleMotion = ObjectAnimator.ofFloat(
+                brand, View.ROTATION_Y, -5f, 5f);
+        eagleMotion.setDuration(1900);
+        eagleMotion.setRepeatMode(ObjectAnimator.REVERSE);
+        eagleMotion.setRepeatCount(ObjectAnimator.INFINITE);
+        eagleMotion.start();
+
+        ObjectAnimator eagleFloat = ObjectAnimator.ofFloat(
+                brand, View.TRANSLATION_Y, 0f, -dp(5), 0f);
+        eagleFloat.setDuration(2300);
+        eagleFloat.setRepeatCount(ObjectAnimator.INFINITE);
+        eagleFloat.start();
+
+        ObjectAnimator eaglePulse = ObjectAnimator.ofFloat(
+                brand, View.ALPHA, 0.90f, 1f);
+        eaglePulse.setDuration(1500);
+        eaglePulse.setRepeatMode(ObjectAnimator.REVERSE);
+        eaglePulse.setRepeatCount(ObjectAnimator.INFINITE);
+        eaglePulse.start();
 
         TextView heading = makeText(
                 setup ? "إنشاء حساب التطبيق" : "مرحباً بعودتك",
@@ -2476,22 +2497,21 @@ public class MainActivity extends Activity {
         form.setBackground(round(PANEL, ORANGE_DEEP, 1));
         page.addView(form, new LinearLayout.LayoutParams(-1, -2));
 
-        TextView emailLabel = makeText("البريد الإلكتروني", 12, ORANGE, true);
-        form.addView(emailLabel, new LinearLayout.LayoutParams(-1, dp(24)));
+        TextView usernameLabel = makeText("اسم المستخدم", 12, ORANGE, true);
+        form.addView(usernameLabel, new LinearLayout.LayoutParams(-1, dp(24)));
 
-        EditText email = new EditText(this);
-        email.setSingleLine(true);
-        email.setTextColor(WHITE);
-        email.setHintTextColor(MUTED);
-        email.setHint("name@example.com");
-        email.setTextSize(15);
-        email.setInputType(
+        EditText username = new EditText(this);
+        username.setSingleLine(true);
+        username.setTextColor(WHITE);
+        username.setHintTextColor(MUTED);
+        username.setHint("مثال: ramy_admin");
+        username.setTextSize(15);
+        username.setInputType(
                 InputType.TYPE_CLASS_TEXT |
-                InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS |
                 InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
-        email.setPadding(dp(12), dp(8), dp(12), dp(8));
-        email.setBackground(round(BG, ORANGE_DEEP, 1));
-        form.addView(email, new LinearLayout.LayoutParams(-1, dp(50)));
+        username.setPadding(dp(12), dp(8), dp(12), dp(8));
+        username.setBackground(round(BG, ORANGE_DEEP, 1));
+        form.addView(username, new LinearLayout.LayoutParams(-1, dp(50)));
 
         TextView passwordLabel = makeText("كلمة المرور", 12, ORANGE, true);
         LinearLayout.LayoutParams passwordLabelParams =
@@ -2527,19 +2547,13 @@ public class MainActivity extends Activity {
         form.addView(note, new LinearLayout.LayoutParams(-1, -2));
 
         submit.setOnClickListener(v -> {
-            String u = email.getText().toString().trim().toLowerCase(Locale.US);
+            String u = username.getText().toString().trim().toLowerCase(Locale.US);
             String pw = password.getText().toString();
 
             if (u.isEmpty() || pw.isEmpty()) {
                 Toast.makeText(this,
-                        "اكتب البريد الإلكتروني وكلمة المرور",
+                        "اكتب اسم المستخدم وكلمة المرور",
                         Toast.LENGTH_SHORT).show();
-                return;
-            }
-
-            if (!android.util.Patterns.EMAIL_ADDRESS.matcher(u).matches()) {
-                email.setError("اكتب بريدًا إلكترونيًا صحيحًا");
-                email.requestFocus();
                 return;
             }
 
@@ -2567,7 +2581,7 @@ public class MainActivity extends Activity {
                     buildDashboard();
                 } else {
                     Toast.makeText(this,
-                            "البريد الإلكتروني أو كلمة المرور غير صحيحة",
+                            "اسم المستخدم أو كلمة المرور غير صحيحة",
                             Toast.LENGTH_LONG).show();
                 }
             }
