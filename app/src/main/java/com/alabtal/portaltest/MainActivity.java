@@ -2825,18 +2825,7 @@ public class MainActivity extends Activity {
         new Thread(() -> {
             try {
                 String titles = fetchSheetTitles(token);
-                throw new IOException("أسماء التبويبات التي وجدها Google: " + titles);
-                // فحص تشخيصي مؤقت؛ لم يتم تغيير قراءة الردود.
-                /*
-                JSONArray shifts = fetchSheetRows(
-                    token, "'تزويدات شيفتات الطيارين'!A:H"
-                );
-                JSONArray breaks = fetchSheetRows(
-                    token, "'فك بريك'!A:F"
-                );
-
-                String html = buildSheetHtml(shifts, breaks);
-                */
+                // فحص تشخيصي مؤقت لأسماء التبويبات الفعلية.
                 showSheetError("أسماء التبويبات التي وجدها Google: " + titles);
             } catch (Exception e) {
                 String detail = e.getMessage();
