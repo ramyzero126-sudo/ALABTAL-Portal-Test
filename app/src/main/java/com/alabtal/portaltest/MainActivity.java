@@ -906,6 +906,23 @@ public class MainActivity extends Activity {
             " const tableData = getRosterRowFromTable(r);" +
             " const perf = (detail && detail.performance && typeof detail.performance === 'object') ? detail.performance : ((r.performance_info && typeof r.performance_info === 'object') ? r.performance_info : ((r.performance && typeof r.performance === 'object') ? r.performance : {}));" +
             " const timeSpent = (detail && detail.time_spent && typeof detail.time_spent === 'object') ? detail.time_spent : ((r.time_spent && typeof r.time_spent === 'object') ? r.time_spent : {});" +
+            " const gpsPair = (() => {" +
+            "  const seen = new Set();" +
+            "  const find = (obj, depth) => {" +
+            "   if (!obj || typeof obj !== 'object' || depth > 8 || seen.has(obj)) return null;" +
+            "   seen.add(obj);" +
+            "   const keys = Object.keys(obj);" +
+            "   const latKey = keys.find(k => /^(lat|latitude|current_latitude|currentLatitude)$/i.test(k));" +
+            "   const lonKey = keys.find(k => /^(lon|lng|longitude|current_longitude|currentLongitude)$/i.test(k));" +
+            "   if (latKey && lonKey) {" +
+            "    const lat = Number(obj[latKey]), lon = Number(obj[lonKey]);" +
+            "    if (Number.isFinite(lat) && Number.isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180 && !(lat === 0 && lon === 0)) return {lat:lat, lon:lon};" +
+            "   }" +
+            "   for (const k of keys) { const found = find(obj[k], depth + 1); if (found) return found; }" +
+            "   return null;" +
+            "  };" +
+            "  return find({rider:r, detail:detail}, 0);" +
+            " })();" +
             " const perfRaw = (typeof r.performance === 'number' || typeof r.performance === 'string') ? r.performance : (perf.utilization_rate ?? perf.score ?? perf.value ?? r.performance_score ?? r.performanceScore ?? '');" +
             " const acceptanceRaw = r.acceptance_rate ?? r.acceptance_percentage ?? r.acceptance ?? r.acceptanceRate ?? perf.acceptance_rate ?? (r.acceptance_info || {}).rate ?? (r.acceptance_info || {}).percentage ?? (info || {}).acceptance_rate ?? '';" +
             " const perfValue = perfRaw == null ? '' : String(perfRaw);" +
@@ -955,6 +972,14 @@ public class MainActivity extends Activity {
             "  total_orders:(r.total_orders != null ? r.total_orders : (r.total_deliveries_count != null ? r.total_deliveries_count : (info.total_orders != null ? info.total_orders : (info.total_deliveries_count != null ? info.total_deliveries_count : (info.completed_deliveries_count != null ? info.completed_deliveries_count : (tableData.total_orders >= 0 ? tableData.total_orders : latest.length))))))," +
             "  total_orders_source:(r.total_orders != null || r.total_deliveries_count != null || info.total_orders != null || info.total_deliveries_count != null || info.completed_deliveries_count != null) ? 'counter' : (tableData.total_orders >= 0 ? 'roster_table' : 'latest_deliveries')," +
             "  worked_seconds:(timeSpent.worked_seconds != null && Number.isFinite(Number(timeSpent.worked_seconds))) ? Number(timeSpent.worked_seconds) : ((detail && detail.worked_seconds != null && Number.isFinite(Number(detail.worked_seconds))) ? Number(detail.worked_seconds) : tableData.worked_seconds)," +
+            "  latitude:gpsPair ? gpsPair.lat : null," +
+            "  longitude:gpsPair ? gpsPair.lon : null," +
+            "  current_location:(r && r.current_location && typeof r.current_location === 'object') ? {" +
+            "   latitude:typeof r.current_location.latitude === 'number' ? r.current_location.latitude : null," +
+            "   longitude:typeof r.current_location.longitude === 'number' ? r.current_location.longitude : null," +
+            "   accuracy:typeof r.current_location.accuracy === 'number' ? r.current_location.accuracy : null," +
+            "   location_updated_at:r.current_location.location_updated_at || null" +
+            "  } : null," +
             "  active_orders:activeOrders," +
             "  detail_error:detailError" +
             " };" +
