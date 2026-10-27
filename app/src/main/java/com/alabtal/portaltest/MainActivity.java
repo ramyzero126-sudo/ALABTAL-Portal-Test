@@ -1321,8 +1321,12 @@ public class MainActivity extends Activity {
             if (activeOrder != null) {
                 LinearLayout progress = new LinearLayout(this);
                 progress.setOrientation(LinearLayout.VERTICAL);
-                addOrderProgressTrack(progress, firstValue(activeOrder,
-                        "status", "order_status", "stage", "delivery_status"));
+                addOrderProgressTrack(progress,
+                        firstValue(activeOrder,
+                                "status", "order_status", "stage", "delivery_status"),
+                        firstValue(activeOrder,
+                                "vendor_name", "restaurant_name", "merchant_name",
+                                "vendorName", "restaurantName"));
                 card.addView(progress);
             }
         } else {
@@ -1522,7 +1526,8 @@ public class MainActivity extends Activity {
     }
 
 
-    private void addOrderProgressTrack(LinearLayout target, String rawStatus) {
+    private void addOrderProgressTrack(
+            LinearLayout target, String rawStatus, String restaurantName) {
         String st = rawStatus == null
                 ? "" : rawStatus.trim().toLowerCase(Locale.ROOT)
                     .replace('_', ' ').replace('-', ' ');
@@ -1556,7 +1561,17 @@ public class MainActivity extends Activity {
             color = Color.rgb(255, 174, 70);
             background = Color.rgb(65, 39, 18);
         } else {
-            stage = "📦 برفقة";
+            String restaurant = restaurantName == null
+                    ? "" : restaurantName.trim();
+
+            if (restaurant.length() > 14) {
+                restaurant = restaurant.substring(0, 13) + "…";
+            }
+
+            stage = restaurant.isEmpty()
+                    ? "معاه أوردر"
+                    : "معاه أوردر • " + restaurant;
+
             color = Color.rgb(255, 154, 67);
             background = Color.rgb(65, 39, 18);
         }
@@ -1573,6 +1588,27 @@ public class MainActivity extends Activity {
                 new LinearLayout.LayoutParams(-2, -2);
         params.setMargins(dp(3), dp(4), dp(3), dp(3));
         target.addView(badge, params);
+
+        boolean animateOrderJourney =
+                st.equals("near pickup")
+                || st.equals("at pickup")
+                || st.equals("arrived at pickup")
+                || st.equals("in transit")
+                || st.equals("on the way")
+                || st.equals("picked up")
+                || st.equals("left pickup")
+                || st.equals("near dropoff")
+                || st.equals("at dropoff")
+                || st.equals("arrived at dropoff");
+
+        if (animateOrderJourney) {
+            ObjectAnimator slide = ObjectAnimator.ofFloat(
+                    badge, View.TRANSLATION_X, dp(-3), dp(3));
+            slide.setDuration(650);
+            slide.setRepeatMode(ObjectAnimator.REVERSE);
+            slide.setRepeatCount(ObjectAnimator.INFINITE);
+            slide.start();
+        }
 
         ObjectAnimator pulse = ObjectAnimator.ofFloat(
                 badge, View.ALPHA, 0.78f, 1f);
