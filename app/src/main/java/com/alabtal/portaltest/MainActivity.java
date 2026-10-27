@@ -1156,12 +1156,11 @@ public class MainActivity extends Activity {
         addSmartRadarAndRanking(riders);
     }
 
-    // رادار الحالات وترتيب أفضل ثلاثة حسب الأداء الرقمي المتاح
+    // رادار الحالات فقط؛ بدون ترتيب أفضل أداء
     private void addSmartRadarAndRanking(JSONArray riders) {
         if (dashboardStats == null || riders == null) return;
 
-        int working = 0, onBreak = 0, withOrders = 0, offline = 0, unknown = 0;
-        java.util.ArrayList<JSONObject> ranked = new java.util.ArrayList<>();
+        int working = 0, onBreak = 0, withOrders = 0, empty = 0, unknown = 0;
 
         for (int i = 0; i < riders.length(); i++) {
             JSONObject rider = riders.optJSONObject(i);
@@ -1172,34 +1171,25 @@ public class MainActivity extends Activity {
                     .trim().toLowerCase(Locale.ROOT)
                     .replace('-', '_').replace(' ', '_');
 
-            if (state.equals("working") || state.equals("active")
-                    || state.equals("on_delivery") || state.equals("on_delivery_order")) {
-                working++;
-            } else if (state.equals("break") || state.equals("on_break")
-                    || state.equals("onbreak")) {
-                onBreak++;
-            } else if (state.equals("offline") || state.equals("inactive")) {
-                offline++;
-            } else {
-                unknown++;
-            }
-
+            boolean hasOrder = false;
             JSONArray orders = rider.optJSONArray("active_orders");
             if ((orders != null && orders.length() > 0)
                     || rider.optInt("active_count") > 0
                     || rider.optBoolean("has_active_deliveries", false)) {
+                hasOrder = true;
                 withOrders++;
             }
 
-            String performance = rider.optString("performance", "")
-                    .trim().replace(',', '.');
-            if (performance.matches("-?\\d+(?:\\.\\d+)?")) {
-                try {
-                    double score = Double.parseDouble(performance);
-                    if (Double.isFinite(score) && score >= 0 && score <= 100) {
-                        ranked.add(rider);
-                    }
-                } catch (NumberFormatException ignored) { }
+            if (state.equals("working") || state.equals("active")
+                    || state.equals("on_delivery") || state.equals("on_delivery_order")) {
+                working++;
+                if (!hasOrder) empty++;
+            } else if (state.equals("break") || state.equals("on_break")
+                    || state.equals("onbreak")) {
+                onBreak++;
+            } else if (!state.equals("offline") && !state.equals("inactive")
+                    && !state.isEmpty() && !state.equals("null")) {
+                unknown++;
             }
         }
 
@@ -1209,38 +1199,10 @@ public class MainActivity extends Activity {
                         String.valueOf(working),
                         String.valueOf(onBreak),
                         String.valueOf(withOrders),
-                        String.valueOf(Math.max(0, riders.length() - withOrders - onBreak - unknown)),
+                        String.valueOf(empty),
                         String.valueOf(unknown)
                 },
                 new int[]{GREEN, RED, ORANGE, MUTED, Color.LTGRAY});
-
-        java.util.Collections.sort(ranked, (left, right) -> {
-            double a = Double.parseDouble(
-                    left.optString("performance", "0").trim().replace(',', '.'));
-            double b = Double.parseDouble(
-                    right.optString("performance", "0").trim().replace(',', '.'));
-            return Double.compare(b, a);
-        });
-
-        TextView title = makeText(
-                "🏆 أفضل المندوبين حسب الأداء المتاح", 10, ORANGE, true);
-        title.setPadding(dp(2), dp(3), dp(2), dp(2));
-        dashboardStats.addView(title);
-
-        if (ranked.isEmpty()) {
-            dashboardStats.addView(makeText(
-                    "لا توجد قيم أداء رقمية كافية للترتيب", 9, MUTED, false));
-        } else {
-            for (int i = 0; i < Math.min(3, ranked.size()); i++) {
-                JSONObject rider = ranked.get(i);
-                TextView line = makeText(
-                        (i + 1) + ". " + rider.optString("name", "مندوب بدون اسم")
-                                + " • UTR " + rider.optString("performance", "—"),
-                        10, i == 0 ? GREEN : WHITE, i == 0);
-                line.setPadding(dp(5), dp(3), dp(5), dp(3));
-                dashboardStats.addView(line);
-            }
-        }
     }
 
     // تنبيهات مرة واحدة لكل حالة، مع مهلة 30 دقيقة قبل تكرارها
