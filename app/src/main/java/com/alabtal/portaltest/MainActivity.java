@@ -1,3 +1,6 @@
+                    if (inspectButton != null) {
+                        inspectButton.setTextColor(GREEN);
+                    }
 package com.alabtal.portaltest;
 
 import android.app.Activity;
@@ -131,9 +134,13 @@ public class MainActivity extends Activity {
             if (destroyed || banner == null) return;
 
             if (bannerPosition >= bannerMessage.length()) {
-                bannerPosition = 0;
-                banner.setText("");
-                handler.postDelayed(this, 650);
+                banner.setText(bannerMessage);
+                handler.postDelayed(() -> {
+                    if (destroyed || banner == null) return;
+                    bannerPosition = 0;
+                    banner.setText("");
+                    handler.postDelayed(this, 250);
+                }, 1800);
                 return;
             }
 
@@ -614,6 +621,10 @@ public class MainActivity extends Activity {
     }
 
     private void requestRosterRefresh() {
+        if (inspectButton != null) {
+            inspectButton.setTextColor(ORANGE);
+        }
+
         if (destroyed || webView == null) return;
 
         if (inspectionRunning) {
