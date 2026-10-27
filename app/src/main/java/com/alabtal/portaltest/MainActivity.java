@@ -1,6 +1,7 @@
 package com.alabtal.portaltest;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.animation.ObjectAnimator;
 import android.view.animation.DecelerateInterpolator;
 import android.widget.FrameLayout;
