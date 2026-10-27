@@ -70,6 +70,7 @@ public class MainActivity extends Activity {
     private WebView webView;
     private WebView formWebView;
     private LinearLayout formRoot;
+    private TextView formTitle;
     private TextView status;
     private TextView banner;
     private TextView summary;
@@ -379,7 +380,7 @@ public class MainActivity extends Activity {
         filterRow.setOrientation(LinearLayout.HORIZONTAL);
         filterRow.setPadding(0, dp(1), 0, 0);
 
-        String[] filters = {"الكل", "شغال", "بريك", "غير متصل", "معاه أوردر", "فاضي"};
+        String[] filters = {"الكل", "شغال", "بريك", "معاه أوردر", "فاضي"};
         for (String filter : filters) {
             Button chip = makeButton(filter);
             chip.setTextSize(9);
@@ -569,7 +570,7 @@ public class MainActivity extends Activity {
         return box;
     }
 
-    private void showFormPage() {
+    private void showFormPage(String targetTitle) {
         if (dashboardRoot == null) return;
 
         if (formRoot == null) {
@@ -600,10 +601,10 @@ public class MainActivity extends Activity {
             exitButton.setOnClickListener(v -> returnToDashboard());
             formRoot.addView(toolbar);
 
-            TextView title = makeText(
+            formTitle = makeText(
                     "نموذج التزويد والبريك", 15, ORANGE, true);
-            title.setPadding(dp(4), dp(8), dp(4), dp(8));
-            formRoot.addView(title);
+            formTitle.setPadding(dp(4), dp(8), dp(4), dp(8));
+            formRoot.addView(formTitle);
 
             formWebView = new WebView(this);
             formWebView.setBackgroundColor(Color.WHITE);
@@ -617,6 +618,7 @@ public class MainActivity extends Activity {
                     formWebView, new LinearLayout.LayoutParams(-1, 0, 1));
         }
 
+        formTitle.setText(targetTitle);
         setContentView(formRoot);
         formWebView.onResume();
         formWebView.loadUrl(FORM_URL);
@@ -1102,10 +1104,9 @@ public class MainActivity extends Activity {
                 : "—";
 
         addMicroStatSection(dashboardStats, "حالات التشغيل",
-                new String[]{"شغال", "بريك الآن", "غير متصل"},
-                new String[]{String.valueOf(working), String.valueOf(onBreak),
-                        String.valueOf(offline)},
-                new int[]{GREEN, ORANGE, MUTED});
+                new String[]{"شغال", "بريك الآن"},
+                new String[]{String.valueOf(working), String.valueOf(onBreak)},
+                new int[]{GREEN, ORANGE});
 
         addMicroStatSection(dashboardStats, "الأوردرات والتشغيل",
                 new String[]{"معاه أوردر", "فاضي", "إجمالي الأوردرات",
@@ -1122,6 +1123,88 @@ public class MainActivity extends Activity {
                         utrCount > 0 ? String.valueOf(lowUtr) : "—",
                         String.valueOf(walletOver2300)},
                 new int[]{Color.WHITE, lowUtr > 0 ? Color.RED : GREEN, ORANGE});
+
+        JSONObject daily = updateDailyStats(riders);
+        long dailySeconds = daily.optLong("worked_seconds", 0);
+        long dailyOrders = daily.optLong("orders", 0);
+        addMicroStatSection(dashboardStats, "إجمالي اليوم المحفوظ",
+                new String[]{"ساعات العمل اليوم", "أوردرات اليوم"},
+                new String[]{
+                        String.format(Locale.US, "%.1f س", dailySeconds / 3600.0),
+                        String.valueOf(dailyOrders)
+                },
+                new int[]{Color.WHITE, ORANGE});
+    }
+
+    private JSONObject updateDailyStats(JSONArray riders) {
+        String day = new SimpleDateFormat("yyyyMMdd", Locale.US).format(new Date());
+        String prefKey = "daily_stats_" + day;
+        JSONObject daily;
+
+        try {
+            daily = new JSONObject(rosterCachePrefs.getString(prefKey, "{}"));
+        } catch (Exception e) {
+            daily = new JSONObject();
+        }
+
+        for (int i = 0; i < riders.length(); i++) {
+            JSONObject rider = riders.optJSONObject(i);
+            if (rider == null) continue;
+
+            String riderKey = firstValue(
+                    rider, "employee_id", "id", "rider_id", "name");
+            if (riderKey.isEmpty() || "غير متاح".equals(riderKey)) continue;
+
+            JSONObject saved = daily.optJSONObject(riderKey);
+            if (saved == null) saved = new JSONObject();
+
+            long seconds = rider.optLong("worked_seconds", -1);
+            long orders = rider.optLong("total_orders", -1);
+
+            if (seconds < 0) {
+                String worked = rider.optString("worked_time", "").trim();
+                java.util.regex.Matcher duration = java.util.regex.Pattern
+                        .compile("^(\\d{1,3}):(\\d{2}):(\\d{2})$")
+                        .matcher(worked);
+                if (duration.matches()) {
+                    seconds = Long.parseLong(duration.group(1)) * 3600L
+                            + Long.parseLong(duration.group(2)) * 60L
+                            + Long.parseLong(duration.group(3));
+                }
+            }
+
+            try {
+                if (seconds >= 0) {
+                    saved.put("worked_seconds", Math.max(
+                            seconds, saved.optLong("worked_seconds", 0)));
+                }
+                if (orders >= 0) {
+                    saved.put("orders", Math.max(
+                            orders, saved.optLong("orders", 0)));
+                }
+                daily.put(riderKey, saved);
+            } catch (Exception ignored) { }
+        }
+
+        long totalSeconds = 0;
+        long totalOrders = 0;
+        java.util.Iterator<String> keys = daily.keys();
+
+        while (keys.hasNext()) {
+            JSONObject saved = daily.optJSONObject(keys.next());
+            if (saved == null) continue;
+            totalSeconds += saved.optLong("worked_seconds", 0);
+            totalOrders += saved.optLong("orders", 0);
+        }
+
+        rosterCachePrefs.edit().putString(prefKey, daily.toString()).apply();
+
+        JSONObject totals = new JSONObject();
+        try {
+            totals.put("worked_seconds", totalSeconds);
+            totals.put("orders", totalOrders);
+        } catch (Exception ignored) { }
+        return totals;
     }
 
 
@@ -1227,7 +1310,6 @@ public class MainActivity extends Activity {
 
             if (riderFilter.equals("شغال") && !working) continue;
             if (riderFilter.equals("بريك") && !onBreak) continue;
-            if (riderFilter.equals("غير متصل") && !offline) continue;
             if (riderFilter.equals("معاه أوردر") && !hasOrders) continue;
             if (riderFilter.equals("فاضي") && hasOrders) continue;
 
@@ -1408,8 +1490,7 @@ public class MainActivity extends Activity {
         actions.setOrientation(LinearLayout.HORIZONTAL);
         actions.setGravity(Gravity.CENTER);
         actions.setPadding(0, dp(4), 0, dp(3));
-        addRiderAction(actions, rider, "☎", "اتصال", ORANGE);
-        addRiderAction(actions, rider, "🎧", "سماعة", ORANGE);
+        addRiderAction(actions, rider, "📞", "اتصال", ORANGE);
         addRiderAction(actions, rider, "🔋", "تزويد", GREEN);
         addRiderAction(actions, rider, "☕", "بريك", ORANGE);
         addRiderAction(actions, rider, "✉", "رسالة", ORANGE);
@@ -1514,9 +1595,11 @@ public class MainActivity extends Activity {
             String phone = firstValue(rider, "phone", "phone_number", "mobile",
                     "rider_phone", "telephone", "contact_number");
             try {
-                if ("تزويد".equals(label) || "بريك".equals(label)) {
-                    showFormPage();
-                } else if ("اتصال".equals(label) || "سماعة".equals(label)) {
+                if ("تزويد".equals(label)) {
+                    showFormPage("تزويد شيفتات الطيارين");
+                } else if ("بريك".equals(label)) {
+                    showFormPage("فك بريك");
+                } else if ("اتصال".equals(label)) {
                     if (phone.isEmpty() || phone.equals("غير متاح")) {
                         Toast.makeText(this, "رقم هاتف المندوب غير متاح", Toast.LENGTH_SHORT).show();
                         return;
