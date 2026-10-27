@@ -672,12 +672,22 @@ public class MainActivity extends Activity {
             "const base = location.origin;" +
 
             "async function getJson(url) {" +
-            " const response = await fetch(url, {" +
-            "  credentials:'include'," +
-            "  headers:{'Accept':'application/json'}" +
-            " });" +
-            " if (!response.ok) throw new Error('HTTP '+response.status+' - '+url);" +
-            " return await response.json();" +
+            " const controller = new AbortController();" +
+            " const timer = setTimeout(() => controller.abort(), 15000);" +
+            " try {" +
+            "  const response = await fetch(url, {" +
+            "   credentials:'include'," +
+            "   headers:{'Accept':'application/json'}," +
+            "   signal:controller.signal" +
+            "  });" +
+            "  if (!response.ok) throw new Error('HTTP '+response.status+' - '+url);" +
+            "  return await response.json();" +
+            " } catch(e) {" +
+            "  if (e && e.name === 'AbortError') throw new Error('انتهت مهلة الاتصال بعد 15 ثانية');" +
+            "  throw e;" +
+            " } finally {" +
+            "  clearTimeout(timer);" +
+            " }" +
             "}" +
 
             "const data = await getJson(base + " +
