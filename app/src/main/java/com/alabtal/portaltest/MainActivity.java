@@ -108,6 +108,21 @@ public class MainActivity extends Activity {
         }
     };
 
+    private final Runnable resumeRefreshRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (destroyed || !pageLoaded || detailVisible) return;
+
+            if (inspectionRunning) {
+                handler.postDelayed(this, 500);
+                return;
+            }
+
+            handler.removeCallbacks(refreshRunnable);
+            inspectRoster();
+        }
+    };
+
     private void scheduleNextSync() {
         handler.removeCallbacks(refreshRunnable);
         if (!destroyed && pageLoaded) {
@@ -949,10 +964,6 @@ public class MainActivity extends Activity {
                 nextSyncDelayMs = SYNC_INTERVAL_MS;
                 scheduleNextSync();
 
-                // إخفاء البوابة بعد نجاح جلب البيانات مع الاحتفاظ بنفس الجلسة.
-                if (portalPageVisible) {
-                    returnToDashboard();
-                }
             }
 
         } catch (Exception e) {
@@ -2014,6 +2025,33 @@ public class MainActivity extends Activity {
         } catch (Exception e) {
             return value;
         }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        if (webView != null) {
+            webView.onResume();
+        }
+
+        if (!destroyed && pageLoaded && !detailVisible) {
+            handler.removeCallbacks(refreshRunnable);
+            handler.removeCallbacks(resumeRefreshRunnable);
+            handler.postDelayed(resumeRefreshRunnable, 400);
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        handler.removeCallbacks(refreshRunnable);
+        handler.removeCallbacks(resumeRefreshRunnable);
+
+        if (webView != null) {
+            webView.onPause();
+        }
+
+        super.onPause();
     }
 
     private void logoutApp() {
