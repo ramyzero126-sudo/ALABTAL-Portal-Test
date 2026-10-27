@@ -2837,14 +2837,7 @@ public class MainActivity extends Activity {
 
                 String html = buildSheetHtml(shifts, breaks);
                 */
-                runOnUiThread(() -> {
-                    if (sheetView != null) {
-                        sheetView.loadDataWithBaseURL(
-                            "https://alabtal.local/",
-                            html, "text/html", "UTF-8", null
-                        );
-                    }
-                });
+                showSheetError("أسماء التبويبات التي وجدها Google: " + titles);
             } catch (Exception e) {
                 String detail = e.getMessage();
                 if (detail == null || detail.trim().isEmpty()) {
