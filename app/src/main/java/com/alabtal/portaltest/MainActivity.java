@@ -36,6 +36,20 @@ import android.widget.HorizontalScrollView;
 import android.provider.MediaStore;
 import android.os.Environment;
 import android.net.Uri;
+import android.content.Intent;
+import android.content.IntentSender;
+import com.google.android.gms.auth.api.identity.AuthorizationRequest;
+import com.google.android.gms.auth.api.identity.AuthorizationResult;
+import com.google.android.gms.auth.api.identity.Identity;
+import com.google.android.gms.common.api.ApiException;
+import com.google.android.gms.common.api.Scope;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.net.URLEncoder;
+import java.util.Collections;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -480,7 +494,52 @@ public class MainActivity extends Activity {
         sheetView.getSettings().setDomStorageEnabled(true);
         sheetView.getSettings().setSupportMultipleWindows(false);
         sheetView.setWebChromeClient(new WebChromeClient());
-        sheetView.setWebViewClient(new WebViewClient());
+        sheetView.setWebViewClient(new WebViewClient() {
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                super.onPageFinished(view, url);
+
+                if (view != sheetView || url == null ||
+                        !url.startsWith("https://docs.google.com/")) {
+                    return;
+                }
+
+                String probe =
+                    "(function() {" +
+                    " var login = location.href.indexOf('accounts.google.com') >= 0" +
+                    "   || !!document.querySelector('input[type=password]');" +
+                    " var cells = document.querySelectorAll('[role=gridcell]').length;" +
+                    " var headers = document.querySelectorAll('table th').length;" +
+                    " if (login) return 'LOGIN_REQUIRED';" +
+                    " if (cells > 0) return 'GRID_CELLS=' + cells;" +
+                    " return 'NO_GRID;TABLE_HEADERS=' + headers;" +
+                    "})()";
+
+                view.evaluateJavascript(probe, result -> {
+                    if (isFinishing() || isDestroyed()) return;
+
+                    String outcome = result == null ? "" : result;
+                    outcome = outcome.replace("\\\"", "")
+                                     .replace("\"", "");
+
+                    String message;
+                    if (outcome.contains("LOGIN_REQUIRED")) {
+                        message = "Google يطلب تسجيل الدخول.";
+                    } else if (outcome.startsWith("GRID_CELLS=")) {
+                        message = "ظهرت خلايا الشيت داخل الصفحة. " + outcome;
+                    } else {
+                        message = "الصفحة فتحت، لكن لم يظهر جدول قابل للفحص. "
+                                + outcome;
+                    }
+
+                    android.widget.Toast.makeText(
+                        MainActivity.this,
+                        message,
+                        android.widget.Toast.LENGTH_LONG
+                    ).show();
+                });
+            }
+        });
         sheetView.setVisibility(View.GONE);
 
         contentFrame.addView(riderCardsScroll,
@@ -535,10 +594,7 @@ public class MainActivity extends Activity {
             ridersTab.setTextColor(WHITE);
             mapTab.setTextColor(WHITE);
 
-            if (sheetView.getUrl() == null ||
-                    !sheetView.getUrl().startsWith(SHEET_URL)) {
-                sheetView.loadUrl(SHEET_URL);
-            }
+            requestSheetAccess();
         });
 
         setContentView(root);
@@ -2697,6 +2753,324 @@ public class MainActivity extends Activity {
             return value;
         }
     }
+
+    private static final int SHEET_AUTH_REQUEST = 7301;
+    private static final String SHEET_ID =
+        "1gM2Mm0fUwJrPz3KZciXoNt9xatNB2j96ecsMPcog-uc";
+    private static final String SHEETS_SCOPE =
+        "https://www.googleapis.com/auth/spreadsheets.readonly";
+
+    private void requestSheetAccess() {
+        showSheetMessage("جاري الاتصال بحساب Google...");
+
+        AuthorizationRequest request = AuthorizationRequest.builder()
+            .setRequestedScopes(Collections.singletonList(new Scope(SHEETS_SCOPE)))
+            .build();
+
+        Identity.getAuthorizationClient(this).authorize(request)
+            .addOnSuccessListener(result -> {
+                if (result.hasResolution()) {
+                    try {
+                        startIntentSenderForResult(
+                            result.getPendingIntent().getIntentSender(),
+                            SHEET_AUTH_REQUEST, null, 0, 0, 0
+                        );
+                    } catch (IntentSender.SendIntentException e) {
+                        showSheetError("تعذر فتح نافذة إذن Google.");
+                    }
+                } else {
+                    String token = result.getAccessToken();
+                    if (token == null || token.isEmpty()) {
+                        showSheetError("لم يستلم التطبيق رمز الوصول. حاول مرة أخرى.");
+                    } else {
+                        loadPrivateSheets(token);
+                    }
+                }
+            })
+            .addOnFailureListener(e ->
+                showSheetError("تعذر طلب إذن Google. تأكد من الحساب وحاول مرة أخرى.")
+            );
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+
+        if (requestCode != SHEET_AUTH_REQUEST) return;
+
+        if (resultCode != RESULT_OK || data == null) {
+            showSheetError("لم يتم منح إذن قراءة الشيت.");
+            return;
+        }
+
+        try {
+            AuthorizationResult result =
+                Identity.getAuthorizationClient(this)
+                    .getAuthorizationResultFromIntent(data);
+
+            String token = result.getAccessToken();
+            if (token == null || token.isEmpty()) {
+                showSheetError("رمز الوصول غير متاح. أعد المحاولة.");
+            } else {
+                loadPrivateSheets(token);
+            }
+        } catch (ApiException e) {
+            showSheetError("تعذر إكمال تفويض Google. حاول مرة أخرى.");
+        }
+    }
+
+    private void loadPrivateSheets(String token) {
+        showSheetMessage("جاري تحميل ردود الشيت...");
+
+        new Thread(() -> {
+            try {
+                JSONArray shifts = fetchSheetRows(
+                    token, "'تزويد شيفتات'!A:H"
+                );
+                JSONArray breaks = fetchSheetRows(
+                    token, "'فك بريك'!A:F"
+                );
+
+                String html = buildSheetHtml(shifts, breaks);
+                runOnUiThread(() -> {
+                    if (sheetView != null) {
+                        sheetView.loadDataWithBaseURL(
+                            "https://alabtal.local/",
+                            html, "text/html", "UTF-8", null
+                        );
+                    }
+                });
+            } catch (Exception e) {
+                showSheetError(
+                    "تعذر تحميل الردود. تحقق من صلاحية الحساب وتفعيل Google Sheets API."
+                );
+            }
+        }).start();
+    }
+
+    private JSONArray fetchSheetRows(String token, String range)
+            throws IOException {
+        String encoded = URLEncoder.encode(range, "UTF-8")
+            .replace("+", "%20");
+
+        URL url = new URL(
+            "https://sheets.googleapis.com/v4/spreadsheets/"
+            + SHEET_ID + "/values/" + encoded
+            + "?valueRenderOption=FORMATTED_VALUE"
+        );
+
+        HttpURLConnection connection =
+            (HttpURLConnection) url.openConnection();
+        connection.setRequestMethod("GET");
+        connection.setConnectTimeout(15000);
+        connection.setReadTimeout(20000);
+        connection.setRequestProperty("Authorization", "Bearer " + token);
+        connection.setRequestProperty("Accept", "application/json");
+
+        try {
+            int code = connection.getResponseCode();
+            InputStream stream = code >= 200 && code < 300
+                ? connection.getInputStream() : connection.getErrorStream();
+
+            String body = "";
+            if (stream != null) {
+                try (InputStream in = stream;
+                     ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+                    byte[] buffer = new byte[4096];
+                    int count;
+                    while ((count = in.read(buffer)) != -1) {
+                        out.write(buffer, 0, count);
+                    }
+                    body = new String(out.toByteArray(), StandardCharsets.UTF_8);
+                }
+            }
+
+            if (code < 200 || code >= 300) {
+                throw new IOException("Sheets API HTTP " + code);
+            }
+
+            JSONObject json = new JSONObject(body);
+            JSONArray rows = json.optJSONArray("values");
+            return rows == null ? new JSONArray() : rows;
+        } catch (org.json.JSONException e) {
+            throw new IOException("استجابة الشيت غير صالحة.", e);
+        } finally {
+            connection.disconnect();
+        }
+    }
+
+    private void showSheetMessage(String message) {
+        String html = "<html><meta charset='UTF-8'><body style='"
+            + "background:#07080a;color:#fff;font-family:sans-serif;"
+            + "text-align:center;padding:36px'>"
+            + "<h3 style='color:#ff7900'>AL ABTAL</h3><p>"
+            + escapeSheetHtml(message) + "</p></body></html>";
+
+        runOnUiThread(() -> {
+            if (sheetView != null) {
+                sheetView.loadDataWithBaseURL(
+                    "https://alabtal.local/", html,
+                    "text/html", "UTF-8", null
+                );
+            }
+        });
+    }
+
+    private void showSheetError(String message) {
+        String html = "<html><meta charset='UTF-8'><body style='"
+            + "background:#07080a;color:#fff;font-family:sans-serif;"
+            + "text-align:center;padding:28px'>"
+            + "<h3 style='color:#ff7900'>تعذر تحميل الردود</h3><p>"
+            + escapeSheetHtml(message)
+            + "</p><p>ارجع لتبويب ردود الشيت وحاول مرة أخرى.</p>"
+            + "</body></html>";
+
+        runOnUiThread(() -> {
+            if (sheetView != null) {
+                sheetView.loadDataWithBaseURL(
+                    "https://alabtal.local/", html,
+                    "text/html", "UTF-8", null
+                );
+            }
+        });
+    }
+
+    private String buildSheetHtml(JSONArray shifts, JSONArray breaks) {
+        StringBuilder h = new StringBuilder();
+
+        h.append("<!doctype html><html lang='ar' dir='rtl'><head>")
+         .append("<meta charset='UTF-8'><meta name='viewport' ")
+         .append("content='width=device-width,initial-scale=1'>")
+         .append("<style>")
+         .append("body{margin:0;padding:12px;background:#07080a;color:#f5f6f8;")
+         .append("font-family:sans-serif}")
+         .append(".tabs{display:flex;gap:8px;position:sticky;top:0;")
+         .append("background:#07080a;padding:5px 0 12px;z-index:2}")
+         .append("button{flex:1;padding:12px 5px;border:1px solid #ff7900;")
+         .append("border-radius:10px;background:#171317;color:#fff;font-weight:bold}")
+         .append("button.active{background:#ff7900;color:#111}")
+         .append(".card{background:#111317;border:1px solid #303137;")
+         .append("border-right:3px solid #ff7900;border-radius:12px;")
+         .append("padding:12px;margin-bottom:10px;overflow-wrap:anywhere}")
+         .append(".line{margin:7px 0;font-size:14px}")
+         .append(".label{color:#a0a6b0}.pill{display:inline-block;")
+         .append("padding:4px 8px;border-radius:8px;font-weight:bold}")
+         .append(".red{background:#421b20;color:#ff6666}")
+         .append(".green{background:#123626;color:#45d27d}")
+         .append(".yellow{background:#403315;color:#ffd166}")
+         .append(".empty{padding:20px;text-align:center;color:#a0a6b0}")
+         .append("</style></head><body>")
+         .append("<div class='tabs'>")
+         .append("<button id='b1' class='active' onclick='tab(1)'>")
+         .append("تزويد شيفتات</button>")
+         .append("<button id='b2' onclick='tab(2)'>فك بريك</button>")
+         .append("</div><section id='s1'>");
+
+        appendSheetRows(h, shifts, true);
+
+        h.append("</section><section id='s2' style='display:none'>");
+        appendSheetRows(h, breaks, false);
+
+        h.append("</section><script>")
+         .append("function tab(n){")
+         .append("document.getElementById('s1').style.display=n===1?'block':'none';")
+         .append("document.getElementById('s2').style.display=n===2?'block':'none';")
+         .append("document.getElementById('b1').className=n===1?'active':'';")
+         .append("document.getElementById('b2').className=n===2?'active':'';")
+         .append("}</script></body></html>");
+
+        return h.toString();
+    }
+
+    private void appendSheetRows(
+            StringBuilder h, JSONArray rows, boolean isShift) {
+        int shown = 0;
+
+        // الصف الأول يحتوي أسماء الأعمدة.
+        for (int i = 1; i < rows.length(); i++) {
+            JSONArray row = rows.optJSONArray(i);
+            if (row == null) continue;
+
+            String timestamp = sheetCell(row, 0);
+            String riderId = sheetCell(row, isShift ? 3 : 2);
+            String reason = sheetCell(row, isShift ? 7 : 5);
+
+            if (timestamp.isEmpty() && riderId.isEmpty()) continue;
+
+            h.append("<article class='card'>");
+            appendSheetField(h, "وقت الطلب", timestamp);
+            appendSheetField(h, "Rider ID", riderId);
+
+            if (isShift) {
+                appendSheetField(h, "نوع الطلب", sheetCell(row, 1));
+                appendSheetField(h, "ساعات التزويد", sheetCell(row, 2));
+                appendSheetField(h, "المدينة", sheetCell(row, 4));
+                appendSheetStatus(h, "حالة الطلب", sheetCell(row, 5));
+                appendSheetStatus(h, "الرد على الطلب", sheetCell(row, 6));
+            } else {
+                appendSheetField(h, "نوع الطلب", sheetCell(row, 1));
+                appendSheetStatus(h, "حالة الطلب", sheetCell(row, 3));
+                appendSheetStatus(h, "القرار النهائي", sheetCell(row, 4));
+            }
+
+            if (!reason.isEmpty()) {
+                appendSheetField(h, "سبب الرفض", reason);
+            }
+
+            h.append("</article>");
+            shown++;
+        }
+
+        if (shown == 0) {
+            h.append("<div class='empty'>لا توجد طلبات مسجلة حتى الآن.</div>");
+        }
+    }
+
+    private void appendSheetField(
+            StringBuilder h, String label, String value) {
+        if (value == null || value.trim().isEmpty()) return;
+
+        h.append("<div class='line'><span class='label'>")
+         .append(escapeSheetHtml(label))
+         .append(":</span> ")
+         .append(escapeSheetHtml(value))
+         .append("</div>");
+    }
+
+    private void appendSheetStatus(
+            StringBuilder h, String label, String value) {
+        if (value == null || value.trim().isEmpty()) return;
+
+        String v = value.trim();
+        String css = v.contains("مرفوض") ? "red"
+            : (v.contains("مقبول") || v.contains("موافق")
+               || v.contains("تم الرد")) ? "green" : "yellow";
+
+        h.append("<div class='line'><span class='label'>")
+         .append(escapeSheetHtml(label))
+         .append(":</span> <span class='pill ")
+         .append(css).append("'>")
+         .append(escapeSheetHtml(v))
+         .append("</span></div>");
+    }
+
+    private String sheetCell(JSONArray row, int index) {
+        if (row == null || index < 0 || index >= row.length()
+                || row.isNull(index)) {
+            return "";
+        }
+        return row.optString(index, "").trim();
+    }
+
+    private String escapeSheetHtml(String value) {
+        if (value == null) return "";
+        return value.replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+            .replace("\"", "&quot;")
+            .replace("'", "&#39;");
+    }
+
 
     @Override
     protected void onResume() {
