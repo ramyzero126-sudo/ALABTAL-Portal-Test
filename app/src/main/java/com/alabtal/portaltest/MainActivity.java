@@ -1524,152 +1524,76 @@ public class MainActivity extends Activity {
 
     private void addOrderProgressTrack(LinearLayout target, String rawStatus) {
         String st = rawStatus == null
-                ? "" : rawStatus.trim().toLowerCase(Locale.ROOT);
+                ? "" : rawStatus.trim().toLowerCase(Locale.ROOT)
+                    .replace('_', ' ').replace('-', ' ');
 
-        int active = -1;
-
-        if (st.equals("dispatched") || st.equals("courier_notified")
-                || st.equals("accepted") || st.equals("assigned")
-                || st.equals("accepted order")) {
-            active = 0;
-        } else if (st.equals("near_pickup") || st.equals("at_pickup")
-                || st.equals("arrived_at_pickup") || st.equals("picked_up")
-                || st.equals("left_pickup") || st.equals("picked up")) {
-            active = 1;
-        } else if (st.equals("in_transit") || st.equals("on_the_way")
-                || st.equals("near_dropoff")) {
-            active = 2;
-        } else if (st.equals("at_dropoff") || st.equals("arrived_at_dropoff")) {
-            active = 3;
-        }
+        String stage;
+        int color;
+        int background;
 
         if (st.equals("completed") || st.equals("delivered")) {
-            TextView done = makeText("✅ وصل للعميل — تم التسليم",
-                    11, GREEN, true);
-            done.setPadding(dp(3), dp(8), dp(3), dp(2));
-            done.setShadowLayer(dp(4), 0, 0, GREEN);
-            target.addView(done);
-            return;
+            stage = "✓ تم التسليم";
+            color = GREEN;
+            background = Color.rgb(15, 53, 37);
+        } else if (st.equals("cancelled") || st.equals("canceled")) {
+            stage = "✕ الأوردر ملغي";
+            color = RED;
+            background = Color.rgb(58, 20, 24);
+        } else if (st.equals("in transit") || st.equals("on the way")
+                || st.equals("near dropoff") || st.equals("picked up")
+                || st.equals("left pickup")) {
+            stage = "🚲 في الطريق للعميل";
+            color = Color.rgb(190, 125, 255);
+            background = Color.rgb(43, 27, 61);
+        } else if (st.equals("at dropoff")
+                || st.equals("arrived at dropoff")) {
+            stage = "📍 وصل للعميل";
+            color = Color.rgb(90, 165, 255);
+            background = Color.rgb(20, 39, 65);
+        } else if (st.equals("near pickup") || st.equals("at pickup")
+                || st.equals("arrived at pickup")) {
+            stage = "🏪 استلام من المطعم";
+            color = Color.rgb(255, 174, 70);
+            background = Color.rgb(65, 39, 18);
+        } else {
+            stage = "📦 برفقة";
+            color = Color.rgb(255, 154, 67);
+            background = Color.rgb(65, 39, 18);
         }
 
-        if (st.equals("cancelled") || st.equals("canceled")) {
-            TextView cancelled = makeText("✕ الأوردر ملغي", 11, RED, true);
-            cancelled.setPadding(dp(3), dp(8), dp(3), dp(2));
-            target.addView(cancelled);
-            return;
-        }
-
-        String[] labels = {
-            "معاه أوردر", "استلام من المطعم",
-            "في الطريق للعميل", "وصل للعميل"
-        };
-        String[] symbols = {"📦", "🏪", "🚲", "✅"};
-
-        TextView heading = makeText("مراحل الأوردر", 11, ORANGE, true);
-        heading.setPadding(dp(2), dp(7), dp(2), dp(4));
-        heading.setShadowLayer(dp(3), 0, 0, ORANGE_DEEP);
-        target.addView(heading);
-
-        if (active < 0) {
-            TextView current = makeText(
-                    "● معاه أوردر", 10, ORANGE, true);
-            current.setPadding(dp(3), dp(4), dp(3), dp(4));
-            target.addView(current);
-            return;
-        }
-
-        FrameLayout container = new FrameLayout(this);
-
-        LinearLayout track = new LinearLayout(this);
-        track.setOrientation(LinearLayout.HORIZONTAL);
-        track.setGravity(Gravity.CENTER_VERTICAL);
-
-        for (int i = 0; i < labels.length; i++) {
-            final boolean reached = active >= i;
-            final boolean currentStage = active == i;
-
-            LinearLayout station = new LinearLayout(this);
-            station.setOrientation(LinearLayout.VERTICAL);
-            station.setGravity(Gravity.CENTER);
-            station.setPadding(dp(1), dp(22), dp(1), dp(4));
-
-            int stageColor = reached ? ORANGE : Color.rgb(105, 93, 86);
-
-            TextView symbol = makeText(
-                    symbols[i], i == 2 ? 15 : 13,
-                    stageColor, true);
-            symbol.setGravity(Gravity.CENTER);
-            symbol.setMinHeight(dp(22));
-
-            if (currentStage) {
-                symbol.setShadowLayer(dp(5), 0, 0, ORANGE);
-            }
-
-            TextView label = makeText(
-                    labels[i], 8,
-                    reached ? Color.rgb(255, 176, 83) : MUTED,
-                    reached);
-            label.setGravity(Gravity.CENTER);
-            label.setMaxLines(2);
-
-            station.addView(symbol);
-            station.addView(label);
-
-            track.addView(station,
-                    new LinearLayout.LayoutParams(0, -2, 1f));
-
-            if (currentStage) {
-                ObjectAnimator pulse = ObjectAnimator.ofFloat(
-                        symbol, View.ALPHA, 0.55f, 1f);
-                pulse.setDuration(850);
-                pulse.setRepeatMode(ObjectAnimator.REVERSE);
-                pulse.setRepeatCount(ObjectAnimator.INFINITE);
-                pulse.start();
-            }
-        }
-
-        container.addView(track,
-                new FrameLayout.LayoutParams(-1, -2));
-
-        // الدراجة المتحركة تظهر فقط عند مرحلة الطريق للعميل.
-        if (active == 2) {
-            TextView bike = makeText("🚲", 17, ORANGE, true);
-            bike.setGravity(Gravity.CENTER);
-
-            FrameLayout.LayoutParams bikeParams =
-                    new FrameLayout.LayoutParams(dp(30), dp(24),
-                            Gravity.TOP | Gravity.LEFT);
-            container.addView(bike, bikeParams);
-
-            container.post(() -> {
-                if (container.getWidth() <= dp(30)
-                        || !bike.isAttachedToWindow()) {
-                    return;
-                }
-
-                float maxTravel = container.getWidth() - dp(30);
-                float destination = maxTravel * (2f / 3f);
-                float wiggle = Math.min(dp(12), maxTravel / 8f);
-
-                bike.setTranslationX(Math.max(0, destination - wiggle));
-
-                ObjectAnimator ride = ObjectAnimator.ofFloat(
-                        bike, View.TRANSLATION_X,
-                        Math.max(0, destination - wiggle),
-                        Math.min(maxTravel, destination + wiggle));
-
-                ride.setDuration(650);
-                ride.setRepeatMode(ObjectAnimator.REVERSE);
-                ride.setRepeatCount(ObjectAnimator.INFINITE);
-                ride.setInterpolator(new DecelerateInterpolator());
-                ride.start();
-            });
-        }
+        TextView badge = makeText(stage, 10, color, true);
+        badge.setGravity(Gravity.CENTER);
+        badge.setSingleLine(true);
+        badge.setPadding(dp(10), dp(6), dp(10), dp(6));
+        badge.setBackground(round(background, color, 1));
+        badge.setShadowLayer(dp(3), 0, 0, color);
+        badge.setElevation(dp(3));
 
         LinearLayout.LayoutParams params =
-                new LinearLayout.LayoutParams(-1, -2);
-        params.setMargins(0, 0, 0, dp(3));
-        target.addView(container, params);
+                new LinearLayout.LayoutParams(-2, -2);
+        params.setMargins(dp(3), dp(4), dp(3), dp(3));
+        target.addView(badge, params);
+
+        ObjectAnimator pulse = ObjectAnimator.ofFloat(
+                badge, View.ALPHA, 0.78f, 1f);
+        pulse.setDuration(850);
+        pulse.setRepeatMode(ObjectAnimator.REVERSE);
+        pulse.setRepeatCount(ObjectAnimator.INFINITE);
+        pulse.start();
+
+        ObjectAnimator breatheX = ObjectAnimator.ofFloat(
+                badge, View.SCALE_X, 1f, 1.035f);
+        breatheX.setDuration(850);
+        breatheX.setRepeatMode(ObjectAnimator.REVERSE);
+        breatheX.setRepeatCount(ObjectAnimator.INFINITE);
+        breatheX.start();
+
+        ObjectAnimator breatheY = ObjectAnimator.ofFloat(
+                badge, View.SCALE_Y, 1f, 1.035f);
+        breatheY.setDuration(850);
+        breatheY.setRepeatMode(ObjectAnimator.REVERSE);
+        breatheY.setRepeatCount(ObjectAnimator.INFINITE);
+        breatheY.start();
     }
 
     private void addDetailPair(LinearLayout parent,
