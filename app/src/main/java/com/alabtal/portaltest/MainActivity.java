@@ -1,6 +1,3 @@
-                    if (inspectButton != null) {
-                        inspectButton.setTextColor(GREEN);
-                    }
 package com.alabtal.portaltest;
 
 import android.app.Activity;
@@ -912,6 +909,10 @@ public class MainActivity extends Activity {
                     "آخر تحديث: " + formatTime(report.optString("checked_at")) +
                     " • تم تحديث البيانات بنجاح"
                 );
+
+                if (inspectButton != null) {
+                    inspectButton.setTextColor(GREEN);
+                }
 
                 // لا تحفظ التقرير إلا بعد نجاح تحليله وعرض بياناته.
                 rosterCachePrefs.edit()
