@@ -94,7 +94,7 @@ public class MainActivity extends Activity {
     private boolean destroyed = false;
     private int consecutiveSyncFailures = 0;
     private long nextSyncDelayMs = 30000L;
-    private static final long SYNC_INTERVAL_MS = 30000L;
+    private static final long SYNC_INTERVAL_MS = 10000L;
     private static final long SYNC_RETRY_MIN_MS = 5000L;
     private static final long SYNC_RETRY_MAX_MS = 60000L;
 
@@ -895,7 +895,10 @@ public class MainActivity extends Activity {
             "  vendor_name:o.vendor_name || ''," +
             "  pickup_address:o.pickup_address || ''," +
             "  dropoff_address:o.dropoff_address || ''," +
-            "  timeline:o.timeline || []" +
+            "  timeline:o.timeline || []," +
+            "  created_at:o.created_at || o.createdAt || o.order_created_at || o.orderCreatedAt || o.created_at_utc || ''," +
+            "  accepted_at:o.accepted_at || o.acceptedAt || o.accepted_time || o.acceptedTime || ''," +
+            "  picked_up_at:o.picked_up_at || o.pickedUpAt || o.pickup_time || o.pickupTime || ''," +
             " }));" +
 
             " return {" +
@@ -910,6 +913,7 @@ public class MainActivity extends Activity {
             "  starting_point:(r.starting_point || {}).name || ''," +
             "  shift_start:(r.shift_start || r.shiftStart || r.planned_shift_start || r.session_start || (r.shift_info || {}).start_time || (r.shift_info || {}).start || (r.shift || {}).start_time || (r.shift || {}).start || (r.session || {}).start_time || (r.session || {}).start || tableShift.start || '')," +
             "  shift_end:(r.shift_end || r.shiftEnd || r.planned_shift_end || r.session_end || (r.shift_info || {}).end_time || (r.shift_info || {}).end || (r.shift || {}).end_time || (r.shift || {}).end || (r.session || {}).end_time || (r.session || {}).end || tableShift.end || '')," +
+            "  break_started_at:r.break_started_at || r.breakStartedAt || r.break_start_time || r.breakStartTime || r.on_break_since || r.onBreakSince || r.status_changed_at || r.statusChangedAt || ''," +
             "  performance:perfValue || tableData.performance || ''," +
             "  acceptance_rate:acceptanceValue || tableData.acceptance_rate || ''," +
             "  worked_time:r.worked_time || r.worked_hours || r.worked || tableData.worked_time || ''," +
@@ -1273,6 +1277,98 @@ public class MainActivity extends Activity {
     }
 
 
+
+    private long parseTimestampMillis(String raw) {
+        if (raw == null) return -1L;
+        String value = raw.trim();
+        if (value.isEmpty() || value.equals("null") || value.equals("—")) return -1L;
+
+        try {
+            if (value.matches("^\\d{10,13}$")) {
+                long number = Long.parseLong(value);
+                return number < 100000000000L ? number * 1000L : number;
+            }
+        } catch (Exception ignored) { }
+
+        String[] patterns = {
+                "yyyy-MM-dd'T'HH:mm:ss.SSSXXX",
+                "yyyy-MM-dd'T'HH:mm:ssXXX",
+                "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+                "yyyy-MM-dd'T'HH:mm:ss'Z'",
+                "yyyy-MM-dd HH:mm:ss",
+                "yyyy-MM-dd'T'HH:mm:ss"
+        };
+
+        for (String pattern : patterns) {
+            try {
+                SimpleDateFormat parser = new SimpleDateFormat(pattern, Locale.US);
+                parser.setLenient(false);
+                if (pattern.endsWith("'Z'")) {
+                    parser.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
+                }
+                Date parsed = parser.parse(value);
+                if (parsed != null) return parsed.getTime();
+            } catch (Exception ignored) { }
+        }
+        return -1L;
+    }
+
+    private void addSmartAlerts(LinearLayout card, JSONObject rider,
+            JSONArray orders, String state) {
+        long now = System.currentTimeMillis();
+        String normalized = state == null ? "" :
+                state.trim().toLowerCase(Locale.ROOT)
+                        .replace('-', '_').replace(' ', '_');
+
+        boolean onBreak = normalized.equals("break")
+                || normalized.equals("on_break")
+                || normalized.equals("onbreak");
+
+        if (onBreak) {
+            long started = parseTimestampMillis(firstValue(rider,
+                    "break_started_at", "breakStartedAt",
+                    "break_start_time", "breakStartTime",
+                    "on_break_since", "onBreakSince",
+                    "status_changed_at", "statusChangedAt"));
+
+            if (started > 0L && now >= started
+                    && now - started >= 15L * 60L * 1000L) {
+                addSmartAlertRow(card,
+                        "⚠ بريك طويل • أكثر من 15 دقيقة",
+                        Color.rgb(255, 82, 82));
+            }
+        }
+
+        if (orders == null || orders.length() == 0) return;
+        JSONObject order = orders.optJSONObject(0);
+        if (order == null) return;
+
+        long orderStarted = parseTimestampMillis(firstValue(order,
+                "accepted_at", "acceptedAt", "accepted_time", "acceptedTime",
+                "created_at", "createdAt", "order_created_at",
+                "orderCreatedAt", "created_at_utc", "timestamp"));
+
+        if (orderStarted > 0L && now >= orderStarted
+                && now - orderStarted >= 10L * 60L * 1000L) {
+            addSmartAlertRow(card,
+                    "⚠ أوردر متأخر • أكثر من 10 دقائق",
+                    Color.rgb(255, 181, 71));
+        }
+    }
+
+    private void addSmartAlertRow(LinearLayout card, String message, int color) {
+        TextView alert = makeText(message, 10, color, true);
+        alert.setGravity(Gravity.CENTER_VERTICAL);
+        alert.setPadding(dp(8), dp(6), dp(8), dp(6));
+        alert.setBackground(round(Color.rgb(35, 22, 17), color, 1));
+        alert.setShadowLayer(dp(2), 0, 0, color);
+
+        LinearLayout.LayoutParams params =
+                new LinearLayout.LayoutParams(-1, -2);
+        params.setMargins(0, dp(5), 0, dp(2));
+        card.addView(alert, params);
+    }
+
     private void renderRiderCards() {
         if (cards == null) return;
         cards.removeAllViews();
@@ -1466,6 +1562,9 @@ public class MainActivity extends Activity {
         LinearLayout.LayoutParams shiftParams = new LinearLayout.LayoutParams(-1, -2);
         shiftParams.topMargin = dp(2);
         card.addView(shiftRow, shiftParams);
+
+        // لا تعرض تنبيهًا إلا عند توفر توقيت صالح.
+        addSmartAlerts(card, rider, orders, state);
 
         if (hasOrders) {
             JSONObject activeOrder = orders.optJSONObject(0);
