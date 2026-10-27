@@ -296,6 +296,18 @@ public class MainActivity extends Activity {
             status, new LinearLayout.LayoutParams(0, -2, 1)
         );
 
+        Button reportButton = makeButton("⇩ تقرير");
+        reportButton.setTextSize(9);
+        reportButton.setTextColor(ORANGE);
+        reportButton.setPadding(dp(5), 0, dp(5), 0);
+        reportButton.setBackground(round(PANEL, ORANGE_DEEP, 1));
+        reportButton.setContentDescription("تصدير تقرير المشرف");
+        LinearLayout.LayoutParams reportParams =
+                new LinearLayout.LayoutParams(-2, dp(30));
+        reportParams.setMargins(dp(3), 0, 0, 0);
+        controls.addView(reportButton, reportParams);
+        reportButton.setOnClickListener(v -> exportSupervisorReport());
+
         inspectButton = makeButton("↻");
         inspectButton.setTextSize(22);
         inspectButton.setTextColor(ORANGE);
@@ -1003,6 +1015,8 @@ public class MainActivity extends Activity {
 
             renderDashboardStats(riders, ridersWithOrders, totalOrders);
 
+            if (!fromCache) notifySmartAlerts(riders);
+
             if (fromCache) {
                 status.setText(
                     "آخر بيانات محفوظة: " +
@@ -1138,6 +1152,198 @@ public class MainActivity extends Activity {
                         String.valueOf(dailyOrders)
                 },
                 new int[]{Color.WHITE, ORANGE});
+
+        addSmartRadarAndRanking(riders);
+    }
+
+    // رادار الحالات وترتيب أفضل ثلاثة حسب الأداء الرقمي المتاح
+    private void addSmartRadarAndRanking(JSONArray riders) {
+        if (dashboardStats == null || riders == null) return;
+
+        int working = 0, onBreak = 0, withOrders = 0, offline = 0, unknown = 0;
+        java.util.ArrayList<JSONObject> ranked = new java.util.ArrayList<>();
+
+        for (int i = 0; i < riders.length(); i++) {
+            JSONObject rider = riders.optJSONObject(i);
+            if (rider == null) continue;
+
+            String state = rider.optString("rider_status",
+                    rider.optString("status", ""))
+                    .trim().toLowerCase(Locale.ROOT)
+                    .replace('-', '_').replace(' ', '_');
+
+            if (state.equals("working") || state.equals("active")
+                    || state.equals("on_delivery") || state.equals("on_delivery_order")) {
+                working++;
+            } else if (state.equals("break") || state.equals("on_break")
+                    || state.equals("onbreak")) {
+                onBreak++;
+            } else if (state.equals("offline") || state.equals("inactive")) {
+                offline++;
+            } else {
+                unknown++;
+            }
+
+            JSONArray orders = rider.optJSONArray("active_orders");
+            if ((orders != null && orders.length() > 0)
+                    || rider.optInt("active_count") > 0
+                    || rider.optBoolean("has_active_deliveries", false)) {
+                withOrders++;
+            }
+
+            String performance = rider.optString("performance", "")
+                    .trim().replace(',', '.');
+            if (performance.matches("-?\\d+(?:\\.\\d+)?")) {
+                try {
+                    double score = Double.parseDouble(performance);
+                    if (Double.isFinite(score) && score >= 0 && score <= 100) {
+                        ranked.add(rider);
+                    }
+                } catch (NumberFormatException ignored) { }
+            }
+        }
+
+        addMicroStatSection(dashboardStats, "📡 رادار الحالات",
+                new String[]{"شغال", "بريك", "معاه أوردر", "فاضي", "غير محدد"},
+                new String[]{
+                        String.valueOf(working),
+                        String.valueOf(onBreak),
+                        String.valueOf(withOrders),
+                        String.valueOf(Math.max(0, riders.length() - withOrders - onBreak - unknown)),
+                        String.valueOf(unknown)
+                },
+                new int[]{GREEN, RED, ORANGE, MUTED, Color.LTGRAY});
+
+        java.util.Collections.sort(ranked, (left, right) -> {
+            double a = Double.parseDouble(
+                    left.optString("performance", "0").trim().replace(',', '.'));
+            double b = Double.parseDouble(
+                    right.optString("performance", "0").trim().replace(',', '.'));
+            return Double.compare(b, a);
+        });
+
+        TextView title = makeText(
+                "🏆 أفضل المندوبين حسب الأداء المتاح", 10, ORANGE, true);
+        title.setPadding(dp(2), dp(3), dp(2), dp(2));
+        dashboardStats.addView(title);
+
+        if (ranked.isEmpty()) {
+            dashboardStats.addView(makeText(
+                    "لا توجد قيم أداء رقمية كافية للترتيب", 9, MUTED, false));
+        } else {
+            for (int i = 0; i < Math.min(3, ranked.size()); i++) {
+                JSONObject rider = ranked.get(i);
+                TextView line = makeText(
+                        (i + 1) + ". " + rider.optString("name", "مندوب بدون اسم")
+                                + " • UTR " + rider.optString("performance", "—"),
+                        10, i == 0 ? GREEN : WHITE, i == 0);
+                line.setPadding(dp(5), dp(3), dp(5), dp(3));
+                dashboardStats.addView(line);
+            }
+        }
+    }
+
+    // تنبيهات مرة واحدة لكل حالة، مع مهلة 30 دقيقة قبل تكرارها
+    private void notifySmartAlerts(JSONArray riders) {
+        if (riders == null || rosterCachePrefs == null) return;
+
+        long now = System.currentTimeMillis();
+        long cooldown = 30L * 60L * 1000L;
+        java.util.ArrayList<String> alerts = new java.util.ArrayList<>();
+
+        for (int i = 0; i < riders.length(); i++) {
+            JSONObject rider = riders.optJSONObject(i);
+            if (rider == null) continue;
+
+            String name = rider.optString("name", "مندوب");
+            String keyBase = firstValue(rider, "employee_id", "id", "rider_id", "name");
+            if (keyBase.isEmpty()) keyBase = name;
+            keyBase = keyBase.replaceAll("[^A-Za-z0-9_-]", "_");
+
+            String state = rider.optString("rider_status",
+                    rider.optString("status", ""))
+                    .trim().toLowerCase(Locale.ROOT)
+                    .replace('-', '_').replace(' ', '_');
+
+            boolean onBreak = state.equals("break")
+                    || state.equals("on_break") || state.equals("onbreak");
+
+            if (onBreak) {
+                long started = parseTimestampMillis(firstValue(rider,
+                        "break_started_at", "breakStartedAt", "break_start_time",
+                        "breakStartTime", "on_break_since", "onBreakSince",
+                        "status_changed_at", "statusChangedAt"));
+
+                if (started > 0L && now >= started
+                        && now - started >= 15L * 60L * 1000L) {
+                    String key = "smart_alert_break_" + keyBase;
+                    if (now - rosterCachePrefs.getLong(key, 0L) >= cooldown) {
+                        alerts.add(name + ": بريك أكثر من 15 دقيقة");
+                        rosterCachePrefs.edit().putLong(key, now).apply();
+                    }
+                }
+            }
+
+            JSONArray orders = rider.optJSONArray("active_orders");
+            if (orders == null || orders.length() == 0) continue;
+
+            JSONObject order = orders.optJSONObject(0);
+            if (order == null) continue;
+
+            long orderStarted = parseTimestampMillis(firstValue(order,
+                    "accepted_at", "acceptedAt", "accepted_time", "acceptedTime",
+                    "created_at", "createdAt", "order_created_at", "orderCreatedAt",
+                    "created_at_utc", "timestamp"));
+
+            if (orderStarted > 0L && now >= orderStarted
+                    && now - orderStarted >= 10L * 60L * 1000L) {
+                String orderId = firstValue(order, "order_code", "delivery_id", "id");
+                orderId = orderId.replaceAll("[^A-Za-z0-9_-]", "_");
+                String key = "smart_alert_order_" + keyBase + "_" + orderId;
+
+                if (now - rosterCachePrefs.getLong(key, 0L) >= cooldown) {
+                    alerts.add(name + ": أوردر متأخر أكثر من 10 دقائق");
+                    rosterCachePrefs.edit().putLong(key, now).apply();
+                }
+            }
+        }
+
+        if (!alerts.isEmpty()) {
+            StringBuilder message = new StringBuilder("تنبيه المشرف");
+            int shown = Math.min(3, alerts.size());
+            for (int i = 0; i < shown; i++) {
+                message.append("\n• ").append(alerts.get(i));
+            }
+            if (alerts.size() > shown) {
+                message.append("\nو ").append(alerts.size() - shown)
+                        .append(" تنبيهات أخرى");
+            }
+            Toast.makeText(this, message.toString(), Toast.LENGTH_LONG).show();
+        }
+    }
+
+    // حفظ آخر تقرير ناجح في مجلد Downloads
+    private void exportSupervisorReport() {
+        String report = rosterCachePrefs == null ? null
+                : rosterCachePrefs.getString("last_successful_report", null);
+
+        if (report == null || report.trim().isEmpty()) {
+            Toast.makeText(this,
+                    "لا يوجد تقرير ناجح للتصدير حتى الآن",
+                    Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        try {
+            String fileName = saveInspection(report);
+            Toast.makeText(this,
+                    "تم حفظ التقرير في Downloads: " + fileName,
+                    Toast.LENGTH_LONG).show();
+        } catch (Exception e) {
+            Toast.makeText(this,
+                    "تعذر حفظ التقرير: " + e.getMessage(),
+                    Toast.LENGTH_LONG).show();
+        }
     }
 
     private JSONObject updateDailyStats(JSONArray riders) {
