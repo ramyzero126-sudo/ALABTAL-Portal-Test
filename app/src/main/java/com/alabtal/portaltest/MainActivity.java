@@ -2824,9 +2824,22 @@ public class MainActivity extends Activity {
 
         new Thread(() -> {
             try {
-                String titles = fetchSheetTitles(token);
-                // فحص تشخيصي مؤقت لأسماء التبويبات الفعلية.
-                showSheetError("أسماء التبويبات التي وجدها Google: " + titles);
+                JSONArray shifts = fetchSheetRows(
+                    token, "'تزويد الشيفتات'!A:H"
+                );
+                JSONArray breaks = fetchSheetRows(
+                    token, "'فك البريك'!A:F"
+                );
+
+                String html = buildSheetHtml(shifts, breaks);
+                runOnUiThread(() -> {
+                    if (sheetView != null) {
+                        sheetView.loadDataWithBaseURL(
+                            "https://alabtal.local/",
+                            html, "text/html", "UTF-8", null
+                        );
+                    }
+                });
             } catch (Exception e) {
                 String detail = e.getMessage();
                 if (detail == null || detail.trim().isEmpty()) {
