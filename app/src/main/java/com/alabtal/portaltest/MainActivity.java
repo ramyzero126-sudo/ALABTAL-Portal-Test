@@ -1230,10 +1230,28 @@ public class MainActivity extends Activity {
         heading.addView(identity);
 
         boolean hasOrders = orders != null && orders.length() > 0;
+
+        // لون شارة الحالة: الاستراحة أحمر، الشغال أخضر، والباقي أصفر.
+        String normalizedState = state == null
+                ? "" : state.trim().toLowerCase(Locale.ROOT);
+
+        int stateColor;
+        if (normalizedState.equals("break")
+                || normalizedState.equals("on_break")
+                || stateLabel.equals("استراحة")) {
+            stateColor = RED;
+        } else if (normalizedState.equals("working")
+                || normalizedState.equals("active")
+                || stateLabel.equals("شغال")) {
+            stateColor = GREEN;
+        } else {
+            stateColor = Color.rgb(255, 193, 7);
+        }
+
         TextView orderBadge = makeText(
                 "● " + stateLabel,
-                10, GREEN, true);
-        orderBadge.setShadowLayer(dp(4), 0, 0, GREEN);
+                10, stateColor, true);
+        orderBadge.setShadowLayer(dp(4), 0, 0, stateColor);
         orderBadge.setGravity(Gravity.CENTER);
         orderBadge.setPadding(dp(6), dp(5), dp(6), dp(5));
         heading.addView(orderBadge);
