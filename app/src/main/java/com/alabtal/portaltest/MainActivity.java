@@ -585,7 +585,7 @@ public class MainActivity extends Activity {
         dashboardStats.setOrientation(LinearLayout.VERTICAL);
         dashboardStats.setPadding(0, 0, 0, dp(1));
         dashboardStats.setVisibility(View.VISIBLE);
-        statsTitle.setText("ملخص التشغيل المباشر");
+        statsTitle.setText("ملخص الشغل المباشر");
         statsTitle.setClickable(false);
 
         // Compact refresh control beside the status line
@@ -2814,7 +2814,7 @@ public class MainActivity extends Activity {
             String[] labels, String[] values, int[] colors) {
         LinearLayout section = new LinearLayout(this);
         section.setOrientation(LinearLayout.VERTICAL);
-        section.setPadding(dp(7), dp(5), dp(7), dp(5));
+        section.setPadding(dp(5), dp(3), dp(5), dp(3));
 
         GradientDrawable panel = new GradientDrawable(
                 GradientDrawable.Orientation.TOP_BOTTOM,
@@ -2826,11 +2826,11 @@ public class MainActivity extends Activity {
 
         LinearLayout.LayoutParams sectionLp =
                 new LinearLayout.LayoutParams(-1, -2);
-        sectionLp.setMargins(0, dp(3), 0, dp(5));
+        sectionLp.setMargins(0, dp(1), 0, dp(2));
         parent.addView(section, sectionLp);
 
-        TextView title = makeText("◆  " + heading, 11, ORANGE, true);
-        title.setPadding(dp(3), dp(1), dp(3), dp(4));
+        TextView title = makeText("◆  " + heading, 9, ORANGE, true);
+        title.setPadding(dp(2), 0, dp(2), dp(2));
         title.setShadowLayer(dp(3), 0, 0, ORANGE_DEEP);
         section.addView(title);
 
@@ -2843,7 +2843,7 @@ public class MainActivity extends Activity {
             LinearLayout tile = new LinearLayout(this);
             tile.setOrientation(LinearLayout.VERTICAL);
             tile.setGravity(Gravity.CENTER);
-            tile.setPadding(dp(3), dp(4), dp(3), dp(4));
+            tile.setPadding(dp(2), dp(2), dp(2), dp(2));
 
             GradientDrawable tileBg = new GradientDrawable(
                     GradientDrawable.Orientation.TOP_BOTTOM,
@@ -2860,28 +2860,28 @@ public class MainActivity extends Activity {
             ledBg.setCornerRadius(dp(2));
             tile.addView(led, new LinearLayout.LayoutParams(-1, dp(2)));
 
-            TextView value = makeText(values[i], 13, colors[i], true);
+            TextView value = makeText(values[i], 11, colors[i], true);
             value.setGravity(Gravity.CENTER);
             value.setMaxLines(1);
             value.setEllipsize(android.text.TextUtils.TruncateAt.END);
             value.setShadowLayer(dp(3), 0, 0, colors[i]);
             LinearLayout.LayoutParams valueLp =
                     new LinearLayout.LayoutParams(-1, -2);
-            valueLp.topMargin = dp(3);
+            valueLp.topMargin = dp(1);
             tile.addView(value, valueLp);
 
-            TextView label = makeText(labels[i], 8, WHITE, true);
+            TextView label = makeText(labels[i], 7, WHITE, true);
             label.setGravity(Gravity.CENTER);
             label.setMaxLines(2);
             label.setEllipsize(android.text.TextUtils.TruncateAt.END);
             LinearLayout.LayoutParams labelLp =
                     new LinearLayout.LayoutParams(-1, -2);
-            labelLp.topMargin = dp(2);
+            labelLp.topMargin = dp(1);
             tile.addView(label, labelLp);
 
             LinearLayout.LayoutParams tileLp =
-                    new LinearLayout.LayoutParams(0, dp(51), 1f);
-            tileLp.setMargins(dp(2), dp(2), dp(2), dp(2));
+                    new LinearLayout.LayoutParams(0, dp(39), 1f);
+            tileLp.setMargins(dp(1), dp(1), dp(1), dp(1));
             row.addView(tile, tileLp);
         }
         section.addView(row);
@@ -3261,7 +3261,7 @@ public class MainActivity extends Activity {
         // كارت مدمج بحد علوي مضيء وظل خفيف.
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(dp(9), dp(7), dp(9), dp(7));
+        card.setPadding(dp(7), dp(5), dp(7), dp(5));
 
         GradientDrawable bg = new GradientDrawable(
                 GradientDrawable.Orientation.TOP_BOTTOM,
@@ -3273,7 +3273,7 @@ public class MainActivity extends Activity {
 
         LinearLayout.LayoutParams cardLp =
                 new LinearLayout.LayoutParams(-1, -2);
-        cardLp.setMargins(dp(1), dp(3), dp(1), dp(5));
+        cardLp.setMargins(0, dp(2), 0, dp(3));
         cards.addView(card, cardLp);
 
         View led = new View(this);
@@ -3291,7 +3291,7 @@ public class MainActivity extends Activity {
         heading.setGravity(Gravity.CENTER_VERTICAL);
         LinearLayout.LayoutParams headingLp =
                 new LinearLayout.LayoutParams(-1, -2);
-        headingLp.topMargin = dp(6);
+        headingLp.topMargin = dp(3);
         card.addView(heading, headingLp);
 
         LinearLayout identity = new LinearLayout(this);
@@ -3324,7 +3324,7 @@ public class MainActivity extends Activity {
         LinearLayout orderStrip = new LinearLayout(this);
         orderStrip.setOrientation(LinearLayout.HORIZONTAL);
         orderStrip.setGravity(Gravity.CENTER_VERTICAL);
-        orderStrip.setPadding(dp(8), dp(5), dp(8), dp(5));
+        orderStrip.setPadding(dp(6), dp(3), dp(6), dp(3));
         GradientDrawable orderStripBg = new GradientDrawable();
         orderStripBg.setColor(hasOrders
                 ? Color.rgb(10, 37, 27) : Color.rgb(27, 30, 36));
@@ -3335,6 +3335,8 @@ public class MainActivity extends Activity {
         TextView orderText = makeText(
                 hasOrders ? "● معاه أوردر" : "○ مفيش أوردر نشط",
                 10, hasOrders ? GREEN : MUTED, true);
+        orderText.setSingleLine(true);
+        orderText.setEllipsize(android.text.TextUtils.TruncateAt.END);
         orderStrip.addView(orderText,
                 new LinearLayout.LayoutParams(0, -2, 1f));
 
@@ -3355,6 +3357,15 @@ public class MainActivity extends Activity {
                     "vendor_name", "restaurant_name", "merchant_name",
                     "vendorName", "restaurantName");
         }
+
+        if (hasOrders && !vendor.isEmpty()
+                && !"غير متاح".equals(vendor)) {
+            orderText.setText("🍔 " + vendor);
+        } else {
+            orderText.setText(hasOrders
+                    ? "● معاه أوردر" : "○ مفيش أوردر نشط");
+        }
+
         if ((stage.isEmpty() || "غير متاح".equals(stage)) && hasOrders) {
             stage = "accepted order";
         }
@@ -3371,7 +3382,7 @@ public class MainActivity extends Activity {
 
         LinearLayout.LayoutParams orderStripLp =
                 new LinearLayout.LayoutParams(-1, -2);
-        orderStripLp.topMargin = dp(6);
+        orderStripLp.topMargin = dp(3);
         card.addView(orderStrip, orderStripLp);
 
         if (hasOrders) {
@@ -3379,7 +3390,7 @@ public class MainActivity extends Activity {
             progress.setOrientation(LinearLayout.VERTICAL);
             LinearLayout.LayoutParams progressLp =
                     new LinearLayout.LayoutParams(-1, -2);
-            progressLp.topMargin = dp(2);
+            progressLp.topMargin = dp(0);
             card.addView(progress, progressLp);
             addOrderProgressTrack(progress, stage, vendor);
         }
@@ -3391,7 +3402,7 @@ public class MainActivity extends Activity {
         metrics.setWeightSum(4f);
         LinearLayout.LayoutParams metricsLp =
                 new LinearLayout.LayoutParams(-1, -2);
-        metricsLp.topMargin = dp(6);
+        metricsLp.topMargin = dp(3);
         card.addView(metrics, metricsLp);
 
         addCompactMetric(metrics, "المحفظة", displayValue(wallet));
