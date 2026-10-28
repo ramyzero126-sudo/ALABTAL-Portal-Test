@@ -103,6 +103,7 @@ public class MainActivity extends Activity {
     private LinearLayout movementAlertsPanel;
     private LinearLayout movementAlertsList;
     private TextView movementAlertsCount;
+    private TextView topOrderAlertBanner;
     private TextView movementAlertsToggle;
     private boolean movementAlertsExpanded = false;
     private LinearLayout cards;
@@ -651,8 +652,6 @@ public class MainActivity extends Activity {
             renderMovementAlerts();
         });
 
-        scrollContent.addView(movementAlertsPanel,
-                new LinearLayout.LayoutParams(-1, -2));
         scrollContent.addView(statsTitle,
                 new LinearLayout.LayoutParams(-1, -2));
         scrollContent.addView(dashboardStats,
@@ -728,6 +727,20 @@ public class MainActivity extends Activity {
                 new FrameLayout.LayoutParams(-1, -1));
         contentFrame.addView(sheetView,
                 new FrameLayout.LayoutParams(-1, -1));
+
+        topOrderAlertBanner = new TextView(this);
+        topOrderAlertBanner.setText("⏳ جاري تحميل حالة الأوردرات...");
+        topOrderAlertBanner.setTextColor(WHITE);
+        topOrderAlertBanner.setTextSize(12);
+        topOrderAlertBanner.setMaxLines(2);
+        topOrderAlertBanner.setPadding(dp(10), dp(8), dp(10), dp(8));
+        topOrderAlertBanner.setGravity(Gravity.CENTER_VERTICAL);
+        topOrderAlertBanner.setBackground(round(
+                Color.rgb(25, 22, 18), ORANGE, 1));
+        LinearLayout.LayoutParams alertBannerParams =
+                new LinearLayout.LayoutParams(-1, -2);
+        alertBannerParams.setMargins(dp(8), dp(2), dp(8), dp(5));
+        root.addView(topOrderAlertBanner, alertBannerParams);
 
         root.addView(contentFrame,
                 new LinearLayout.LayoutParams(-1, 0, 1));
@@ -1349,6 +1362,7 @@ public class MainActivity extends Activity {
             }
 
             currentRiders = riders;
+            updateTopOrderAlertBanner(riders);
 
             int ridersWithOrders = 0;
             int totalOrders = 0;
@@ -1876,6 +1890,89 @@ public class MainActivity extends Activity {
                         new LinearLayout.LayoutParams(-1, dp(1)));
             }
         }
+    }
+
+    private void updateTopOrderAlertBanner(JSONArray riders) {
+        if (topOrderAlertBanner == null) return;
+
+        JSONObject chosenRider = null;
+        JSONObject chosenOrder = null;
+
+        if (riders != null) {
+            for (int i = 0; i < riders.length(); i++) {
+                JSONObject rider = riders.optJSONObject(i);
+                if (rider == null) continue;
+
+                JSONArray orders = rider.optJSONArray("active_orders");
+                if (orders == null || orders.length() == 0) continue;
+
+                JSONObject order = orders.optJSONObject(0);
+                if (order == null) continue;
+
+                chosenRider = rider;
+                chosenOrder = order;
+                break;
+            }
+        }
+
+        if (chosenRider == null || chosenOrder == null) {
+            topOrderAlertBanner.setText("✓ لا توجد أوردرات نشطة ظاهرة حاليًا");
+            topOrderAlertBanner.setTextColor(GREEN);
+            return;
+        }
+
+        String name = firstValue(chosenRider,
+                "name", "rider_name", "employee_name");
+        if (name.isEmpty()) name = "مندوب";
+
+        String rawStage = firstValue(chosenOrder,
+                "status", "stage", "order_status", "delivery_status")
+                .trim().toLowerCase(Locale.ROOT)
+                .replace('_', ' ').replace('-', ' ');
+
+        String stage;
+        if (rawStage.contains("picked") || rawStage.contains("in transit")
+                || rawStage.contains("on the way")
+                || rawStage.contains("out for delivery")
+                || rawStage.contains("في الطريق")) {
+            stage = "في الطريق";
+        } else if (rawStage.contains("delivered")
+                || rawStage.contains("completed")
+                || rawStage.contains("وصل")) {
+            stage = "تم التسليم";
+        } else if (rawStage.contains("accepted")
+                || rawStage.contains("assign")) {
+            stage = "مقبول";
+        } else if (rawStage.contains("arrived")) {
+            stage = "وصل للموقع";
+        } else {
+            stage = rawStage.isEmpty() ? "نشط" : rawStage;
+        }
+
+        long started = parseTimestampMillis(firstValue(chosenOrder,
+                "stage_started_at", "status_changed_at", "status_updated_at",
+                "picked_up_at", "pickedUpAt", "accepted_at", "acceptedAt",
+                "created_at", "createdAt", "order_created_at",
+                "orderCreatedAt", "created_at_utc", "timestamp"));
+
+        String elapsed = "";
+        long now = System.currentTimeMillis();
+        if (started > 0L && now >= started) {
+            long minutes = (now - started) / 60000L;
+            elapsed = minutes < 1 ? " • منذ أقل من دقيقة"
+                    : " • من " + minutes + " دقيقة";
+        }
+
+        String orderCode = firstValue(chosenOrder,
+                "order_code", "delivery_id", "order_id", "id");
+        String message = "🟠 " + name + " — معاه أوردر " + stage
+                + elapsed;
+        if (!orderCode.isEmpty()) {
+            message += "  |  " + orderCode;
+        }
+
+        topOrderAlertBanner.setText(message);
+        topOrderAlertBanner.setTextColor(WHITE);
     }
 
     private void monitorRiderChanges(JSONArray riders) {
@@ -2927,11 +3024,14 @@ public class MainActivity extends Activity {
         JSONArray header = headerIndex >= 0 ? rows.optJSONArray(headerIndex) : null;
         if (header == null) return -1;
 
-        String today = new SimpleDateFormat("yyyy-MM-dd", Locale.US).format(new Date());
+        java.util.Calendar bookingCalendar = java.util.Calendar.getInstance();
+        bookingCalendar.add(java.util.Calendar.DAY_OF_YEAR, 1);
+        String targetDate = new SimpleDateFormat("yyyy-MM-dd", Locale.US)
+                .format(bookingCalendar.getTime());
         int dateColumn = -1;
 
         for (int c = 5; c < header.length(); c++) {
-            if (today.equals(bookingDateIso(sheetCell(header, c)))) {
+            if (targetDate.equals(bookingDateIso(sheetCell(header, c)))) {
                 dateColumn = c;
                 break;
             }
