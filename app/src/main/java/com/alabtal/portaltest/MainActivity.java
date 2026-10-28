@@ -357,14 +357,12 @@ public class MainActivity extends Activity {
 
         TextView statsTitle = makeText(
                 "◈  لوحة مؤشرات التشغيل", 11, ORANGE, true);
-        statsTitle.setPadding(dp(4), dp(3), dp(4), dp(2));
-        root.addView(statsTitle);
+        statsTitle.setPadding(dp(3), dp(1), dp(3), dp(1));
 
         dashboardStats = new LinearLayout(this);
         dashboardStats.setOrientation(LinearLayout.VERTICAL);
-        // Keep all live statistics visible on the main screen.
+        dashboardStats.setPadding(0, 0, 0, dp(1));
         dashboardStats.setVisibility(View.VISIBLE);
-        root.addView(dashboardStats);
         statsTitle.setText("ملخص التشغيل المباشر");
         statsTitle.setClickable(false);
 
@@ -555,39 +553,20 @@ public class MainActivity extends Activity {
         riderCardsScroll = new ScrollView(this);
         riderCardsScroll.setFillViewport(false);
 
-        // Hide the top header while scrolling up; keep the LED banner fixed.
-        riderCardsScroll.setOnScrollChangeListener(
-                (View v, int scrollX, int scrollY,
-                 int oldScrollX, int oldScrollY) -> {
-            if (scrollY <= dp(2) || scrollY < oldScrollY) {
-                if (portalRow.getVisibility() != View.VISIBLE) {
-                    portalRow.setVisibility(View.VISIBLE);
-                    portalRow.setTranslationY(-portalRow.getHeight());
-                    portalRow.setAlpha(0f);
-                    portalRow.animate()
-                            .translationY(0f)
-                            .alpha(1f)
-                            .setDuration(180)
-                            .start();
-                }
-            } else if (scrollY > oldScrollY &&
-                    portalRow.getVisibility() == View.VISIBLE) {
-                portalRow.animate()
-                        .translationY(-portalRow.getHeight())
-                        .alpha(0f)
-                        .setDuration(180)
-                        .withEndAction(() -> {
-                            portalRow.setVisibility(View.GONE);
-                            portalRow.setTranslationY(0f);
-                            portalRow.setAlpha(1f);
-                        })
-                        .start();
-            }
-        });
-
+        // الهيدر والكورة الأرضية والبانر ثابتون أعلى الشاشة.
+        // الإحصائيات وكروت المندوبين داخل نفس منطقة التمرير.
         cards = new LinearLayout(this);
         cards.setOrientation(LinearLayout.VERTICAL);
-        riderCardsScroll.addView(cards);
+
+        LinearLayout scrollContent = new LinearLayout(this);
+        scrollContent.setOrientation(LinearLayout.VERTICAL);
+        scrollContent.addView(statsTitle,
+                new LinearLayout.LayoutParams(-1, -2));
+        scrollContent.addView(dashboardStats,
+                new LinearLayout.LayoutParams(-1, -2));
+        scrollContent.addView(cards,
+                new LinearLayout.LayoutParams(-1, -2));
+        riderCardsScroll.addView(scrollContent);
 
         riderMapView = new WebView(this);
         riderMapView.setBackgroundColor(BG);
@@ -1859,7 +1838,7 @@ public class MainActivity extends Activity {
             LinearLayout tile = new LinearLayout(this);
             tile.setOrientation(LinearLayout.VERTICAL);
             tile.setGravity(Gravity.CENTER);
-            tile.setPadding(dp(3), dp(4), dp(3), dp(4));
+            tile.setPadding(dp(2), dp(1), dp(2), dp(1));
 
             GradientDrawable bg = new GradientDrawable(
                     GradientDrawable.Orientation.TOP_BOTTOM,
@@ -1871,12 +1850,12 @@ public class MainActivity extends Activity {
             tile.setElevation(dp(5));
             tile.setTranslationZ(dp(1));
 
-            TextView icon = makeText(statIcon(labels[i]), 10, colors[i], true);
+            TextView icon = makeText(statIcon(labels[i]), 8, colors[i], true);
             icon.setGravity(Gravity.CENTER);
             icon.setShadowLayer(dp(3), 0, 0, colors[i]);
             tile.addView(icon, new LinearLayout.LayoutParams(-1, -2));
 
-            TextView value = makeText(values[i], 12, colors[i], true);
+            TextView value = makeText(values[i], 11, colors[i], true);
             value.setGravity(Gravity.CENTER);
             value.setShadowLayer(dp(3), 0, 0, colors[i]);
             tile.addView(value, new LinearLayout.LayoutParams(-1, -2));
@@ -1887,7 +1866,7 @@ public class MainActivity extends Activity {
             tile.addView(label, new LinearLayout.LayoutParams(-1, -2));
 
             LinearLayout.LayoutParams tileParams =
-                    new LinearLayout.LayoutParams(0, dp(45), 1f);
+                    new LinearLayout.LayoutParams(0, dp(39), 1f);
             tileParams.setMargins(dp(2), dp(2), dp(2), dp(3));
             row.addView(tile, tileParams);
         }
