@@ -3337,9 +3337,9 @@ public class MainActivity extends Activity {
         }
         if (stage.isEmpty() && hasOrders) stage = "accepted order";
 
-        if (hasOrders && activeOrder != null) {
+        if (hasOrders) {
             TextView stageBadge = makeText(
-                    stage.isEmpty() ? "مرحلة غير متاحة" : arabicStatus(stage),
+                    stage.isEmpty() ? "معاه أوردر • المرحلة غير متاحة" : arabicStatus(stage),
                     9, ORANGE, true);
             stageBadge.setGravity(Gravity.CENTER);
             stageBadge.setPadding(dp(6), dp(4), dp(6), dp(4));
