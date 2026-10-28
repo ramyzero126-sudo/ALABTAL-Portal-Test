@@ -253,7 +253,7 @@ public class MainActivity extends Activity {
         portalButton.setBackground(round(Color.rgb(10, 23, 34), ORANGE, 2));
         portalButton.setElevation(dp(5));
         LinearLayout.LayoutParams portalParams =
-                new LinearLayout.LayoutParams(dp(43), dp(43));
+                new LinearLayout.LayoutParams(dp(36), dp(36));
         portalParams.setMargins(0, 0, dp(7), 0);
         portalRow.addView(portalButton, portalParams);
         portalButton.setOnClickListener(v -> showPortalPage());
@@ -272,20 +272,20 @@ public class MainActivity extends Activity {
         brand.setBackground(brandBg);
         brand.setElevation(dp(7));
 
-        TextView title = makeText("AL ABTAL", 20, ORANGE, true);
+        TextView title = makeText("AL ABTAL", 18, ORANGE, true);
         title.setGravity(Gravity.CENTER);
         title.setTypeface(Typeface.create("sans-serif-black", Typeface.BOLD));
         title.setLetterSpacing(0.09f);
         title.setShadowLayer(dp(7), 0, 0, ORANGE);
-        brand.addView(title, new LinearLayout.LayoutParams(-1, dp(26)));
+        brand.addView(title, new LinearLayout.LayoutParams(-1, dp(22)));
 
         TextView subtitle = makeText("LIVE OPERATIONS", 9, WHITE, true);
         subtitle.setGravity(Gravity.CENTER);
         subtitle.setLetterSpacing(0.18f);
-        brand.addView(subtitle, new LinearLayout.LayoutParams(-1, dp(13)));
+        brand.addView(subtitle, new LinearLayout.LayoutParams(-1, dp(11)));
 
         LinearLayout.LayoutParams brandParams =
-                new LinearLayout.LayoutParams(0, dp(47), 1f);
+                new LinearLayout.LayoutParams(0, dp(39), 1f);
         brandParams.setMargins(0, 0, dp(6), 0);
         portalRow.addView(brand, brandParams);
 
@@ -296,6 +296,26 @@ public class MainActivity extends Activity {
         liveBadge.setElevation(dp(3));
         portalRow.addView(liveBadge,
                 new LinearLayout.LayoutParams(-2, dp(34)));
+
+        Button logoutButton = makeButton("⇥");
+        logoutButton.setTextSize(17);
+        logoutButton.setContentDescription("تسجيل الخروج من البوابة");
+        logoutButton.setBackground(round(
+                Color.rgb(35, 13, 13), Color.rgb(230, 75, 65), 1));
+        logoutButton.setElevation(dp(4));
+        LinearLayout.LayoutParams logoutParams =
+                new LinearLayout.LayoutParams(dp(34), dp(34));
+        logoutParams.setMargins(dp(5), 0, 0, 0);
+        portalRow.addView(logoutButton, logoutParams);
+        logoutButton.setOnClickListener(v ->
+                new AlertDialog.Builder(this)
+                        .setTitle("تسجيل الخروج")
+                        .setMessage("سيتم تسجيل الخروج من بوابة الشركة. ستظل إحصائيات اليوم محفوظة.")
+                        .setNegativeButton("إلغاء",
+                                (dialog, which) -> dialog.dismiss())
+                        .setPositiveButton("تسجيل الخروج",
+                                (dialog, which) -> logoutPortal())
+                        .show());
 
         LinearLayout.LayoutParams portalRowParams =
                 new LinearLayout.LayoutParams(-1, -2);
@@ -500,13 +520,10 @@ public class MainActivity extends Activity {
         mapTab.setTextSize(10);
         sheetTab.setTextSize(9);
         bookingsTab.setTextSize(9);
-        ridersTab.setBackground(round(Color.rgb(39, 24, 13), ORANGE, 2));
-        mapTab.setBackground(round(Color.rgb(12, 27, 42),
-                Color.rgb(65, 150, 240), 2));
-        sheetTab.setBackground(round(Color.rgb(25, 19, 39),
-                Color.rgb(145, 110, 220), 2));
-        bookingsTab.setBackground(round(Color.rgb(39, 27, 12),
-                Color.rgb(230, 150, 45), 2));
+        ridersTab.setBackground(round(Color.rgb(30, 22, 16), ORANGE, 2));
+        mapTab.setBackground(round(Color.rgb(15, 22, 31), ORANGE, 2));
+        sheetTab.setBackground(round(Color.rgb(15, 22, 31), ORANGE, 2));
+        bookingsTab.setBackground(round(Color.rgb(30, 22, 16), ORANGE, 2));
         ridersTab.setElevation(dp(7));
         mapTab.setElevation(dp(7));
         sheetTab.setElevation(dp(7));
@@ -1534,12 +1551,14 @@ public class MainActivity extends Activity {
     }
 
     private JSONObject updateDailyStats(JSONArray riders) {
-        String day = new SimpleDateFormat("yyyyMMdd", Locale.US).format(new Date());
+        String day = new SimpleDateFormat("yyyyMMdd", Locale.US)
+                .format(new Date());
         String prefKey = "daily_stats_" + day;
         JSONObject daily;
 
         try {
-            daily = new JSONObject(rosterCachePrefs.getString(prefKey, "{}"));
+            daily = new JSONObject(
+                    rosterCachePrefs.getString(prefKey, "{}"));
         } catch (Exception e) {
             daily = new JSONObject();
         }
@@ -1550,51 +1569,104 @@ public class MainActivity extends Activity {
 
             String riderKey = firstValue(
                     rider, "employee_id", "id", "rider_id", "name");
-            if (riderKey.isEmpty() || "غير متاح".equals(riderKey)) continue;
-
-            JSONObject saved = daily.optJSONObject(riderKey);
-            if (saved == null) saved = new JSONObject();
+            if (riderKey.isEmpty()
+                    || "غير متاح".equals(riderKey)) continue;
 
             long seconds = rider.optLong("worked_seconds", -1);
             long orders = rider.optLong("total_orders", -1);
 
             if (seconds < 0) {
                 String worked = rider.optString("worked_time", "").trim();
-                java.util.regex.Matcher duration = java.util.regex.Pattern
-                        .compile("^(\\d{1,3}):(\\d{2}):(\\d{2})$")
-                        .matcher(worked);
-                if (duration.matches()) {
-                    seconds = Long.parseLong(duration.group(1)) * 3600L
-                            + Long.parseLong(duration.group(2)) * 60L
-                            + Long.parseLong(duration.group(3));
+                java.util.regex.Matcher m =
+                        java.util.regex.Pattern.compile(
+                                "^(\\d{1,3}):(\\d{2}):(\\d{2})$")
+                                .matcher(worked);
+                if (m.matches()) {
+                    seconds = Long.parseLong(m.group(1)) * 3600L
+                            + Long.parseLong(m.group(2)) * 60L
+                            + Long.parseLong(m.group(3));
                 }
             }
 
+            String shiftStart = firstValue(
+                    rider, "shift_start", "start",
+                    "active_shift_started_at",
+                    "active_shift_startedAt", "session_start");
+
+            if (shiftStart.isEmpty()) shiftStart = "shift_unknown";
+            shiftStart = shiftStart.trim()
+                    .replaceAll("[^A-Za-z0-9_-]", "_");
+            String shiftKey = "shift_" + shiftStart;
+
             try {
+                JSONObject saved = daily.optJSONObject(riderKey);
+                if (saved == null) saved = new JSONObject();
+
+                JSONObject shifts = saved.optJSONObject("shifts");
+                if (shifts == null) {
+                    shifts = new JSONObject();
+
+                    // ترحيل السجل القديم بدل فقد أرقام اليوم.
+                    if (saved.has("worked_seconds") || saved.has("orders")) {
+                        JSONObject legacy = new JSONObject();
+                        legacy.put("worked_seconds",
+                                Math.max(0, saved.optLong("worked_seconds", 0)));
+                        legacy.put("orders",
+                                Math.max(0, saved.optLong("orders", 0)));
+                        shifts.put(shiftKey, legacy);
+                    }
+                }
+
+                JSONObject shift = shifts.optJSONObject(shiftKey);
+                if (shift == null) shift = new JSONObject();
+
                 if (seconds >= 0) {
-                    saved.put("worked_seconds", Math.max(
-                            seconds, saved.optLong("worked_seconds", 0)));
+                    shift.put("worked_seconds",
+                            Math.max(seconds,
+                                    shift.optLong("worked_seconds", 0)));
                 }
                 if (orders >= 0) {
-                    saved.put("orders", Math.max(
-                            orders, saved.optLong("orders", 0)));
+                    shift.put("orders",
+                            Math.max(orders, shift.optLong("orders", 0)));
                 }
+
+                shifts.put(shiftKey, shift);
+                saved.put("shifts", shifts);
+                saved.remove("worked_seconds");
+                saved.remove("orders");
                 daily.put(riderKey, saved);
             } catch (Exception ignored) { }
         }
 
         long totalSeconds = 0;
         long totalOrders = 0;
-        java.util.Iterator<String> keys = daily.keys();
+        java.util.Iterator<String> riderKeys = daily.keys();
 
-        while (keys.hasNext()) {
-            JSONObject saved = daily.optJSONObject(keys.next());
+        while (riderKeys.hasNext()) {
+            JSONObject saved = daily.optJSONObject(riderKeys.next());
             if (saved == null) continue;
-            totalSeconds += saved.optLong("worked_seconds", 0);
-            totalOrders += saved.optLong("orders", 0);
+
+            JSONObject shifts = saved.optJSONObject("shifts");
+            if (shifts == null) {
+                totalSeconds += Math.max(
+                        0, saved.optLong("worked_seconds", 0));
+                totalOrders += Math.max(0, saved.optLong("orders", 0));
+                continue;
+            }
+
+            java.util.Iterator<String> shiftKeys = shifts.keys();
+            while (shiftKeys.hasNext()) {
+                JSONObject shift =
+                        shifts.optJSONObject(shiftKeys.next());
+                if (shift == null) continue;
+                totalSeconds += Math.max(
+                        0, shift.optLong("worked_seconds", 0));
+                totalOrders += Math.max(0, shift.optLong("orders", 0));
+            }
         }
 
-        rosterCachePrefs.edit().putString(prefKey, daily.toString()).apply();
+        rosterCachePrefs.edit()
+                .putString(prefKey, daily.toString()).apply();
 
         JSONObject totals = new JSONObject();
         try {
@@ -1603,7 +1675,6 @@ public class MainActivity extends Activity {
         } catch (Exception ignored) { }
         return totals;
     }
-
 
     private void addMicroStatSection(
             LinearLayout parent, String heading,
@@ -1627,10 +1698,10 @@ public class MainActivity extends Activity {
 
             GradientDrawable bg = new GradientDrawable(
                     GradientDrawable.Orientation.TOP_BOTTOM,
-                    new int[]{Color.rgb(29, 35, 46), Color.rgb(8, 11, 17)}
+                    new int[]{Color.rgb(31, 29, 27), Color.rgb(8, 10, 14)}
             );
             bg.setCornerRadius(dp(11));
-            bg.setStroke(dp(1), Color.rgb(92, 62, 43));
+            bg.setStroke(dp(1), Color.rgb(112, 66, 34));
             tile.setBackground(bg);
             tile.setElevation(dp(5));
             tile.setTranslationZ(dp(1));
