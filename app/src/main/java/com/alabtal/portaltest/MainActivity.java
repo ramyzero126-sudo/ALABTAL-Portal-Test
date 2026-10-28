@@ -3305,9 +3305,54 @@ public class MainActivity extends Activity {
         nameView.setEllipsize(android.text.TextUtils.TruncateAt.END);
         identity.addView(nameView);
 
-        String identityLine = id.isEmpty() ? "مندوب" : "ID  " + id;
-        if (!batch.isEmpty()) identityLine += "   •   باتش " + batch;
-        identity.addView(makeText(identityLine, 9, MUTED, false));
+        if (batch.equalsIgnoreCase("غير متاح")
+                || batch.equalsIgnoreCase("n/a")
+                || batch.equalsIgnoreCase("null")
+                || batch.equals("-") || batch.equals("—")) {
+            batch = "";
+        }
+
+        LinearLayout idRow = new LinearLayout(this);
+        idRow.setOrientation(LinearLayout.HORIZONTAL);
+        idRow.setGravity(Gravity.CENTER_VERTICAL);
+
+        TextView idView = makeText(
+                id.isEmpty() ? "🆔 —" : "🆔 " + id, 9, MUTED, false);
+        idRow.addView(idView);
+
+        if (!id.isEmpty()) {
+            TextView copyIdButton = makeText("نسخ", 9, ORANGE, true);
+            copyIdButton.setGravity(Gravity.CENTER);
+            copyIdButton.setPadding(dp(7), dp(2), dp(7), dp(2));
+            copyIdButton.setBackground(round(
+                    Color.rgb(42, 29, 17), ORANGE, 1));
+            LinearLayout.LayoutParams copyLp =
+                    new LinearLayout.LayoutParams(-2, -2);
+            copyLp.leftMargin = dp(6);
+            idRow.addView(copyIdButton, copyLp);
+            copyIdButton.setOnClickListener(v -> {
+                android.content.ClipboardManager clipboard =
+                        (android.content.ClipboardManager)
+                        getSystemService(CLIPBOARD_SERVICE);
+                if (clipboard != null) {
+                    clipboard.setPrimaryClip(
+                            android.content.ClipData.newPlainText(
+                                    "Rider ID", id));
+                    android.widget.Toast.makeText(
+                            this, "تم نسخ رقم المندوب",
+                            android.widget.Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
+
+        if (!batch.isEmpty()) {
+            TextView batchView = makeText("باتش " + batch, 9, MUTED, false);
+            LinearLayout.LayoutParams batchLp =
+                    new LinearLayout.LayoutParams(-2, -2);
+            batchLp.leftMargin = dp(8);
+            idRow.addView(batchView, batchLp);
+        }
+        identity.addView(idRow);
         heading.addView(identity);
 
         TextView stateBadge = makeText("● " + stateLabel, 10, stateColor, true);
@@ -3334,8 +3379,7 @@ public class MainActivity extends Activity {
         orderStrip.setBackground(orderStripBg);
 
         TextView orderText = makeText(
-                hasOrders ? "● معاه أوردر" : "○ مفيش أوردر نشط",
-                10, hasOrders ? GREEN : MUTED, true);
+                "", 10, hasOrders ? GREEN : MUTED, true);
         orderText.setSingleLine(true);
         orderText.setEllipsize(android.text.TextUtils.TruncateAt.END);
         orderStrip.addView(orderText,
@@ -3359,12 +3403,14 @@ public class MainActivity extends Activity {
                     "vendorName", "restaurantName");
         }
 
-        if (hasOrders && !vendor.isEmpty()
-                && !"غير متاح".equals(vendor)) {
+        if (!vendor.isEmpty()
+                && !"غير متاح".equals(vendor)
+                && !"null".equalsIgnoreCase(vendor)) {
             orderText.setText("🍔 " + vendor);
+        } else if (hasOrders) {
+            orderText.setText("🍔 اسم المطعم غير متاح");
         } else {
-            orderText.setText(hasOrders
-                    ? "● معاه أوردر" : "○ مفيش أوردر نشط");
+            orderText.setText("");
         }
 
         if ((stage.isEmpty() || "غير متاح".equals(stage)) && hasOrders) {
@@ -3384,7 +3430,12 @@ public class MainActivity extends Activity {
         LinearLayout.LayoutParams orderStripLp =
                 new LinearLayout.LayoutParams(-1, -2);
         orderStripLp.topMargin = dp(3);
-        card.addView(orderStrip, orderStripLp);
+        if (hasOrders && !vendor.isEmpty()
+                && !"غير متاح".equals(vendor)) {
+            card.addView(orderStrip, orderStripLp);
+        } else if (hasOrders) {
+            card.addView(orderStrip, orderStripLp);
+        }
 
         if (hasOrders) {
             LinearLayout progress = new LinearLayout(this);
