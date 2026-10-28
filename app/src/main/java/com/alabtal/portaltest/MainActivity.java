@@ -3488,13 +3488,23 @@ public class MainActivity extends Activity {
         String value = sheetCell(matched, dateColumn)
                 .trim().toLowerCase(Locale.ROOT);
 
-        boolean vacation = value.contains("إجاز") || value.contains("اجاز");
-        boolean emptyChoice = value.isEmpty()
+        boolean notBooked = value.isEmpty()
+                || value.contains("إجاز")
+                || value.contains("اجاز")
+                || value.contains("emptychoice")
                 || value.contains("مش مختار")
                 || value.contains("مطلوب يختار")
-                || value.contains("غير مختار");
+                || value.contains("غير مختار")
+                || value.contains("مش حاجز")
+                || value.contains("غير حاجز")
+                || value.contains("لم يحجز")
+                || value.contains("لم يتم الحجز")
+                || value.contains("لا يوجد حجز")
+                || value.equals("no")
+                || value.equals("false")
+                || value.equals("-");
 
-        return (!vacation && !emptyChoice) ? 1 : 0;
+        return notBooked ? 0 : 1;
     }
 
     private void addAnimatedBookingBadge(
