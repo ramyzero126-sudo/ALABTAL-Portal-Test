@@ -452,11 +452,11 @@ public class MainActivity extends Activity {
         root.setOrientation(LinearLayout.VERTICAL);
         GradientDrawable dashboardBg = new GradientDrawable(
                 GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[]{Color.rgb(19, 23, 30), Color.rgb(5, 8, 13),
-                          Color.rgb(18, 13, 10)}
+                new int[]{Color.rgb(16, 18, 26), Color.rgb(4, 6, 10),
+                          Color.rgb(20, 9, 4)}
         );
         root.setBackground(dashboardBg);
-        root.setPadding(dp(8), dp(3), dp(8), dp(2));
+        root.setPadding(dp(6), dp(2), dp(6), dp(2));
 
         // Unified 3D operations header
         LinearLayout portalRow = new LinearLayout(this);
@@ -483,14 +483,14 @@ public class MainActivity extends Activity {
 
         GradientDrawable brandBg = new GradientDrawable(
                 GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[]{Color.rgb(74, 38, 13), Color.rgb(15, 19, 26)}
+                new int[]{Color.rgb(52, 24, 8), Color.rgb(8, 12, 20)}
         );
-        brandBg.setCornerRadius(dp(14));
-        brandBg.setStroke(dp(2), ORANGE);
+        brandBg.setCornerRadius(dp(12));
+        brandBg.setStroke(dp(1), Color.rgb(255, 135, 25));
         brand.setBackground(brandBg);
         brand.setElevation(dp(7));
 
-        TextView title = makeText("AL ABTAL", 18, ORANGE, true);
+        TextView title = makeText("AL ABTAL", 17, ORANGE, true);
         title.setGravity(Gravity.CENTER);
         title.setTypeface(Typeface.create("sans-serif-black", Typeface.BOLD));
         title.setLetterSpacing(0.09f);
@@ -551,15 +551,15 @@ public class MainActivity extends Activity {
 
         GradientDrawable ledBg = new GradientDrawable(
                 GradientDrawable.Orientation.LEFT_RIGHT,
-                new int[]{Color.rgb(48, 25, 10), Color.rgb(15, 18, 24),
-                          Color.rgb(48, 25, 10)}
+                new int[]{Color.rgb(58, 25, 5), Color.rgb(8, 13, 22),
+                          Color.rgb(58, 25, 5)}
         );
         ledBg.setCornerRadius(dp(8));
         ledBg.setStroke(dp(1), ORANGE);
         banner.setBackground(ledBg);
 
         LinearLayout.LayoutParams bp =
-                new LinearLayout.LayoutParams(-1, dp(23));
+                new LinearLayout.LayoutParams(-1, dp(25));
         bp.setMargins(0, 0, 0, dp(1));
         root.addView(banner, bp);
         handler.post(bannerRunnable);
@@ -572,7 +572,9 @@ public class MainActivity extends Activity {
         summary.setTextSize(10);
         summary.setMaxLines(1);
         summary.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        summary.setPadding(0, 0, 0, 0);
+        summary.setPadding(dp(7), dp(3), dp(7), dp(3));
+        summary.setBackground(round(Color.rgb(10, 14, 21),
+                Color.rgb(87, 48, 22), 1));
         root.addView(summary);
 
         TextView statsTitle = makeText(
@@ -708,8 +710,8 @@ public class MainActivity extends Activity {
                     GradientDrawable.Orientation.TOP_BOTTOM,
                     new int[]{Color.rgb(39, 27, 18), Color.rgb(10, 14, 21)}
             );
-            chipBg.setCornerRadius(dp(18));
-            chipBg.setStroke(dp(1), ORANGE);
+            chipBg.setCornerRadius(dp(10));
+            chipBg.setStroke(dp(1), Color.rgb(185, 79, 19));
             chip.setBackground(chipBg);
             chip.setElevation(dp(4));
             chip.setTranslationZ(dp(1));
@@ -1132,11 +1134,11 @@ public class MainActivity extends Activity {
 
         GradientDrawable tileBg = new GradientDrawable(
                 GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[]{Color.rgb(35, 25, 19), Color.rgb(12, 13, 17)});
-        tileBg.setCornerRadius(dp(13));
-        tileBg.setStroke(dp(1), Color.rgb(165, 78, 30));
+                new int[]{Color.rgb(27, 20, 17), Color.rgb(6, 10, 17)});
+        tileBg.setCornerRadius(dp(10));
+        tileBg.setStroke(dp(1), Color.rgb(115, 57, 27));
         box.setBackground(tileBg);
-        box.setElevation(dp(3));
+        box.setElevation(dp(4));
 
         TextView l = makeText(label, 10, MUTED, false);
         l.setMaxLines(2);
@@ -3129,20 +3131,38 @@ public class MainActivity extends Activity {
         GradientDrawable cardBg = new GradientDrawable(
                 GradientDrawable.Orientation.TOP_BOTTOM,
                 new int[]{
-                        Color.rgb(48, 25, 10),
-                        Color.rgb(17, 27, 39),
-                        Color.rgb(5, 8, 13)
+                        Color.rgb(36, 17, 7),
+                        Color.rgb(12, 17, 27),
+                        Color.rgb(4, 6, 10)
                 }
         );
-        cardBg.setCornerRadius(dp(14));
-        cardBg.setStroke(dp(1), Color.rgb(108, 61, 31));
+        cardBg.setCornerRadius(dp(13));
+        cardBg.setStroke(dp(1), Color.rgb(224, 91, 18));
         card.setBackground(cardBg);
-        card.setElevation(dp(3));
-        card.setTranslationZ(0);
+        card.setElevation(dp(7));
+        card.setTranslationZ(dp(1));
+
+        TextView ledRail = new TextView(this);
+        ledRail.setText("");
+        GradientDrawable railBg = new GradientDrawable(
+                GradientDrawable.Orientation.LEFT_RIGHT,
+                new int[]{Color.rgb(105, 42, 8), ORANGE, Color.rgb(255, 185, 76)});
+        railBg.setCornerRadius(dp(3));
+        ledRail.setBackground(railBg);
+        LinearLayout.LayoutParams railParams =
+                new LinearLayout.LayoutParams(-1, dp(2));
+        railParams.setMargins(dp(1), 0, dp(1), dp(5));
+        card.addView(ledRail, railParams);
+        ObjectAnimator railPulse = ObjectAnimator.ofFloat(
+                ledRail, View.ALPHA, 0.58f, 1f);
+        railPulse.setDuration(1400);
+        railPulse.setRepeatMode(ObjectAnimator.REVERSE);
+        railPulse.setRepeatCount(1);
+        railPulse.start();
 
         LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(
                 -1, -2);
-        cardParams.setMargins(dp(3), dp(2), dp(3), dp(3));
+        cardParams.setMargins(dp(2), dp(3), dp(2), dp(5));
         cards.addView(card, cardParams);
 
         String name = firstValue(rider, "name", "employee_name", "rider_name");
@@ -3165,8 +3185,8 @@ public class MainActivity extends Activity {
         identity.setGravity(Gravity.CENTER_VERTICAL);
         identity.setLayoutParams(new LinearLayout.LayoutParams(0, -2, 1));
 
-        TextView nameView = makeText(name, 14, Color.WHITE, true);
-        nameView.setShadowLayer(dp(5), 0, 0, ORANGE);
+        TextView nameView = makeText(name, 15, Color.WHITE, true);
+        nameView.setShadowLayer(dp(6), 0, 0, Color.rgb(180, 67, 8));
         nameView.setMaxLines(1);
         nameView.setEllipsize(android.text.TextUtils.TruncateAt.END);
         identity.addView(nameView);
