@@ -100,6 +100,11 @@ public class MainActivity extends Activity {
     private TextView banner;
     private TextView summary;
     private LinearLayout dashboardStats;
+    private LinearLayout movementAlertsPanel;
+    private LinearLayout movementAlertsList;
+    private TextView movementAlertsCount;
+    private TextView movementAlertsToggle;
+    private boolean movementAlertsExpanded = false;
     private LinearLayout cards;
     private ScrollView riderCardsScroll;
     private WebView riderMapView;
@@ -584,8 +589,66 @@ public class MainActivity extends Activity {
         cards = new LinearLayout(this);
         cards.setOrientation(LinearLayout.VERTICAL);
 
-        LinearLayout scrollContent = new LinearLayout(this);
-        scrollContent.setOrientation(LinearLayout.VERTICAL);
+        movementAlertsPanel = new LinearLayout(this);
+        movementAlertsPanel.setOrientation(LinearLayout.VERTICAL);
+        movementAlertsPanel.setPadding(dp(10), dp(8), dp(10), dp(8));
+        android.graphics.drawable.GradientDrawable alertBg =
+                new android.graphics.drawable.GradientDrawable();
+        alertBg.setColor(android.graphics.Color.rgb(18, 20, 24));
+        alertBg.setCornerRadius(dp(12));
+        alertBg.setStroke(dp(1), ORANGE);
+        movementAlertsPanel.setBackground(alertBg);
+
+        LinearLayout alertHeader = new LinearLayout(this);
+        alertHeader.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        alertHeader.setOrientation(LinearLayout.HORIZONTAL);
+
+        TextView alertTitle = new TextView(this);
+        alertTitle.setText("🔔 حركة الأوردرات والمناديب");
+        alertTitle.setTextColor(WHITE);
+        alertTitle.setTextSize(13);
+        alertTitle.setTypeface(null, android.graphics.Typeface.BOLD);
+        alertHeader.addView(alertTitle,
+                new LinearLayout.LayoutParams(0, -2, 1));
+
+        movementAlertsCount = new TextView(this);
+        movementAlertsCount.setTextColor(ORANGE);
+        movementAlertsCount.setTextSize(12);
+        movementAlertsCount.setPadding(dp(5), 0, dp(5), 0);
+        alertHeader.addView(movementAlertsCount);
+
+        movementAlertsToggle = new TextView(this);
+        movementAlertsToggle.setText("عرض");
+        movementAlertsToggle.setTextColor(ORANGE);
+        movementAlertsToggle.setTextSize(12);
+        movementAlertsToggle.setPadding(dp(8), dp(6), dp(4), dp(6));
+        alertHeader.addView(movementAlertsToggle);
+
+        TextView markRead = new TextView(this);
+        markRead.setText("مقروء");
+        markRead.setTextColor(WHITE);
+        markRead.setTextSize(11);
+        markRead.setPadding(dp(7), dp(6), dp(3), dp(6));
+        alertHeader.addView(markRead);
+
+        movementAlertsPanel.addView(alertHeader);
+        movementAlertsList = new LinearLayout(this);
+        movementAlertsList.setOrientation(LinearLayout.VERTICAL);
+        movementAlertsList.setVisibility(View.GONE);
+        movementAlertsPanel.addView(movementAlertsList);
+
+        movementAlertsToggle.setOnClickListener(v -> {
+            movementAlertsExpanded = !movementAlertsExpanded;
+            renderMovementAlerts();
+        });
+
+        markRead.setOnClickListener(v -> {
+            markMovementAlertsRead();
+            renderMovementAlerts();
+        });
+
+        scrollContent.addView(movementAlertsPanel,
+                new LinearLayout.LayoutParams(-1, -2));
         scrollContent.addView(statsTitle,
                 new LinearLayout.LayoutParams(-1, -2));
         scrollContent.addView(dashboardStats,
@@ -1676,6 +1739,141 @@ public class MainActivity extends Activity {
 
 
     // يقارن التقرير الحي السابق بالحالي؛ لا يعتبر اختفاء المندوب تغيير حالة.
+
+    private void recordMovementAlerts(java.util.ArrayList<String> messages) {
+        if (messages == null || messages.isEmpty()
+                || rosterCachePrefs == null) return;
+
+        JSONArray saved;
+        try {
+            saved = new JSONArray(rosterCachePrefs.getString(
+                    "movement_alerts_json", "[]"));
+        } catch (Exception e) {
+            saved = new JSONArray();
+        }
+
+        long now = System.currentTimeMillis();
+        for (String message : messages) {
+            if (message == null || message.trim().isEmpty()) continue;
+            try {
+                JSONObject event = new JSONObject();
+                event.put("message", message);
+                event.put("time", now);
+                event.put("unread", true);
+                saved.put(event);
+            } catch (Exception ignored) {}
+        }
+
+        JSONArray limited = new JSONArray();
+        int start = Math.max(0, saved.length() - 50);
+        for (int i = start; i < saved.length(); i++) {
+            limited.put(saved.opt(i));
+        }
+        rosterCachePrefs.edit()
+                .putString("movement_alerts_json", limited.toString())
+                .apply();
+        renderMovementAlerts();
+    }
+
+    private void markMovementAlertsRead() {
+        if (rosterCachePrefs == null) return;
+        JSONArray saved;
+        try {
+            saved = new JSONArray(rosterCachePrefs.getString(
+                    "movement_alerts_json", "[]"));
+        } catch (Exception e) {
+            return;
+        }
+
+        for (int i = 0; i < saved.length(); i++) {
+            JSONObject event = saved.optJSONObject(i);
+            if (event != null) {
+                event.remove("unread");
+                try { event.put("unread", false); }
+                catch (Exception ignored) {}
+            }
+        }
+        rosterCachePrefs.edit()
+                .putString("movement_alerts_json", saved.toString())
+                .apply();
+    }
+
+    private void renderMovementAlerts() {
+        if (movementAlertsPanel == null || movementAlertsList == null
+                || movementAlertsCount == null || rosterCachePrefs == null) {
+            return;
+        }
+
+        JSONArray saved;
+        try {
+            saved = new JSONArray(rosterCachePrefs.getString(
+                    "movement_alerts_json", "[]"));
+        } catch (Exception e) {
+            saved = new JSONArray();
+        }
+
+        int unread = 0;
+        for (int i = 0; i < saved.length(); i++) {
+            JSONObject event = saved.optJSONObject(i);
+            if (event != null && event.optBoolean("unread", false)) unread++;
+        }
+
+        movementAlertsCount.setText(unread > 0
+                ? "جديد " + unread : "لا يوجد جديد");
+        movementAlertsToggle.setText(movementAlertsExpanded ? "إخفاء" : "عرض");
+        movementAlertsList.removeAllViews();
+        movementAlertsList.setVisibility(
+                movementAlertsExpanded ? View.VISIBLE : View.GONE);
+
+        if (!movementAlertsExpanded) return;
+
+        if (saved.length() == 0) {
+            TextView empty = new TextView(this);
+            empty.setText("لا توجد حركات مسجلة حتى الآن");
+            empty.setTextColor(android.graphics.Color.LTGRAY);
+            empty.setTextSize(12);
+            empty.setPadding(0, dp(10), 0, dp(5));
+            movementAlertsList.addView(empty);
+            return;
+        }
+
+        int start = Math.max(0, saved.length() - 8);
+        for (int i = saved.length() - 1; i >= start; i--) {
+            JSONObject event = saved.optJSONObject(i);
+            if (event == null) continue;
+
+            LinearLayout row = new LinearLayout(this);
+            row.setOrientation(LinearLayout.VERTICAL);
+            row.setPadding(dp(6), dp(7), dp(4), dp(7));
+
+            TextView message = new TextView(this);
+            message.setText(event.optString("message", "حركة تشغيل"));
+            message.setTextColor(event.optBoolean("unread", false)
+                    ? WHITE : android.graphics.Color.LTGRAY);
+            message.setTextSize(12);
+            row.addView(message);
+
+            long time = event.optLong("time", 0L);
+            if (time > 0L) {
+                TextView stamp = new TextView(this);
+                stamp.setText(new java.text.SimpleDateFormat(
+                        "dd/MM  HH:mm", Locale.getDefault())
+                        .format(new java.util.Date(time)));
+                stamp.setTextColor(ORANGE);
+                stamp.setTextSize(10);
+                row.addView(stamp);
+            }
+
+            movementAlertsList.addView(row);
+            if (i > start) {
+                android.view.View line = new android.view.View(this);
+                line.setBackgroundColor(android.graphics.Color.rgb(48, 49, 54));
+                movementAlertsList.addView(line,
+                        new LinearLayout.LayoutParams(-1, dp(1)));
+            }
+        }
+    }
+
     private void monitorRiderChanges(JSONArray riders) {
         if (riders == null || rosterCachePrefs == null) return;
 
@@ -1740,6 +1938,22 @@ public class MainActivity extends Activity {
                 }
             }
 
+            JSONArray activeOrdersForStage = rider.optJSONArray("active_orders");
+            if (activeOrdersForStage != null) {
+                for (int j = 0; j < activeOrdersForStage.length(); j++) {
+                    JSONObject order = activeOrdersForStage.optJSONObject(j);
+                    if (order == null) continue;
+                    String orderId = firstValue(order,
+                            "delivery_id", "order_code", "order_id", "id");
+                    String stage = firstValue(order,
+                            "status", "stage", "order_status", "delivery_status");
+                    if (!orderId.isEmpty() && !stage.isEmpty()) {
+                        orderIds.add(orderId + "@" + stage.trim()
+                                .toLowerCase(Locale.ROOT)
+                                .replace('-', '_').replace(' ', '_'));
+                    }
+                }
+            }
             java.util.Collections.sort(orderIds);
             StringBuilder orderSignature = new StringBuilder();
             for (String orderId : orderIds) {
@@ -1787,6 +2001,8 @@ public class MainActivity extends Activity {
 
         // أول تقرير يُستخدم كخط أساس فقط.
         rosterCachePrefs.edit().putString(prefKey, current.toString()).apply();
+
+        recordMovementAlerts(alerts);
 
         if (!alerts.isEmpty()) {
             StringBuilder message = new StringBuilder();
@@ -2683,6 +2899,22 @@ public class MainActivity extends Activity {
     }
 
     // 1 = حاجز، 0 = مش حاجز، -1 = لا توجد بيانات كافية للعرض.
+    private String normalizeBookingId(String value) {
+        if (value == null) return "";
+        return value.trim()
+                .replace("#", "")
+                .replaceAll("\\s+", "")
+                .toLowerCase(Locale.ROOT);
+    }
+
+    private String normalizeBookingName(String value) {
+        if (value == null) return "";
+        String name = value.trim().replaceAll("\\s+", " ");
+        name = name.replaceAll("(?i)\\s*_EL\\s*ABTAL.*$", "");
+        name = name.replace('_', ' ').replaceAll("\\s+", " ").trim();
+        return name.toLowerCase(Locale.ROOT);
+    }
+
     private int bookingStatusForRider(JSONObject rider) {
         JSONArray rows = cachedBookingRows;
         if (rows == null || rows.length() == 0 || rider == null) return -1;
@@ -2714,7 +2946,9 @@ public class MainActivity extends Activity {
             for (int i = 0; i < rows.length(); i++) {
                 if (i == headerIndex) continue;
                 JSONArray row = rows.optJSONArray(i);
-                if (row != null && riderId.equals(sheetCell(row, 0).trim())) {
+                if (row != null && !normalizeBookingId(riderId).isEmpty()
+                        && normalizeBookingId(riderId).equals(
+                                normalizeBookingId(sheetCell(row, 0)))) {
                     matched = row;
                     break;
                 }
@@ -2727,9 +2961,10 @@ public class MainActivity extends Activity {
                 JSONArray row = rows.optJSONArray(i);
                 if (row == null) continue;
 
-                String sheetName = sheetCell(row, 1)
-                        .replaceAll("\\s+", " ").trim();
-                if (riderName.equalsIgnoreCase(sheetName)) {
+                String sheetName = sheetCell(row, 1);
+                if (!normalizeBookingName(riderName).isEmpty()
+                        && normalizeBookingName(riderName).equals(
+                                normalizeBookingName(sheetName))) {
                     matched = row;
                     break;
                 }
@@ -3107,7 +3342,10 @@ public class MainActivity extends Activity {
                 JSONArray row = rows.optJSONArray(i);
                 if (row == null) continue;
                 String name = sheetCell(row, 1).trim();
-                if (!name.isEmpty() && riderName.equalsIgnoreCase(name)) {
+                if (!name.isEmpty()
+                        && !normalizeBookingName(riderName).isEmpty()
+                        && normalizeBookingName(riderName).equals(
+                                normalizeBookingName(name))) {
                     match = row;
                     break;
                 }
@@ -4280,6 +4518,7 @@ public class MainActivity extends Activity {
             java.text.SimpleDateFormat parser =
                     new java.text.SimpleDateFormat(format, java.util.Locale.US);
             parser.setLenient(false);
+            parser.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
             try {
                 java.util.Date parsed = parser.parse(date);
                 if (parsed != null) {
