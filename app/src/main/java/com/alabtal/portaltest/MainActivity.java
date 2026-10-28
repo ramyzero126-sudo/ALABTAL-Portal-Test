@@ -589,6 +589,10 @@ public class MainActivity extends Activity {
         cards = new LinearLayout(this);
         cards.setOrientation(LinearLayout.VERTICAL);
 
+        // حاوية التمرير للتنبيهات والإحصائيات وكروت المندوبين.
+        LinearLayout scrollContent = new LinearLayout(this);
+        scrollContent.setOrientation(LinearLayout.VERTICAL);
+
         movementAlertsPanel = new LinearLayout(this);
         movementAlertsPanel.setOrientation(LinearLayout.VERTICAL);
         movementAlertsPanel.setPadding(dp(10), dp(8), dp(10), dp(8));
