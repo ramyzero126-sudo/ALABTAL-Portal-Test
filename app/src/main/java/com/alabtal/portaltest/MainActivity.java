@@ -747,46 +747,46 @@ public class MainActivity extends Activity {
         LinearLayout mapTabs = new LinearLayout(this);
         mapTabs.setOrientation(LinearLayout.HORIZONTAL);
         mapTabs.setGravity(Gravity.CENTER_VERTICAL);
-        mapTabs.setPadding(dp(4), dp(5), dp(4), dp(5));
+        mapTabs.setPadding(dp(4), dp(2), dp(2), dp(2));
         mapTabs.setBackground(round(
                 Color.rgb(10, 14, 21), Color.rgb(43, 52, 65), 1));
-        mapTabs.setElevation(dp(8));
+        mapTabs.setElevation(dp(2));
 
         Button ridersTab = makeButton("☷ المناديب");
         Button mapTab = makeButton("⌖ الخريطة");
         Button sheetTab = makeButton("▤ ردود الشيت");
         Button bookingsTab = makeButton("📦 الحجوزات");
-        ridersTab.setTextSize(10);
-        mapTab.setTextSize(10);
-        sheetTab.setTextSize(9);
-        bookingsTab.setTextSize(9);
+        ridersTab.setTextSize(8);
+        mapTab.setTextSize(8);
+        sheetTab.setTextSize(8);
+        bookingsTab.setTextSize(8);
         ridersTab.setBackground(round(Color.rgb(48, 27, 10), ORANGE, 1));
         mapTab.setBackground(round(Color.rgb(16, 22, 31), Color.rgb(43, 53, 66), 1));
         sheetTab.setBackground(round(Color.rgb(16, 22, 31), Color.rgb(43, 53, 66), 1));
         bookingsTab.setBackground(round(Color.rgb(16, 22, 31), Color.rgb(43, 53, 66), 1));
-        ridersTab.setElevation(dp(7));
-        mapTab.setElevation(dp(7));
-        sheetTab.setElevation(dp(7));
-        bookingsTab.setElevation(dp(7));
-        ridersTab.setTranslationZ(dp(1));
-        mapTab.setTranslationZ(dp(1));
-        sheetTab.setTranslationZ(dp(1));
-        bookingsTab.setTranslationZ(dp(1));
+        ridersTab.setElevation(dp(2));
+        mapTab.setElevation(dp(2));
+        sheetTab.setElevation(dp(2));
+        bookingsTab.setElevation(dp(2));
+        ridersTab.setTranslationZ(0);
+        mapTab.setTranslationZ(0);
+        sheetTab.setTranslationZ(0);
+        bookingsTab.setTranslationZ(0);
 
         LinearLayout.LayoutParams tabParams =
-                new LinearLayout.LayoutParams(0, dp(36), 1);
+                new LinearLayout.LayoutParams(0, dp(28), 1);
         tabParams.setMargins(0, 0, dp(3), 0);
         mapTabs.addView(ridersTab, tabParams);
         LinearLayout.LayoutParams mapTabParams =
-                new LinearLayout.LayoutParams(0, dp(36), 1);
+                new LinearLayout.LayoutParams(0, dp(28), 1);
         mapTabParams.setMargins(0, 0, dp(3), 0);
         mapTabs.addView(mapTab, mapTabParams);
         LinearLayout.LayoutParams sheetTabParams =
-                new LinearLayout.LayoutParams(0, dp(36), 1);
+                new LinearLayout.LayoutParams(0, dp(28), 1);
         sheetTabParams.setMargins(0, 0, dp(3), 0);
         mapTabs.addView(sheetTab, sheetTabParams);
         LinearLayout.LayoutParams bookingsParams =
-                new LinearLayout.LayoutParams(0, dp(36), 1);
+                new LinearLayout.LayoutParams(0, dp(28), 1);
         mapTabs.addView(bookingsTab, bookingsParams);
 
 
@@ -1531,18 +1531,20 @@ public class MainActivity extends Activity {
             "   (o.id != null ? o.id :" +
             "   (o.deliveryId != null ? o.deliveryId : o.orderId)));" +
             "  const id = String(rawId == null ? '' : rawId).trim();" +
-            "  return id !== '' && activeIds.includes(id);" +
+            "  const st = String(o.status || o.order_status || o.delivery_status || '').toLowerCase();" +
+            "  const activeStage = /accepted|picked.?up|ongoing|in.?progress|assigned|preparing|ready|on.?the.?way|arrived|مقبول|استلم|جاري|في الطريق/.test(st);" +
+            "  return (id !== '' && activeIds.includes(id)) || (activeStage && (activeIds.length === 0 || !activeIds.includes(id)));" +
             " }).map(o => ({" +
             "  delivery_id:String(o.delivery_id != null ? o.delivery_id :" +
             "   (o.order_id != null ? o.order_id :" +
             "   (o.id != null ? o.id :" +
             "   (o.deliveryId != null ? o.deliveryId : o.orderId))))," +
-            "  order_code:o.order_code || ''," +
-            "  status:o.status || ''," +
-            "  vendor_name:o.vendor_name || ''," +
-            "  pickup_address:o.pickup_address || ''," +
-            "  dropoff_address:o.dropoff_address || ''," +
-            "  timeline:o.timeline || []," +
+            "  order_code:o.order_code || o.code || o.reference || ''," +
+            "  status:o.status || o.order_status || o.delivery_status || o.stage || ''," +
+            "  vendor_name:o.vendor_name || o.restaurant_name || o.merchant_name || o.vendorName || o.restaurantName || (o.restaurant || {}).name || (o.vendor || {}).name || (o.merchant || {}).name || (o.store || {}).name || ''," +
+            "  pickup_address:o.pickup_address || o.pickupAddress || o.pickup_location_address || (o.pickup || {}).address || (o.pickup_location || {}).address || (o.pickupLocation || {}).address || (o.origin || {}).address || (o.restaurant || {}).address || (o.vendor || {}).address || ''," +
+            "  dropoff_address:o.dropoff_address || o.dropoffAddress || o.delivery_address || o.deliveryAddress || o.dropoff_location_address || (o.dropoff || {}).address || (o.dropoff_location || {}).address || (o.dropoffLocation || {}).address || (o.destination || {}).address || (o.customer || {}).address || ''," +
+            "  timeline:o.timeline || o.events || o.status_history || []," +
             "  created_at:o.created_at || o.createdAt || o.order_created_at || o.orderCreatedAt || o.created_at_utc || ''," +
             "  accepted_at:o.accepted_at || o.acceptedAt || o.accepted_time || o.acceptedTime || ''," +
             "  picked_up_at:o.picked_up_at || o.pickedUpAt || o.pickup_time || o.pickupTime || ''," +
