@@ -126,6 +126,8 @@ public class MainActivity extends Activity {
     private Button inspectButton;
     private EditText riderSearch;
     private JSONArray currentRiders = new JSONArray();
+    private LinearLayout followUpPanel, followUpList;
+    private TextView followUpCount;
     private volatile JSONArray cachedBookingRows = new JSONArray();
     private volatile JSONArray cachedShiftRequestRows = new JSONArray();
     private volatile JSONArray cachedBreakRequestRows = new JSONArray();
@@ -188,6 +190,7 @@ public class MainActivity extends Activity {
 
     private void recordSyncFailure() {
         consecutiveSyncFailures++;
+        renderFollowUpAlerts(currentRiders, true);
 
         long now = System.currentTimeMillis();
         long lastAlert = rosterCachePrefs == null ? 0L
@@ -660,6 +663,39 @@ public class MainActivity extends Activity {
             markMovementAlertsRead();
             renderMovementAlerts();
         });
+
+        // لوحة الحالات التي تحتاج متابعة
+        followUpPanel = new LinearLayout(this);
+        followUpPanel.setOrientation(LinearLayout.VERTICAL);
+        followUpPanel.setPadding(dp(8), dp(6), dp(8), dp(6));
+        followUpPanel.setBackground(round(
+                Color.rgb(16, 18, 22), ORANGE, 1));
+
+        LinearLayout followUpHeader = new LinearLayout(this);
+        followUpHeader.setGravity(Gravity.CENTER_VERTICAL);
+        followUpHeader.setOrientation(LinearLayout.HORIZONTAL);
+
+        TextView followUpTitle = makeText(
+                "⚠ مين محتاج متابعة دلوقتي؟", 12, WHITE, true);
+        followUpHeader.addView(followUpTitle,
+                new LinearLayout.LayoutParams(0, -2, 1));
+
+        followUpCount = makeText("في انتظار البيانات", 10, ORANGE, true);
+        followUpHeader.addView(followUpCount);
+        followUpPanel.addView(followUpHeader);
+
+        followUpList = new LinearLayout(this);
+        followUpList.setOrientation(LinearLayout.VERTICAL);
+        TextView waiting = makeText(
+                "في انتظار تحميل بيانات الروستر...", 10, MUTED, false);
+        waiting.setPadding(dp(3), dp(5), dp(3), dp(2));
+        followUpList.addView(waiting);
+        followUpPanel.addView(followUpList);
+
+        LinearLayout.LayoutParams followUpParams =
+                new LinearLayout.LayoutParams(-1, -2);
+        followUpParams.setMargins(0, dp(3), 0, dp(5));
+        scrollContent.addView(followUpPanel, followUpParams);
 
         scrollContent.addView(statsTitle,
                 new LinearLayout.LayoutParams(-1, -2));
@@ -1427,6 +1463,9 @@ public class MainActivity extends Activity {
 
             }
 
+            renderFollowUpAlerts(
+                    riders, fromCache || consecutiveSyncFailures > 0);
+
         } catch (Exception e) {
             status.setText("تعذر عرض التقرير: " + e.getMessage());
             Toast.makeText(this, "فشل قراءة بيانات الروستر", Toast.LENGTH_LONG).show();
@@ -1898,6 +1937,153 @@ public class MainActivity extends Activity {
                 movementAlertsList.addView(line,
                         new LinearLayout.LayoutParams(-1, dp(1)));
             }
+        }
+    }
+
+
+    private void addFollowUpItem(
+            String message, int color, Runnable action) {
+        TextView item = makeText(message, 11, color, true);
+        item.setPadding(dp(8), dp(6), dp(8), dp(6));
+        item.setMaxLines(2);
+        item.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        item.setBackground(round(Color.rgb(25, 22, 20), color, 1));
+
+        LinearLayout.LayoutParams params =
+                new LinearLayout.LayoutParams(-1, -2);
+        params.setMargins(0, dp(3), 0, 0);
+        followUpList.addView(item, params);
+
+        if (action != null) {
+            item.setClickable(true);
+            item.setFocusable(true);
+            item.setOnClickListener(v -> action.run());
+        }
+    }
+
+    private void renderFollowUpAlerts(
+            JSONArray riders, boolean staleData) {
+        if (followUpPanel == null || followUpList == null
+                || followUpCount == null) {
+            return;
+        }
+
+        followUpList.removeAllViews();
+        int count = 0;
+
+        if (staleData) {
+            String message = riders == null || riders.length() == 0
+                    ? "تعذر التحديث؛ لا توجد بيانات حديثة متاحة"
+                    : "⚠ فشل التحديث؛ البيانات المعروضة قديمة";
+
+            addFollowUpItem(message, RED, () -> {
+                if (inspectButton != null) inspectButton.performClick();
+            });
+            count++;
+        }
+
+        // الأوردرات التي تجاوزت 30 دقيقة حسب التوقيت المتاح.
+        int orderAlerts = 0;
+        long now = System.currentTimeMillis();
+
+        if (riders != null) {
+            for (int i = 0; i < riders.length() && count < 5; i++) {
+                JSONObject rider = riders.optJSONObject(i);
+                if (rider == null) continue;
+
+                JSONArray orders = rider.optJSONArray("active_orders");
+                if (orders == null) continue;
+
+                String name = firstValue(
+                        rider, "name", "rider_name", "employee_name");
+                if (name.isEmpty() || "غير متاح".equals(name)) {
+                    name = "مندوب";
+                }
+
+                for (int j = 0; j < orders.length()
+                        && count < 5 && orderAlerts < 3; j++) {
+                    JSONObject order = orders.optJSONObject(j);
+                    if (order == null) continue;
+
+                    String rawTime = firstValue(order,
+                            "stage_started_at", "status_changed_at",
+                            "status_updated_at", "picked_up_at", "pickedUpAt",
+                            "accepted_at", "acceptedAt", "created_at",
+                            "createdAt", "order_created_at",
+                            "orderCreatedAt", "created_at_utc");
+
+                    long started = parseTimestampMillis(rawTime);
+                    if (started <= 0L || now < started) continue;
+
+                    long minutes = (now - started) / 60000L;
+                    if (minutes < 30L) continue;
+
+                    String code = firstValue(order,
+                            "order_code", "delivery_id", "order_id", "id");
+                    if (code.isEmpty() || "غير متاح".equals(code)) {
+                        code = "بدون كود";
+                    }
+
+                    final JSONObject targetRider = rider;
+                    final JSONArray targetOrders = orders;
+
+                    addFollowUpItem(
+                            "⚠ أوردر " + code + " مع " + name
+                                    + " • " + minutes
+                                    + " دقيقة — اضغط للمراجعة",
+                            RED,
+                            () -> showRiderDetails(
+                                    targetRider, targetOrders));
+
+                    count++;
+                    orderAlerts++;
+                }
+            }
+        }
+
+        // لا نعتبر عدم ظهور المندوب غيابًا مؤكدًا.
+        // نعرض فقط الحالات التي تعذرت فيها مطابقة بيانات الشيت.
+        JSONArray bookingRows = cachedBookingRows;
+        int bookingAlerts = 0;
+
+        if (bookingRows != null && bookingRows.length() > 0
+                && riders != null) {
+            for (int i = 0; i < riders.length()
+                    && count < 5 && bookingAlerts < 2; i++) {
+                JSONObject rider = riders.optJSONObject(i);
+                if (rider == null || bookingStatusForRider(rider) >= 0) {
+                    continue;
+                }
+
+                String name = firstValue(
+                        rider, "name", "rider_name", "employee_name");
+                if (name.isEmpty() || "غير متاح".equals(name)) {
+                    name = "مندوب";
+                }
+
+                JSONArray orders = rider.optJSONArray("active_orders");
+                final JSONArray targetOrders =
+                        orders == null ? new JSONArray() : orders;
+                final JSONObject targetRider = rider;
+
+                addFollowUpItem(
+                        "📅 تعذرت مطابقة حجز بكرة للمندوب "
+                                + name + " — اضغط للمراجعة",
+                        ORANGE,
+                        () -> showRiderDetails(
+                                targetRider, targetOrders));
+
+                count++;
+                bookingAlerts++;
+            }
+        }
+
+        followUpCount.setText(count + (count == 1 ? " حالة" : " حالات"));
+
+        if (count == 0) {
+            addFollowUpItem(
+                    "✓ لا توجد حالات تحتاج متابعة حاليًا",
+                    GREEN, null);
         }
     }
 
@@ -4497,6 +4683,8 @@ public class MainActivity extends Activity {
                         );
                     }
                     if (currentRiders.length() > 0) renderRiderCards();
+                    renderFollowUpAlerts(
+                            currentRiders, consecutiveSyncFailures > 0);
                 });
             } catch (Exception e) {
                 String detail = e.getMessage();
