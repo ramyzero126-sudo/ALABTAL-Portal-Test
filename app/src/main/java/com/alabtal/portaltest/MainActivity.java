@@ -2,6 +2,12 @@ package com.alabtal.portaltest;
 
 import android.accounts.Account;
 import android.app.Activity;
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.content.Context;
+import android.os.Build;
 import android.app.AlertDialog;
 import android.animation.ObjectAnimator;
 import android.view.animation.DecelerateInterpolator;
@@ -123,7 +129,7 @@ public class MainActivity extends Activity {
     private boolean destroyed = false;
     private int consecutiveSyncFailures = 0;
     private long nextSyncDelayMs = 30000L;
-    private static final long SYNC_INTERVAL_MS = 10000L;
+    private static final long SYNC_INTERVAL_MS = 30000L;
     private static final long SYNC_RETRY_MIN_MS = 5000L;
     private static final long SYNC_RETRY_MAX_MS = 60000L;
 
@@ -167,6 +173,19 @@ public class MainActivity extends Activity {
 
     private void recordSyncFailure() {
         consecutiveSyncFailures++;
+
+        long now = System.currentTimeMillis();
+        long lastAlert = rosterCachePrefs == null ? 0L
+                : rosterCachePrefs.getLong("sync_failure_alert_at", 0L);
+        if (consecutiveSyncFailures >= 3
+                && now - lastAlert >= 30L * 60L * 1000L) {
+            if (rosterCachePrefs != null) {
+                rosterCachePrefs.edit()
+                        .putLong("sync_failure_alert_at", now).apply();
+            }
+            publishOperationsAlert(
+                    "تعذر تحديث الروستر 3 مرات متتالية؛ جارٍ إعادة الاتصال بالبوابة.");
+        }
 
         // Recover a stale portal connection automatically.
         if (consecutiveSyncFailures >= 3
@@ -219,6 +238,7 @@ public class MainActivity extends Activity {
         authPrefs = getSharedPreferences("alabtal_local_auth", MODE_PRIVATE);
         rosterCachePrefs = getSharedPreferences(
                 "alabtal_roster_cache", MODE_PRIVATE);
+        ensureOperationsNotificationChannel();
         String savedUser = authPrefs.getString("username", null);
         boolean loggedIn = authPrefs.getBoolean("logged_in", false);
         if (savedUser == null) {
@@ -1285,7 +1305,10 @@ public class MainActivity extends Activity {
 
             renderDashboardStats(riders, ridersWithOrders, totalOrders);
 
-            if (!fromCache) notifySmartAlerts(riders);
+            if (!fromCache) {
+                notifySmartAlerts(riders);
+                monitorRiderChanges(riders);
+            }
 
             if (fromCache) {
                 status.setText(
@@ -1604,6 +1627,182 @@ public class MainActivity extends Activity {
                 .show();
     }
 
+
+    private void ensureOperationsNotificationChannel() {
+        if (Build.VERSION.SDK_INT < 26) return;
+        NotificationManager manager = (NotificationManager)
+                getSystemService(Context.NOTIFICATION_SERVICE);
+        if (manager == null) return;
+        NotificationChannel channel = new NotificationChannel(
+                "alabtal_ops_alerts", "تنبيهات التشغيل",
+                NotificationManager.IMPORTANCE_DEFAULT);
+        channel.setDescription("تنبيهات تشغيل AL ABTAL");
+        manager.createNotificationChannel(channel);
+    }
+
+    private void publishOperationsAlert(String message) {
+        if (message == null || message.trim().isEmpty()) return;
+        try {
+            NotificationManager manager = (NotificationManager)
+                    getSystemService(Context.NOTIFICATION_SERVICE);
+            if (manager == null) return;
+
+            Intent intent = new Intent(this, MainActivity.class);
+            int flags = PendingIntent.FLAG_UPDATE_CURRENT;
+            if (Build.VERSION.SDK_INT >= 23) {
+                flags |= PendingIntent.FLAG_IMMUTABLE;
+            }
+            PendingIntent pending = PendingIntent.getActivity(
+                    this, 7301, intent, flags);
+
+            Notification.Builder builder = Build.VERSION.SDK_INT >= 26
+                    ? new Notification.Builder(this, "alabtal_ops_alerts")
+                    : new Notification.Builder(this);
+
+            Notification notification = builder
+                    .setSmallIcon(android.R.drawable.ic_dialog_info)
+                    .setContentTitle("AL ABTAL • تنبيه تشغيل")
+                    .setContentText(message)
+                    .setStyle(new Notification.BigTextStyle().bigText(message))
+                    .setContentIntent(pending)
+                    .setAutoCancel(true)
+                    .build();
+
+            manager.notify(7302, notification);
+        } catch (Exception e) {
+            android.util.Log.e("ALABTAL", "تعذر إرسال إشعار التشغيل", e);
+        }
+    }
+
+
+    // يقارن التقرير الحي السابق بالحالي؛ لا يعتبر اختفاء المندوب تغيير حالة.
+    private void monitorRiderChanges(JSONArray riders) {
+        if (riders == null || rosterCachePrefs == null) return;
+
+        final String prefKey = "operations_last_snapshot";
+        JSONObject previous;
+        try {
+            String raw = rosterCachePrefs.getString(prefKey, "");
+            previous = raw.isEmpty() ? new JSONObject() : new JSONObject(raw);
+        } catch (Exception e) {
+            previous = new JSONObject();
+        }
+
+        JSONObject current = new JSONObject();
+        java.util.ArrayList<String> alerts = new java.util.ArrayList<>();
+        boolean hasBaseline = previous.length() > 0;
+
+        for (int i = 0; i < riders.length(); i++) {
+            JSONObject rider = riders.optJSONObject(i);
+            if (rider == null) continue;
+
+            String id = firstValue(rider, "employee_id", "id", "rider_id");
+            if (id.isEmpty()) id = firstValue(rider, "name");
+            if (id.isEmpty()) continue;
+
+            String state = firstValue(
+                    rider, "rider_status", "status", "work_status")
+                    .trim().toLowerCase(Locale.ROOT)
+                    .replace('-', '_').replace(' ', '_');
+
+            JSONArray ids = rider.optJSONArray("active_delivery_ids");
+            if (ids == null) ids = new JSONArray();
+            java.util.ArrayList<String> orderIds = new java.util.ArrayList<>();
+
+            for (int j = 0; j < ids.length(); j++) {
+                Object item = ids.opt(j);
+                String orderId = "";
+                if (item instanceof JSONObject) {
+                    JSONObject obj = (JSONObject) item;
+                    orderId = firstValue(obj,
+                            "delivery_id", "order_id", "id");
+                } else if (item != null && item != JSONObject.NULL) {
+                    orderId = String.valueOf(item).trim();
+                }
+                if (!orderId.isEmpty() && !orderIds.contains(orderId)) {
+                    orderIds.add(orderId);
+                }
+            }
+
+            // إذا غاب active_delivery_ids من المصدر، استخدم active_orders إن توفرت.
+            if (!rider.has("active_delivery_ids")) {
+                JSONArray orders = rider.optJSONArray("active_orders");
+                if (orders != null) {
+                    for (int j = 0; j < orders.length(); j++) {
+                        JSONObject order = orders.optJSONObject(j);
+                        if (order == null) continue;
+                        String orderId = firstValue(order,
+                                "delivery_id", "order_code", "order_id", "id");
+                        if (!orderId.isEmpty() && !orderIds.contains(orderId)) {
+                            orderIds.add(orderId);
+                        }
+                    }
+                }
+            }
+
+            java.util.Collections.sort(orderIds);
+            StringBuilder orderSignature = new StringBuilder();
+            for (String orderId : orderIds) {
+                if (orderSignature.length() > 0) orderSignature.append(",");
+                orderSignature.append(orderId);
+            }
+
+            JSONObject item = new JSONObject();
+            try {
+                item.put("state", state);
+                item.put("orders", orderSignature.toString());
+                current.put(id, item);
+            } catch (Exception ignored) {
+                continue;
+            }
+
+            if (!hasBaseline) continue;
+
+            JSONObject old = previous.optJSONObject(id);
+            if (old == null) continue;
+
+            String oldState = old.optString("state", "");
+            if (!state.isEmpty() && !oldState.isEmpty()
+                    && !state.equals(oldState)) {
+                alerts.add(firstValue(rider, "name").isEmpty() ? id
+                        : firstValue(rider, "name")
+                        + ": تغيرت الحالة إلى " + state);
+            }
+
+            String oldOrders = old.optString("orders", "");
+            String newOrders = orderSignature.toString();
+            if (!oldOrders.equals(newOrders)) {
+                String name = firstValue(rider, "name");
+                if (name.isEmpty()) name = id;
+
+                if (oldOrders.isEmpty() && !newOrders.isEmpty()) {
+                    alerts.add(name + ": بدأ أوردر جديد");
+                } else if (!oldOrders.isEmpty() && newOrders.isEmpty()) {
+                    alerts.add(name + ": انتهت الأوردرات النشطة");
+                } else if (!oldOrders.equals(newOrders)) {
+                    alerts.add(name + ": تغيرت الأوردرات النشطة");
+                }
+            }
+        }
+
+        // أول تقرير يُستخدم كخط أساس فقط.
+        rosterCachePrefs.edit().putString(prefKey, current.toString()).apply();
+
+        if (!alerts.isEmpty()) {
+            StringBuilder message = new StringBuilder();
+            int shown = Math.min(5, alerts.size());
+            for (int i = 0; i < shown; i++) {
+                if (message.length() > 0) message.append("\n");
+                message.append("• ").append(alerts.get(i));
+            }
+            if (alerts.size() > shown) {
+                message.append("\nو ").append(alerts.size() - shown)
+                        .append(" تغييرات أخرى");
+            }
+            publishOperationsAlert(message.toString());
+        }
+    }
+
     // تنبيهات مرة واحدة لكل حالة، مع مهلة 30 دقيقة قبل تكرارها
     private void notifySmartAlerts(JSONArray riders) {
         if (riders == null || rosterCachePrefs == null) return;
@@ -1680,6 +1879,7 @@ public class MainActivity extends Activity {
                         .append(" تنبيهات أخرى");
             }
             Toast.makeText(this, message.toString(), Toast.LENGTH_LONG).show();
+            publishOperationsAlert(message.toString());
         }
     }
 
