@@ -3483,7 +3483,7 @@ public class MainActivity extends Activity {
         new Thread(() -> {
             try {
                 JSONArray rows = fetchSheetRows(
-                    token, BOOKINGS_SHEET_ID, "'ان اصين المكتب'!A:B"
+                    token, BOOKINGS_SHEET_ID, "'ان اصين المكتب'!A:T"
                 );
                 String html = buildBookingsHtml(rows);
                 runOnUiThread(() -> {
@@ -3517,7 +3517,7 @@ public class MainActivity extends Activity {
          .append(".head{padding:13px;border:1px solid #6b3b18;border-right:4px solid #ff7900;border-radius:14px;background:linear-gradient(145deg,#25201b,#111317);margin-bottom:10px}")
          .append(".title{color:#ff9b3d;font-size:17px;font-weight:900}")
          .append(".sub{color:#a0a6b0;font-size:11px;margin-top:5px}")
-         .append(".card{display:flex;align-items:center;gap:10px;padding:12px;margin-bottom:8px;border:1px solid #30323a;border-right:3px solid #ff7900;border-radius:12px;background:linear-gradient(145deg,#1c1e23,#101115);box-shadow:0 4px 10px #0008}")
+         .append(".card{display:grid;grid-template-columns:30px minmax(0,1fr);align-items:start;gap:10px;padding:12px;margin-bottom:8px;border:1px solid #30323a;border-right:3px solid #ff7900;border-radius:12px;background:linear-gradient(145deg,#1c1e23,#101115);box-shadow:0 4px 10px #0008}")
          .append(".num{width:30px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:9px;background:#38200f;color:#ff9b3d;font-weight:bold}")
          .append(".name{font-weight:bold;font-size:14px;overflow-wrap:anywhere}")
          .append(".id{font-size:10px;color:#9da3ae;margin-top:4px}")
@@ -3544,7 +3544,30 @@ public class MainActivity extends Activity {
                  .append(escapeSheetHtml(id))
                  .append("</div>");
             }
-            h.append("</div></div>");
+            h.append("</div><div style='grid-column:1/-1;min-width:0'>");
+String shift1 = sheetCell(row, 6);
+String shift2 = sheetCell(row, 7);
+String pct = sheetCell(row, 19);
+h.append("<div style='display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:7px'>")
+.append("<div style='background:#0b0c0f;padding:7px;border-radius:7px;color:#ffad60;font-size:11px'>الشيفت الأول: ")
+.append(shift1.isEmpty() ? "—" : escapeSheetHtml(shift1))
+.append("</div><div style='background:#0b0c0f;padding:7px;border-radius:7px;color:#ffad60;font-size:11px'>الشيفت الثاني: ")
+.append(shift2.isEmpty() ? "—" : escapeSheetHtml(shift2))
+.append("</div></div>");
+h.append("<div style='display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin-top:7px'>");
+for (int d = 0; d < 6; d++) {
+String value = sheetCell(row, 8 + d);
+h.append("<div style='background:#171513;border:1px solid #423020;border-radius:6px;padding:6px 2px;text-align:center;font-size:10px'><b style='display:block;color:#ff9b3d'>اليوم ")
+.append(d + 1).append("</b><span>")
+.append(value.isEmpty() ? "—" : escapeSheetHtml(value))
+.append("</span></div>");
+}
+h.append("</div>");
+if (!pct.isEmpty()) {
+h.append("<div style='margin-top:7px;padding:7px;background:#302014;border-radius:7px;color:#ff9b3d;font-size:12px'>نسبة الحجز: ")
+.append(escapeSheetHtml(pct)).append("</div>");
+}
+h.append("</div></div>");
             shown++;
         }
 
