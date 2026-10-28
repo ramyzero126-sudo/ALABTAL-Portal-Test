@@ -1904,16 +1904,21 @@ public class MainActivity extends Activity {
     private void addRiderCard(JSONObject rider, JSONArray orders) {
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(dp(8), dp(7), dp(8), dp(7));
+        card.setPadding(dp(9), dp(9), dp(9), dp(8));
 
         GradientDrawable cardBg = new GradientDrawable(
                 GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[]{Color.rgb(30, 21, 16), Color.rgb(10, 11, 14)}
+                new int[]{
+                        Color.rgb(48, 25, 10),
+                        Color.rgb(17, 27, 39),
+                        Color.rgb(5, 8, 13)
+                }
         );
-        cardBg.setCornerRadius(dp(13));
-        cardBg.setStroke(dp(1), ORANGE);
+        cardBg.setCornerRadius(dp(18));
+        cardBg.setStroke(dp(2), ORANGE);
         card.setBackground(cardBg);
-        card.setElevation(dp(2));
+        card.setElevation(dp(9));
+        card.setTranslationZ(dp(2));
 
         LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(
                 -1, -2);
@@ -1983,10 +1988,13 @@ public class MainActivity extends Activity {
 
         android.graphics.drawable.GradientDrawable stateBadgeBg =
                 new android.graphics.drawable.GradientDrawable();
-        stateBadgeBg.setColor(Color.TRANSPARENT);
-        stateBadgeBg.setCornerRadius(dp(7));
-        stateBadgeBg.setStroke(dp(1), stateColor);
+        stateBadgeBg.setColor(Color.argb(
+                28, Color.red(stateColor),
+                Color.green(stateColor), Color.blue(stateColor)));
+        stateBadgeBg.setCornerRadius(dp(12));
+        stateBadgeBg.setStroke(dp(2), stateColor);
         orderBadge.setBackground(stateBadgeBg);
+        orderBadge.setElevation(dp(4));
         heading.addView(orderBadge);
 
         if (!batch.isEmpty()) {
@@ -2099,9 +2107,10 @@ public class MainActivity extends Activity {
         addRiderAction(actions, rider, "✉", "رسالة", ORANGE);
         card.addView(actions);
 
-        TextView toggle = makeText("⌄ عرض التفاصيل", 11, ORANGE, true);
+        TextView toggle = makeText("⌄ تفاصيل المندوب", 11, ORANGE, true);
         toggle.setGravity(Gravity.CENTER);
-        toggle.setPadding(0, dp(5), 0, dp(2));
+        toggle.setPadding(dp(8), dp(6), dp(8), dp(6));
+        toggle.setBackground(round(Color.rgb(15, 23, 33), ORANGE, 1));
         card.addView(toggle);
 
         LinearLayout details = new LinearLayout(this);
@@ -2168,6 +2177,7 @@ public class MainActivity extends Activity {
         };
         card.setClickable(true);
         card.setFocusable(true);
+        toggle.setOnClickListener(v -> showRiderDetails(rider, orders));
         card.setOnClickListener(v -> showRiderDetails(rider, orders));
     }
 
@@ -2241,11 +2251,25 @@ public class MainActivity extends Activity {
         item.setGravity(Gravity.CENTER);
         item.setPadding(dp(5), dp(4), dp(5), dp(4));
 
-        GradientDrawable bg = new GradientDrawable();
-        bg.setColor(Color.rgb(20, 20, 22));
-        bg.setCornerRadius(dp(8));
-        bg.setStroke(dp(1), Color.rgb(100, 65, 40));
+        int accent = ORANGE;
+        String key = label == null ? "" : label.toLowerCase(Locale.ROOT);
+        if (key.contains("محفظة")) accent = GREEN;
+        else if (key.contains("أوردر")) accent = ORANGE;
+        else if (key.contains("ساعة")) accent = Color.rgb(65, 165, 255);
+        else if (key.contains("بريك")) accent = Color.rgb(185, 115, 255);
+
+        GradientDrawable bg = new GradientDrawable(
+                GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{
+                        Color.rgb(25, 39, 53),
+                        Color.rgb(8, 13, 21)
+                }
+        );
+        bg.setCornerRadius(dp(11));
+        bg.setStroke(dp(1), accent);
         item.setBackground(bg);
+        item.setElevation(dp(5));
+        item.setTranslationZ(dp(1));
 
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, -2, 1f);
         lp.setMargins(dp(2), 0, dp(2), 0);
