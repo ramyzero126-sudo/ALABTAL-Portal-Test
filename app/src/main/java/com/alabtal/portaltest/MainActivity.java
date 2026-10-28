@@ -1935,7 +1935,11 @@ public class MainActivity extends Activity {
         identity.addView(idView);
         heading.addView(identity);
 
-        boolean hasOrders = orders != null && orders.length() > 0;
+        JSONArray activeIds = rider.optJSONArray("active_delivery_ids");
+        boolean hasOrders = (orders != null && orders.length() > 0)
+                || rider.optInt("active_count") > 0
+                || rider.optBoolean("has_active_deliveries", false)
+                || (activeIds != null && activeIds.length() > 0);
 
         // لون شارة الحالة: الاستراحة أحمر، الشغال أخضر، والباقي أصفر.
         String normalizedState = state == null
@@ -2035,8 +2039,17 @@ public class MainActivity extends Activity {
         addSmartAlerts(card, rider, orders, state);
 
         if (hasOrders) {
-            JSONObject activeOrder = orders.optJSONObject(0);
+            JSONObject activeOrder = orders == null
+                    ? null : orders.optJSONObject(0);
+
             if (activeOrder != null) {
+                TextView activeLabel = makeText(
+                        "● معاه أوردر نشط", 11, GREEN, true);
+                activeLabel.setPadding(dp(4), dp(6), dp(4), dp(4));
+                activeLabel.setShadowLayer(dp(3), 0, 0,
+                        Color.rgb(15, 100, 55));
+                card.addView(activeLabel);
+
                 LinearLayout progress = new LinearLayout(this);
                 progress.setOrientation(LinearLayout.VERTICAL);
                 addOrderProgressTrack(progress,
@@ -2046,9 +2059,16 @@ public class MainActivity extends Activity {
                                 "vendor_name", "restaurant_name", "merchant_name",
                                 "vendorName", "restaurantName"));
                 card.addView(progress);
+            } else {
+                TextView activeLabel = makeText(
+                        "● معاه أوردر نشط • تفاصيل المرحلة غير متاحة حاليًا",
+                        10, GREEN, true);
+                activeLabel.setPadding(dp(3), dp(7), dp(3), dp(4));
+                card.addView(activeLabel);
             }
         } else {
-            TextView noActiveOrder = makeText("○ بدون أوردر نشط", 10, Color.LTGRAY, true);
+            TextView noActiveOrder = makeText(
+                    "○ مفيش أوردر نشط", 10, Color.LTGRAY, true);
             noActiveOrder.setPadding(dp(3), dp(5), dp(3), dp(3));
             card.addView(noActiveOrder);
         }
