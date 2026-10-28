@@ -104,6 +104,15 @@ public class MainActivity extends Activity {
     private LinearLayout movementAlertsList;
     private TextView movementAlertsCount;
     private TextView topOrderAlertBanner;
+
+    private final Runnable topOrderBannerRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (topOrderAlertBanner != null) {
+                updateTopOrderAlertBanner(currentRiders);
+            }
+        }
+    };
     private TextView movementAlertsToggle;
     private boolean movementAlertsExpanded = false;
     private LinearLayout cards;
@@ -1895,8 +1904,10 @@ public class MainActivity extends Activity {
     private void updateTopOrderAlertBanner(JSONArray riders) {
         if (topOrderAlertBanner == null) return;
 
-        JSONObject chosenRider = null;
-        JSONObject chosenOrder = null;
+        handler.removeCallbacks(topOrderBannerRunnable);
+        handler.postDelayed(topOrderBannerRunnable, 5000L);
+
+        java.util.ArrayList<String> messages = new java.util.ArrayList<>();
 
         if (riders != null) {
             for (int i = 0; i < riders.length(); i++) {
@@ -1906,72 +1917,78 @@ public class MainActivity extends Activity {
                 JSONArray orders = rider.optJSONArray("active_orders");
                 if (orders == null || orders.length() == 0) continue;
 
-                JSONObject order = orders.optJSONObject(0);
-                if (order == null) continue;
+                String name = firstValue(
+                        rider, "name", "rider_name", "employee_name");
+                if (name.isEmpty()) name = "مندوب";
 
-                chosenRider = rider;
-                chosenOrder = order;
-                break;
+                for (int j = 0; j < orders.length(); j++) {
+                    JSONObject order = orders.optJSONObject(j);
+                    if (order == null) continue;
+
+                    String rawStage = firstValue(order,
+                            "status", "stage", "order_status", "delivery_status")
+                            .trim().toLowerCase(Locale.ROOT)
+                            .replace('_', ' ').replace('-', ' ');
+
+                    String stage;
+                    if (rawStage.contains("picked")
+                            || rawStage.contains("in transit")
+                            || rawStage.contains("on the way")
+                            || rawStage.contains("out for delivery")
+                            || rawStage.contains("في الطريق")) {
+                        stage = "في الطريق";
+                    } else if (rawStage.contains("delivered")
+                            || rawStage.contains("completed")
+                            || rawStage.contains("وصل")) {
+                        stage = "تم التسليم";
+                    } else if (rawStage.contains("accepted")
+                            || rawStage.contains("assign")) {
+                        stage = "مقبول";
+                    } else if (rawStage.contains("arrived")) {
+                        stage = "وصل للموقع";
+                    } else {
+                        stage = rawStage.isEmpty() ? "نشط" : rawStage;
+                    }
+
+                    long started = parseTimestampMillis(firstValue(order,
+                            "stage_started_at", "status_changed_at",
+                            "status_updated_at", "picked_up_at", "pickedUpAt",
+                            "accepted_at", "acceptedAt", "created_at",
+                            "createdAt", "order_created_at", "orderCreatedAt",
+                            "created_at_utc", "timestamp"));
+
+                    String elapsed = "";
+                    long now = System.currentTimeMillis();
+                    if (started > 0L && now >= started) {
+                        long minutes = (now - started) / 60000L;
+                        elapsed = minutes < 1
+                                ? " • منذ أقل من دقيقة"
+                                : " • من " + minutes + " دقيقة";
+                    }
+
+                    String orderCode = firstValue(order,
+                            "order_code", "delivery_id", "order_id", "id");
+
+                    String message = "🟠 " + name + " — معاه أوردر "
+                            + stage + elapsed;
+                    if (!orderCode.isEmpty()) {
+                        message += " | " + orderCode;
+                    }
+                    messages.add(message);
+                }
             }
         }
 
-        if (chosenRider == null || chosenOrder == null) {
-            topOrderAlertBanner.setText("✓ لا توجد أوردرات نشطة ظاهرة حاليًا");
+        if (messages.isEmpty()) {
+            topOrderAlertBanner.setText(
+                    "✓ لا توجد أوردرات نشطة ظاهرة حاليًا");
             topOrderAlertBanner.setTextColor(GREEN);
             return;
         }
 
-        String name = firstValue(chosenRider,
-                "name", "rider_name", "employee_name");
-        if (name.isEmpty()) name = "مندوب";
-
-        String rawStage = firstValue(chosenOrder,
-                "status", "stage", "order_status", "delivery_status")
-                .trim().toLowerCase(Locale.ROOT)
-                .replace('_', ' ').replace('-', ' ');
-
-        String stage;
-        if (rawStage.contains("picked") || rawStage.contains("in transit")
-                || rawStage.contains("on the way")
-                || rawStage.contains("out for delivery")
-                || rawStage.contains("في الطريق")) {
-            stage = "في الطريق";
-        } else if (rawStage.contains("delivered")
-                || rawStage.contains("completed")
-                || rawStage.contains("وصل")) {
-            stage = "تم التسليم";
-        } else if (rawStage.contains("accepted")
-                || rawStage.contains("assign")) {
-            stage = "مقبول";
-        } else if (rawStage.contains("arrived")) {
-            stage = "وصل للموقع";
-        } else {
-            stage = rawStage.isEmpty() ? "نشط" : rawStage;
-        }
-
-        long started = parseTimestampMillis(firstValue(chosenOrder,
-                "stage_started_at", "status_changed_at", "status_updated_at",
-                "picked_up_at", "pickedUpAt", "accepted_at", "acceptedAt",
-                "created_at", "createdAt", "order_created_at",
-                "orderCreatedAt", "created_at_utc", "timestamp"));
-
-        String elapsed = "";
-        long now = System.currentTimeMillis();
-        if (started > 0L && now >= started) {
-            long minutes = (now - started) / 60000L;
-            elapsed = minutes < 1 ? " • منذ أقل من دقيقة"
-                    : " • من " + minutes + " دقيقة";
-        }
-
-        String orderCode = firstValue(chosenOrder,
-                "order_code", "delivery_id", "order_id", "id");
-        String message = "🟠 " + name + " — معاه أوردر " + stage
-                + elapsed;
-        if (!orderCode.isEmpty()) {
-            message += "  |  " + orderCode;
-        }
-
-        topOrderAlertBanner.setText(message);
+        long slot = System.currentTimeMillis() / 5000L;
+        int index = (int) (slot % messages.size());
+        topOrderAlertBanner.setText(messages.get(index));
         topOrderAlertBanner.setTextColor(WHITE);
     }
 
@@ -5099,6 +5116,7 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        handler.removeCallbacks(topOrderBannerRunnable);
         destroyed = true;
         handler.removeCallbacksAndMessages(null);
 
