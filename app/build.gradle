@@ -8,6 +8,10 @@ android {
     namespace 'com.alabtal.portaltest'
     compileSdk 35
 
+    buildFeatures {
+        buildConfig true
+    }
+
     defaultConfig {
         applicationId 'com.alabtal.portaltest'
         minSdk 23
