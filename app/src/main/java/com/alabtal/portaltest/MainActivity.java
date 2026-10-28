@@ -451,7 +451,7 @@ public class MainActivity extends Activity {
                           Color.rgb(18, 13, 10)}
         );
         root.setBackground(dashboardBg);
-        root.setPadding(dp(6), dp(2), dp(6), 0);
+        root.setPadding(dp(8), dp(3), dp(8), dp(2));
 
         // Unified 3D operations header
         LinearLayout portalRow = new LinearLayout(this);
@@ -761,7 +761,7 @@ public class MainActivity extends Activity {
         LinearLayout.LayoutParams bookingsParams =
                 new LinearLayout.LayoutParams(0, dp(42), 1);
         mapTabs.addView(bookingsTab, bookingsParams);
-        root.addView(mapTabs);
+        // شريط الأقسام أسفل المحتوى لتوفير مساحة أكبر للمناديب.
 
         FrameLayout contentFrame = new FrameLayout(this);
 
@@ -948,18 +948,19 @@ public class MainActivity extends Activity {
         topOrderAlertBanner.setText("⏳ جاري تحميل حالة الأوردرات...");
         topOrderAlertBanner.setTextColor(WHITE);
         topOrderAlertBanner.setTextSize(12);
-        topOrderAlertBanner.setMaxLines(2);
-        topOrderAlertBanner.setPadding(dp(10), dp(8), dp(10), dp(8));
+        topOrderAlertBanner.setMaxLines(1);
+        topOrderAlertBanner.setPadding(dp(9), dp(4), dp(9), dp(4));
         topOrderAlertBanner.setGravity(Gravity.CENTER_VERTICAL);
         topOrderAlertBanner.setBackground(round(
                 Color.rgb(25, 22, 18), ORANGE, 1));
         LinearLayout.LayoutParams alertBannerParams =
                 new LinearLayout.LayoutParams(-1, -2);
-        alertBannerParams.setMargins(dp(8), dp(2), dp(8), dp(5));
+        alertBannerParams.setMargins(dp(3), dp(2), dp(3), dp(3));
         root.addView(topOrderAlertBanner, alertBannerParams);
 
         root.addView(contentFrame,
                 new LinearLayout.LayoutParams(-1, 0, 1));
+        root.addView(mapTabs, new LinearLayout.LayoutParams(-1, dp(42)));
 
         ridersTab.setOnClickListener(v -> {
             mapTabActive = false;
@@ -3090,7 +3091,7 @@ public class MainActivity extends Activity {
     private void addRiderCard(JSONObject rider, JSONArray orders) {
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(dp(9), dp(9), dp(9), dp(8));
+        card.setPadding(dp(8), dp(7), dp(8), dp(6));
 
         GradientDrawable cardBg = new GradientDrawable(
                 GradientDrawable.Orientation.TOP_BOTTOM,
@@ -3100,15 +3101,15 @@ public class MainActivity extends Activity {
                         Color.rgb(5, 8, 13)
                 }
         );
-        cardBg.setCornerRadius(dp(18));
-        cardBg.setStroke(dp(2), ORANGE);
+        cardBg.setCornerRadius(dp(14));
+        cardBg.setStroke(dp(1), Color.rgb(108, 61, 31));
         card.setBackground(cardBg);
-        card.setElevation(dp(9));
-        card.setTranslationZ(dp(2));
+        card.setElevation(dp(3));
+        card.setTranslationZ(0);
 
         LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(
                 -1, -2);
-        cardParams.setMargins(dp(5), dp(3), dp(5), dp(4));
+        cardParams.setMargins(dp(3), dp(2), dp(3), dp(3));
         cards.addView(card, cardParams);
 
         String name = firstValue(rider, "name", "employee_name", "rider_name");
@@ -3178,7 +3179,7 @@ public class MainActivity extends Activity {
                 28, Color.red(stateColor),
                 Color.green(stateColor), Color.blue(stateColor)));
         stateBadgeBg.setCornerRadius(dp(12));
-        stateBadgeBg.setStroke(dp(2), stateColor);
+        stateBadgeBg.setStroke(dp(1), stateColor);
         orderBadge.setBackground(stateBadgeBg);
         orderBadge.setElevation(dp(4));
         heading.addView(orderBadge);
@@ -3232,7 +3233,7 @@ public class MainActivity extends Activity {
         LinearLayout shiftRow = new LinearLayout(this);
         shiftRow.setOrientation(LinearLayout.HORIZONTAL);
         shiftRow.setGravity(Gravity.CENTER_VERTICAL);
-        shiftRow.setPadding(dp(7), dp(7), dp(7), dp(7));
+        shiftRow.setPadding(dp(7), dp(5), dp(7), dp(5));
         shiftRow.setBackground(round(Color.rgb(17, 18, 21), ORANGE, 1));
         TextView shiftStart = makeText("بداية الشيفت  " + displayValue(
                 firstValue(rider, "shift_start", "shiftStart", "shift_start_time", "session_start", "planned_shift_start")),
