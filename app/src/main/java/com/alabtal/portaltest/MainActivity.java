@@ -99,6 +99,7 @@ public class MainActivity extends Activity {
     private WebView sheetView;
     private boolean mapTabActive = false;
     private boolean sheetTabActive = false;
+    private boolean bookingMode = false;
     private Button inspectButton;
     private EditText riderSearch;
     private JSONArray currentRiders = new JSONArray();
@@ -663,15 +664,22 @@ public class MainActivity extends Activity {
             renderRiderMap();
         });
 
-        bookingsTab.setOnClickListener(v ->
-                new AlertDialog.Builder(MainActivity.this)
-                        .setTitle("📦 الحجوزات")
-                        .setMessage("قسم الحجوزات قيد التجهيز")
-                        .setPositiveButton("حسنًا", null)
-                        .show()
-        );
+        bookingsTab.setOnClickListener(v -> {
+            bookingMode = true;
+            mapTabActive = false;
+            sheetTabActive = false;
+            riderCardsScroll.setVisibility(View.GONE);
+            riderMapView.setVisibility(View.GONE);
+            sheetView.setVisibility(View.VISIBLE);
+            bookingsTab.setTextColor(ORANGE);
+            ridersTab.setTextColor(WHITE);
+            mapTab.setTextColor(WHITE);
+            sheetTab.setTextColor(WHITE);
+            requestSheetAccess();
+        });
 
         sheetTab.setOnClickListener(v -> {
+            bookingMode = false;
             mapTabActive = false;
             sheetTabActive = true;
             riderCardsScroll.setVisibility(View.GONE);
@@ -3355,6 +3363,8 @@ public class MainActivity extends Activity {
     private static final int SHEET_AUTH_REQUEST = 7301;
     private static final String SHEET_ID =
         "1gM2Mm0fUwJrPz3KZciXoNt9xatNB2j96ecsMPcog-uc";
+    private static final String BOOKINGS_SHEET_ID =
+        "1qSs7DijUG2yIKPeD8bi4eq3gI1XdXsMpXM2MCiZKN5c";
     private static final String SHEETS_SCOPE =
         "https://www.googleapis.com/auth/spreadsheets.readonly";
 
@@ -3418,6 +3428,10 @@ public class MainActivity extends Activity {
     }
 
     private void loadPrivateSheets(String token) {
+        if (bookingMode) {
+            loadBookingRows(token);
+            return;
+        }
         showSheetMessage("جاري تحميل ردود الشيت...");
 
         new Thread(() -> {
@@ -3448,6 +3462,83 @@ public class MainActivity extends Activity {
                 showSheetError("سبب الخطأ: " + detail);
             }
         }).start();
+    }
+
+    private void loadBookingRows(String token) {
+        showSheetMessage("جاري تحميل أسماء الحجوزات...");
+        new Thread(() -> {
+            try {
+                JSONArray rows = fetchSheetRows(
+                    token, BOOKINGS_SHEET_ID, "'ان اصين المكتب'!A:B"
+                );
+                String html = buildBookingsHtml(rows);
+                runOnUiThread(() -> {
+                    if (sheetView != null && bookingMode) {
+                        sheetView.loadDataWithBaseURL(
+                            "https://alabtal.local/",
+                            html, "text/html", "UTF-8", null
+                        );
+                    }
+                });
+            } catch (Exception e) {
+                String detail = e.getMessage();
+                if (detail == null || detail.trim().isEmpty()) {
+                    detail = e.getClass().getSimpleName();
+                }
+                android.util.Log.e("ALABTAL_BOOKINGS",
+                    "Failed to load bookings sheet", e);
+                showSheetError("تعذر تحميل الحجوزات: " + detail);
+            }
+        }).start();
+    }
+
+    private String buildBookingsHtml(JSONArray rows) {
+        StringBuilder h = new StringBuilder();
+        h.append("<!doctype html><html lang='ar' dir='rtl'><head>")
+         .append("<meta charset='UTF-8'><meta name='viewport' ")
+         .append("content='width=device-width,initial-scale=1'>")
+         .append("<style>")
+         .append("*{box-sizing:border-box}")
+         .append("body{margin:0;padding:10px;background:#07080a;color:#f5f6f8;font-family:Arial,sans-serif}")
+         .append(".head{padding:13px;border:1px solid #6b3b18;border-right:4px solid #ff7900;border-radius:14px;background:linear-gradient(145deg,#25201b,#111317);margin-bottom:10px}")
+         .append(".title{color:#ff9b3d;font-size:17px;font-weight:900}")
+         .append(".sub{color:#a0a6b0;font-size:11px;margin-top:5px}")
+         .append(".card{display:flex;align-items:center;gap:10px;padding:12px;margin-bottom:8px;border:1px solid #30323a;border-right:3px solid #ff7900;border-radius:12px;background:linear-gradient(145deg,#1c1e23,#101115);box-shadow:0 4px 10px #0008}")
+         .append(".num{width:30px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:9px;background:#38200f;color:#ff9b3d;font-weight:bold}")
+         .append(".name{font-weight:bold;font-size:14px;overflow-wrap:anywhere}")
+         .append(".id{font-size:10px;color:#9da3ae;margin-top:4px}")
+         .append(".empty{padding:20px;text-align:center;color:#a0a6b0;border:1px dashed #383a40;border-radius:12px}")
+         .append("</style></head><body>")
+         .append("<div class='head'><div class='title'>📦 حجوزات المناديب</div>")
+         .append("<div class='sub'>ورقة ان اصين المكتب • الأسماء من العمود B</div></div>");
+
+        int shown = 0;
+        for (int i = 1; i < rows.length(); i++) {
+            JSONArray row = rows.optJSONArray(i);
+            if (row == null) continue;
+            String id = sheetCell(row, 0);
+            String name = sheetCell(row, 1);
+            if (name.isEmpty()) continue;
+
+            h.append("<div class='card'><div class='num'>")
+             .append(shown + 1)
+             .append("</div><div><div class='name'>")
+             .append(escapeSheetHtml(name))
+             .append("</div>");
+            if (!id.isEmpty()) {
+                h.append("<div class='id'>Rider ID: ")
+                 .append(escapeSheetHtml(id))
+                 .append("</div>");
+            }
+            h.append("</div></div>");
+            shown++;
+        }
+
+        if (shown == 0) {
+            h.append("<div class='empty'>لا توجد أسماء في العمود B، أو أن الورقة فارغة.</div>");
+        }
+        h.append("</body></html>");
+        return h.toString();
     }
 
     private String fetchSheetTitles(String token) throws IOException {
@@ -3503,12 +3594,18 @@ public class MainActivity extends Activity {
 
     private JSONArray fetchSheetRows(String token, String range)
             throws IOException {
+        return fetchSheetRows(token, SHEET_ID, range);
+    }
+
+    private JSONArray fetchSheetRows(
+            String token, String spreadsheetId, String range)
+            throws IOException {
         String encoded = URLEncoder.encode(range, "UTF-8")
             .replace("+", "%20");
 
         URL url = new URL(
             "https://sheets.googleapis.com/v4/spreadsheets/"
-            + SHEET_ID + "/values/" + encoded
+            + spreadsheetId + "/values/" + encoded
             + "?valueRenderOption=FORMATTED_VALUE"
         );
 
