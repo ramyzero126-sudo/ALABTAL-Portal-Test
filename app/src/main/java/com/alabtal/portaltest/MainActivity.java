@@ -709,7 +709,7 @@ public class MainActivity extends Activity {
             chip.setElevation(dp(4));
             chip.setTranslationZ(dp(1));
             LinearLayout.LayoutParams cp =
-                    new LinearLayout.LayoutParams(-2, dp(28));
+                    new LinearLayout.LayoutParams(-2, dp(26));
             cp.setMargins(0, 0, dp(3), 0);
             filterRow.addView(chip, cp);
             chip.setOnClickListener(v -> {
@@ -720,10 +720,24 @@ public class MainActivity extends Activity {
         filterScroll.addView(filterRow);
         root.addView(filterScroll);
 
+        topOrderAlertBanner = new TextView(this);
+        topOrderAlertBanner.setText("⏳ جاري تحميل حالة الأوردرات...");
+        topOrderAlertBanner.setTextColor(WHITE);
+        topOrderAlertBanner.setTextSize(12);
+        topOrderAlertBanner.setMaxLines(1);
+        topOrderAlertBanner.setPadding(dp(9), dp(4), dp(9), dp(4));
+        topOrderAlertBanner.setGravity(Gravity.CENTER_VERTICAL);
+        topOrderAlertBanner.setBackground(round(
+                Color.rgb(25, 22, 18), ORANGE, 1));
+        LinearLayout.LayoutParams alertBannerParams =
+                new LinearLayout.LayoutParams(-1, -2);
+        alertBannerParams.setMargins(dp(3), dp(2), dp(3), dp(3));
+        root.addView(topOrderAlertBanner, alertBannerParams);
+
         // تبويبات مضغوطة: المناديب والخريطة
         LinearLayout mapTabs = new LinearLayout(this);
         mapTabs.setOrientation(LinearLayout.HORIZONTAL);
-        mapTabs.setPadding(0, dp(3), 0, dp(4));
+        mapTabs.setPadding(0, dp(1), 0, dp(2));
 
         Button ridersTab = makeButton("☷ المناديب");
         Button mapTab = makeButton("⌖ الخريطة");
@@ -747,21 +761,21 @@ public class MainActivity extends Activity {
         bookingsTab.setTranslationZ(dp(1));
 
         LinearLayout.LayoutParams tabParams =
-                new LinearLayout.LayoutParams(0, dp(42), 1);
+                new LinearLayout.LayoutParams(0, dp(36), 1);
         tabParams.setMargins(0, 0, dp(3), 0);
         mapTabs.addView(ridersTab, tabParams);
         LinearLayout.LayoutParams mapTabParams =
-                new LinearLayout.LayoutParams(0, dp(42), 1);
+                new LinearLayout.LayoutParams(0, dp(36), 1);
         mapTabParams.setMargins(0, 0, dp(3), 0);
         mapTabs.addView(mapTab, mapTabParams);
         LinearLayout.LayoutParams sheetTabParams =
-                new LinearLayout.LayoutParams(0, dp(42), 1);
+                new LinearLayout.LayoutParams(0, dp(36), 1);
         sheetTabParams.setMargins(0, 0, dp(3), 0);
         mapTabs.addView(sheetTab, sheetTabParams);
         LinearLayout.LayoutParams bookingsParams =
-                new LinearLayout.LayoutParams(0, dp(42), 1);
+                new LinearLayout.LayoutParams(0, dp(36), 1);
         mapTabs.addView(bookingsTab, bookingsParams);
-        // شريط الأقسام أسفل المحتوى لتوفير مساحة أكبر للمناديب.
+        root.addView(mapTabs, new LinearLayout.LayoutParams(-1, dp(36)));
 
         FrameLayout contentFrame = new FrameLayout(this);
 
@@ -944,23 +958,10 @@ public class MainActivity extends Activity {
         contentFrame.addView(sheetView,
                 new FrameLayout.LayoutParams(-1, -1));
 
-        topOrderAlertBanner = new TextView(this);
-        topOrderAlertBanner.setText("⏳ جاري تحميل حالة الأوردرات...");
-        topOrderAlertBanner.setTextColor(WHITE);
-        topOrderAlertBanner.setTextSize(12);
-        topOrderAlertBanner.setMaxLines(1);
-        topOrderAlertBanner.setPadding(dp(9), dp(4), dp(9), dp(4));
-        topOrderAlertBanner.setGravity(Gravity.CENTER_VERTICAL);
-        topOrderAlertBanner.setBackground(round(
-                Color.rgb(25, 22, 18), ORANGE, 1));
-        LinearLayout.LayoutParams alertBannerParams =
-                new LinearLayout.LayoutParams(-1, -2);
-        alertBannerParams.setMargins(dp(3), dp(2), dp(3), dp(3));
-        root.addView(topOrderAlertBanner, alertBannerParams);
+
 
         root.addView(contentFrame,
                 new LinearLayout.LayoutParams(-1, 0, 1));
-        root.addView(mapTabs, new LinearLayout.LayoutParams(-1, dp(42)));
 
         ridersTab.setOnClickListener(v -> {
             mapTabActive = false;
