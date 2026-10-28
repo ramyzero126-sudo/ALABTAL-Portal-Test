@@ -2921,6 +2921,89 @@ public class MainActivity extends Activity {
 
         hero.addView(heroContent, new FrameLayout.LayoutParams(-1, -2, Gravity.CENTER));
 
+        // ABTAL_WINGS_OVERLAY: جناحان معدنيان مرسومان بالكود حول الشعار.
+        View wingsOverlay = new View(this) {
+            private final android.graphics.Paint wingPaint =
+                    new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+
+            private void drawWing(android.graphics.Canvas c, float cx, float cy) {
+                float inner = cx + dp(78);
+                float outer = Math.min(getWidth() - dp(5), cx + dp(178));
+
+                android.graphics.Path wing = new android.graphics.Path();
+                wing.moveTo(inner, cy + dp(2));
+                wing.cubicTo(
+                        cx + dp(105), cy - dp(5),
+                        cx + dp(133), cy - dp(48),
+                        outer, cy - dp(49));
+                wing.quadTo(
+                        cx + dp(153), cy - dp(21),
+                        cx + dp(139), cy - dp(7));
+                wing.quadTo(
+                        cx + dp(158), cy - dp(2),
+                        outer - dp(2), cy + dp(11));
+                wing.quadTo(
+                        cx + dp(148), cy + dp(9),
+                        cx + dp(128), cy + dp(19));
+                wing.quadTo(
+                        cx + dp(151), cy + dp(26),
+                        outer - dp(10), cy + dp(39));
+                wing.quadTo(
+                        cx + dp(116), cy + dp(36),
+                        cx + dp(96), cy + dp(18));
+                wing.close();
+
+                wingPaint.setStyle(android.graphics.Paint.Style.FILL);
+                wingPaint.setShader(new android.graphics.LinearGradient(
+                        inner, cy - dp(35), outer, cy + dp(30),
+                        new int[]{0xEE17191D, 0xFF4B250D, 0xFFFF7900},
+                        null, android.graphics.Shader.TileMode.CLAMP));
+                c.drawPath(wing, wingPaint);
+                wingPaint.setShader(null);
+
+                wingPaint.setStyle(android.graphics.Paint.Style.STROKE);
+                wingPaint.setStrokeWidth(dp(1.5f));
+                wingPaint.setColor(0xFFFF8A1C);
+                c.drawPath(wing, wingPaint);
+
+                // ريش متدرج بخطوط معدنية مضيئة.
+                wingPaint.setStrokeWidth(dp(1.1f));
+                for (int i = 0; i < 6; i++) {
+                    float x = cx + dp(99 + i * 11);
+                    float y = cy - dp(4 + i * 5);
+                    wingPaint.setColor(i % 2 == 0
+                            ? 0xFFFFA13A : 0xAAFF7900);
+                    c.drawLine(
+                            x, y,
+                            Math.min(outer - dp(5), x + dp(27)),
+                            cy + dp(8 + i * 3),
+                            wingPaint);
+                }
+                wingPaint.setStyle(android.graphics.Paint.Style.FILL);
+            }
+
+            @Override
+            protected void onDraw(android.graphics.Canvas canvas) {
+                super.onDraw(canvas);
+                float cx = getWidth() / 2f;
+                float cy = getHeight() * 0.38f;
+
+                canvas.save();
+                drawWing(canvas, cx, cy);
+
+                canvas.scale(-1f, 1f, cx, cy);
+                drawWing(canvas, cx, cy);
+                canvas.restore();
+            }
+        };
+        wingsOverlay.setClickable(false);
+        wingsOverlay.setFocusable(false);
+        hero.addView(wingsOverlay,
+                new FrameLayout.LayoutParams(-1, -1));
+        // إبقاء الشعار فوق الجناحين حتى لا يغطي الرسم رأس النسر.
+        heroContent.bringToFront();
+
+
         LinearLayout.LayoutParams heroParams =
                 new LinearLayout.LayoutParams(-1, dp(232));
         heroParams.setMargins(0, 0, 0, dp(7));
