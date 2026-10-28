@@ -3698,152 +3698,144 @@ public class MainActivity extends Activity {
     private String buildBookingsHtml(JSONArray rows) {
         StringBuilder h = new StringBuilder();
         h.append("<!doctype html><html lang='ar' dir='rtl'><head>")
-         .append("<meta charset='UTF-8'><meta name='viewport' ")
-         .append("content='width=device-width,initial-scale=1'>")
+         .append("<meta charset='UTF-8'><meta name='viewport' content='width=device-width,initial-scale=1'>")
          .append("<style>")
          .append("*{box-sizing:border-box}")
-         .append("body{margin:0;padding:10px;background:#07080a;color:#f5f6f8;font-family:Arial,sans-serif}")
-         .append(".head{padding:14px;border:1px solid #70421f;border-right:5px solid #ff7900;border-radius:16px;background:linear-gradient(135deg,#302116,#17191e 65%,#101115);margin-bottom:12px;box-shadow:0 5px 16px #0009}")
-         .append(".title{color:#ff9b3d;font-size:18px;font-weight:900;letter-spacing:.2px}")
-         .append(".sub{color:#a0a6b0;font-size:11px;margin-top:5px}")
-         .append(".card{display:grid;grid-template-columns:30px minmax(0,1fr);align-items:start;gap:8px;padding:10px;margin-bottom:10px;border:1px solid #35323a;border-right:4px solid #ff7900;border-radius:15px;background:linear-gradient(145deg,#22242a,#111216 75%);box-shadow:0 5px 14px #0009}")
-         .append(".num{width:30px;height:30px;display:flex;align-items:center;justify-content:center;border:1px solid #70421f;border-radius:10px;background:linear-gradient(145deg,#513019,#28180e);color:#ffb16d;font-weight:bold;box-shadow:inset 0 1px 2px #ffffff12}")
-         .append(".name{font-weight:bold;font-size:14px;overflow-wrap:anywhere}")
-         .append(".id{font-size:10px;color:#9da3ae;margin-top:4px}")
-         .append(".empty{padding:20px;text-align:center;color:#a0a6b0;border:1px dashed #383a40;border-radius:12px}")
+         .append("body{margin:0;padding:9px;background:#08090c;color:#f5f6f8;font-family:Arial,sans-serif}")
+         .append(".head{padding:12px;border:1px solid #70421f;border-right:4px solid #ff7900;border-radius:13px;background:linear-gradient(135deg,#302116,#15171c);margin-bottom:10px}")
+         .append(".title{color:#ff9b3d;font-size:17px;font-weight:900}")
+         .append(".sub{color:#a0a6b0;font-size:10px;margin-top:4px}")
+         .append(".pick{display:flex;align-items:center;gap:8px;margin-top:11px}")
+         .append(".pick label{font-size:12px;color:#ffb16d;font-weight:bold;white-space:nowrap}")
+         .append(".pick input{min-width:0;flex:1;background:#101115;color:#fff;border:1px solid #70421f;border-radius:9px;padding:9px;font-size:13px;min-height:38px}")
+         .append(".card{padding:10px;margin-bottom:8px;border:1px solid #35323a;border-right:4px solid #ff7900;border-radius:12px;background:linear-gradient(145deg,#202228,#111216);box-shadow:0 4px 12px #0008}")
+         .append(".person{display:flex;align-items:center;gap:8px;min-width:0}")
+         .append(".num{flex:0 0 29px;width:29px;height:29px;display:flex;align-items:center;justify-content:center;border:1px solid #70421f;border-radius:9px;background:#2c1b10;color:#ffb16d;font-weight:bold;font-size:12px}")
+         .append(".namebox{min-width:0;flex:1}.name{font-size:14px;font-weight:bold;overflow-wrap:anywhere}")
+         .append(".id{font-size:10px;color:#9da3ae;margin-top:3px;overflow-wrap:anywhere}")
+         .append(".dates{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:9px}")
+         .append(".datebox{background:#15171b;border:1px solid #39343a;border-radius:8px;padding:7px;min-width:0}")
+         .append(".label{font-size:10px;color:#9da3ae;display:block;margin-bottom:4px}")
+         .append(".datevalue{font-size:11px;color:#ffb16d;font-weight:bold;overflow-wrap:anywhere}")
+         .append(".status{margin-top:7px;border-radius:8px;padding:8px;text-align:center;font-size:12px;font-weight:bold;border:1px solid #6c5828;background:#302817;color:#ffd166}")
+         .append(".status.booked{border-color:#315b43;background:#11271c;color:#45dc91}")
+         .append(".status.vacation{border-color:#79343a;background:#301518;color:#ff626b}")
+         .append(".empty{padding:18px;text-align:center;color:#a0a6b0;border:1px dashed #383a40;border-radius:12px}")
+         .append(".legend{display:flex;gap:7px;flex-wrap:wrap;margin:8px 0 10px;font-size:10px;color:#c2c5cb}")
+         .append(".legend span{padding:5px 7px;border-radius:7px;background:#15171b}")
+         .append(".green{color:#45dc91}.red{color:#ff626b}.yellow{color:#ffd166}")
          .append("</style></head><body>")
          .append("<div class='head'><div class='title'>📦 حجوزات المناديب</div>")
-         .append("<div class='sub'>ورقة ان اصين المكتب • الأسماء من العمود B</div></div>");
+         .append("<div class='sub'>ان اصين المكتب • متابعة حجز كل مندوب حسب التاريخ</div>")
+         .append("<div class='pick'><label for='bookingDate'>📅 التاريخ</label>")
+         .append("<input id='bookingDate' type='date' aria-label='اختيار تاريخ الحجز'></div></div>")
+         .append("<div class='legend'><span class='green'>● معاه حجز</span><span class='red'>● إجازة</span><span class='yellow'>● مفيش اختيار</span></div>");
 
-        int bookingHeaderIndex = findBookingDateHeaderRowIndex(rows);
+        int headerIndex = findBookingDateHeaderRowIndex(rows);
+        JSONArray headerRow = headerIndex >= 0 ? rows.optJSONArray(headerIndex) : null;
         int shown = 0;
+
         for (int i = 1; i < rows.length(); i++) {
-            if (i == bookingHeaderIndex) continue;
+            if (i == headerIndex) continue;
             JSONArray row = rows.optJSONArray(i);
             if (row == null) continue;
-            String id = sheetCell(row, 0);
-            String name = sheetCell(row, 1);
+
+            String id = sheetCell(row, 0).trim();
+            String name = sheetCell(row, 1).trim();
             if (name.isEmpty()) continue;
 
-            h.append("<div class='card'><div class='num'>")
+            java.util.ArrayList<String> dates = new java.util.ArrayList<>();
+            java.util.ArrayList<String> states = new java.util.ArrayList<>();
+            String firstDate = "";
+            String lastDate = "";
+
+            if (headerRow != null) {
+                for (int c = 5; c < headerRow.length(); c++) {
+                    String date = sheetCell(headerRow, c).trim();
+                    if (!isBookingDateHeader(date)) continue;
+                    String iso = bookingDateIso(date);
+                    if (iso.isEmpty()) continue;
+
+                    String value = sheetCell(row, c).trim();
+                    String lower = value.toLowerCase(java.util.Locale.ROOT);
+                    boolean vacation = lower.contains("إجاز") || lower.contains("اجاز");
+                    boolean emptyChoice = value.isEmpty()
+                            || lower.contains("مش مختار")
+                            || lower.contains("مطلوب يختار")
+                            || lower.contains("غير مختار");
+                    String state = vacation ? "vacation"
+                            : (!emptyChoice ? "booked" : "none");
+
+                    dates.add(iso);
+                    states.add(state);
+                    if ("booked".equals(state)) {
+                        if (firstDate.isEmpty()) firstDate = date;
+                        lastDate = date;
+                    }
+                }
+            }
+
+            h.append("<div class='card' data-booking-card='1'><div class='person'><div class='num'>")
              .append(shown + 1)
-             .append("</div><div><div class='name'>")
+             .append("</div><div class='namebox'><div class='name'>")
              .append(escapeSheetHtml(name))
              .append("</div>");
             if (!id.isEmpty()) {
-                h.append("<div class='id'>Rider ID: ")
-                 .append(escapeSheetHtml(id))
-                 .append("</div>");
+                h.append("<div class='id'>معرّف المندوب: ")
+                 .append(escapeSheetHtml(id)).append("</div>");
             }
-            h.append("</div><div style='grid-column:1/-1;min-width:0'>");
-JSONArray headerRow = bookingHeaderIndex >= 0
-        ? rows.optJSONArray(bookingHeaderIndex) : null;
+            h.append("</div></div><div class='dates'>")
+             .append("<div class='datebox'><span class='label'>بداية الحجز</span><span class='datevalue'>")
+             .append(firstDate.isEmpty() ? "—" : escapeSheetHtml(firstDate))
+             .append("</span></div><div class='datebox'><span class='label'>نهاية الحجز</span><span class='datevalue'>")
+             .append(lastDate.isEmpty() ? "—" : escapeSheetHtml(lastDate))
+             .append("</span></div></div><div class='status' data-role='state'");
 
-java.util.ArrayList<String> bookingDates = new java.util.ArrayList<>();
-java.util.ArrayList<String> bookingValues = new java.util.ArrayList<>();
-java.util.ArrayList<Boolean> bookingSelected = new java.util.ArrayList<>();
-java.util.ArrayList<Boolean> bookingVacation = new java.util.ArrayList<>();
-
-int selectedDays = 0;
-String firstBookedDate = "";
-String lastBookedDate = "";
-
-if (headerRow != null) {
-    for (int c = 5; c < headerRow.length(); c++) {
-        String date = sheetCell(headerRow, c).trim();
-        if (!isBookingDateHeader(date)) continue;
-
-        String value = sheetCell(row, c).trim();
-        String lower = value.toLowerCase(java.util.Locale.ROOT);
-
-        boolean vacation = lower.contains("إجاز")
-                || lower.contains("اجاز");
-        boolean notSelected = value.isEmpty()
-                || lower.contains("مش مختار")
-                || lower.contains("مطلوب يختار")
-                || lower.contains("غير مختار");
-
-        boolean selected = !vacation && !notSelected;
-
-        bookingDates.add(date);
-        bookingValues.add(value);
-        bookingSelected.add(selected);
-        bookingVacation.add(vacation);
-
-        if (selected) {
-            selectedDays++;
-            if (firstBookedDate.isEmpty()) firstBookedDate = date;
-            lastBookedDate = date;
-        }
-    }
-}
-
-h.append("<div style='display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin-top:9px'>")
- .append("<div style='background:#17191e;border:1px solid #315b43;border-radius:9px;padding:8px 4px;text-align:center'>")
- .append("<small style='display:block;color:#a0a6b0;font-size:10px'>الأيام المختارة</small>")
- .append("<b style='display:block;color:#45dc91;font-size:17px;margin-top:4px'>")
- .append(selectedDays)
- .append("</b></div>")
- .append("<div style='background:#17191e;border:1px solid #70421f;border-radius:9px;padding:8px 4px;text-align:center;min-width:0'>")
- .append("<small style='display:block;color:#a0a6b0;font-size:10px'>بداية الحجز</small>")
- .append("<b style='display:block;color:#ffad60;font-size:11px;margin-top:5px;overflow-wrap:anywhere'>")
- .append(firstBookedDate.isEmpty() ? "—" : escapeSheetHtml(firstBookedDate))
- .append("</b></div>")
- .append("<div style='background:#17191e;border:1px solid #70421f;border-radius:9px;padding:8px 4px;text-align:center;min-width:0'>")
- .append("<small style='display:block;color:#a0a6b0;font-size:10px'>نهاية الحجز</small>")
- .append("<b style='display:block;color:#ffad60;font-size:11px;margin-top:5px;overflow-wrap:anywhere'>")
- .append(lastBookedDate.isEmpty() ? "—" : escapeSheetHtml(lastBookedDate))
- .append("</b></div></div>");
-
-h.append("<div style='margin-top:11px;color:#ff9b3d;font-size:12px;font-weight:bold'>📅 جدول الأيام</div>")
- .append("<div style='display:flex;gap:7px;overflow-x:auto;overflow-y:hidden;padding:8px 1px 10px;direction:ltr;scrollbar-width:thin'>");
-
-for (int d = 0; d < bookingDates.size(); d++) {
-    String date = bookingDates.get(d);
-    String value = bookingValues.get(d);
-    boolean selected = bookingSelected.get(d);
-    boolean vacation = bookingVacation.get(d);
-
-    String state = vacation ? "إجازة"
-            : selected ? "✓ مختار" : "○ مش مختار";
-    String color = vacation ? "#ff5b62"
-            : selected ? "#45dc91" : "#ffd166";
-    String border = vacation ? "#79343a"
-            : selected ? "#315b43" : "#6c5828";
-    String shownValue = value.isEmpty() ? "لا يوجد اختيار" : value;
-
-    h.append("<div dir='rtl' style='flex:0 0 112px;min-width:112px;background:#111216;border:1px solid ")
-     .append(border)
-     .append(";border-radius:10px;padding:9px 7px;text-align:center'>")
-     .append("<b style='display:block;color:#ffad60;font-size:11px;white-space:nowrap'>")
-     .append(escapeSheetHtml(date))
-     .append("</b><span style='display:block;color:")
-     .append(color)
-     .append(";font-size:11px;font-weight:bold;margin-top:8px'>")
-     .append(state)
-     .append("</span><span style='display:block;color:#c5c8cf;font-size:10px;margin-top:5px;white-space:normal;overflow-wrap:anywhere'>")
-     .append(escapeSheetHtml(shownValue))
-     .append("</span></div>");
-}
-h.append("</div>");
-
-if (bookingDates.isEmpty()) {
-    h.append("<div style='margin-top:7px;color:#ffd166;font-size:11px'>لم يتم اكتشاف تواريخ في الشيت؛ راجع صف العناوين وصيغة التاريخ.</div>");
-}
-String pct = sheetCell(row, 19);
-if (!pct.isEmpty()) {
-    h.append("<div style='margin-top:7px;padding:7px;background:#302014;border-radius:7px;color:#ff9b3d;font-size:12px'>نسبة الحجز: ")
-     .append(escapeSheetHtml(pct)).append("</div>");
-}
-h.append("</div></div>");
+            for (int d = 0; d < dates.size(); d++) {
+                h.append(" data-day-").append(dates.get(d)).append("='")
+                 .append(states.get(d)).append("'");
+            }
+            h.append(">○ مفيش اختيار للتاريخ ده</div></div>");
             shown++;
         }
 
         if (shown == 0) {
             h.append("<div class='empty'>لا توجد أسماء في العمود B، أو أن الورقة فارغة.</div>");
         }
-        h.append("</body></html>");
+
+        h.append("<script>(function(){")
+         .append("var input=document.getElementById('bookingDate');")
+         .append("function today(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}")
+         .append("function update(){var day=input.value;document.querySelectorAll('[data-booking-card]').forEach(function(card){")
+         .append("var st=card.querySelector('[data-role=state]');if(!st)return;var state=day?st.getAttribute('data-day-'+day):null;")
+         .append("st.className='status '+(state||'none');")
+         .append("st.textContent=state==='booked'?'✓ معاه حجز في التاريخ ده':state==='vacation'?'✕ إجازة في التاريخ ده':'○ مفيش اختيار للتاريخ ده';")
+         .append("});}input.value=today();input.addEventListener('change',update);update();})();</script>")
+         .append("</body></html>");
         return h.toString();
+    }
+
+    private String bookingDateIso(String value) {
+        if (value == null) return "";
+        String date = value.trim();
+        String[] formats = {"M/d/yyyy", "MM/dd/yyyy", "d/M/yyyy",
+                "dd/MM/yyyy", "yyyy-M-d", "yyyy-MM-dd", "d-M-yyyy", "dd-MM-yyyy"};
+        for (String format : formats) {
+            java.text.SimpleDateFormat parser =
+                    new java.text.SimpleDateFormat(format, java.util.Locale.US);
+            parser.setLenient(false);
+            try {
+                java.util.Date parsed = parser.parse(date);
+                if (parsed != null) {
+                    java.text.SimpleDateFormat output =
+                            new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US);
+                    output.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
+                    return output.format(parsed);
+                }
+            } catch (java.text.ParseException ignored) {
+            }
+        }
+        return "";
     }
 
     private String fetchSheetTitles(String token) throws IOException {
