@@ -3810,6 +3810,26 @@ public class MainActivity extends Activity {
         params.setMargins(dp(3), dp(4), dp(3), dp(3));
         target.addView(badge, params);
 
+        // عرض اسم المطعم كسطر مستقل داخل كارت المندوب.
+        String visibleRestaurant = restaurantName == null
+                ? "" : restaurantName.trim();
+        if (!visibleRestaurant.isEmpty()
+                && !"غير متاح".equals(visibleRestaurant)
+                && !"null".equalsIgnoreCase(visibleRestaurant)) {
+            TextView restaurantBadge = makeText(
+                    "🍔 المطعم: " + visibleRestaurant,
+                    10, WHITE, true);
+            restaurantBadge.setSingleLine(true);
+            restaurantBadge.setPadding(dp(9), dp(5), dp(9), dp(5));
+            restaurantBadge.setBackground(round(
+                    Color.rgb(28, 31, 36),
+                    Color.rgb(255, 121, 0), 1));
+            LinearLayout.LayoutParams restaurantParams =
+                    new LinearLayout.LayoutParams(-1, -2);
+            restaurantParams.setMargins(0, dp(2), 0, dp(3));
+            target.addView(restaurantBadge, restaurantParams);
+        }
+
         boolean animateOrderJourney =
                 st.equals("near pickup")
                 || st.equals("at pickup")
