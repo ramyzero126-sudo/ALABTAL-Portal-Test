@@ -2723,6 +2723,13 @@ public class MainActivity extends Activity {
         parent.addView(row);
     }
 
+    private boolean isBookingDateHeader(String header) {
+        if (header == null) return false;
+        return java.util.regex.Pattern.compile(
+            "(?<!\\d)(?:\\d{1,2}[/-]\\d{1,2}[/-]\\d{4}|\\d{4}-\\d{1,2}-\\d{1,2})(?!\\d)"
+        ).matcher(header.trim()).find();
+    }
+
     private void addSelectedShiftsToDetails(LinearLayout page, JSONObject rider) {
         JSONArray rows = cachedBookingRows;
         String riderId = firstValue(rider, "employee_id", "id", "rider_id").trim();
@@ -2796,21 +2803,23 @@ public class MainActivity extends Activity {
             return;
         }
 
-        String first = sheetCell(match, 6).trim();
-        String second = sheetCell(match, 7).trim();
-        boolean shown = false;
+        JSONArray headerRow = rows.optJSONArray(0);
+        int shown = 0;
+        if (headerRow != null) {
+            for (int c = 5; c < match.length() && c < headerRow.length(); c++) {
+                String date = sheetCell(headerRow, c).trim();
+                if (!isBookingDateHeader(date)) continue;
 
-        if (!first.isEmpty()) {
-            addBookingShiftRow(section, "☀ الشيفت الأول", first);
-            shown = true;
+                String value = sheetCell(match, c).trim();
+                if (value.isEmpty()) value = "مش مختار";
+                addBookingShiftRow(section, "📅 " + date, value);
+                shown++;
+            }
         }
-        if (!second.isEmpty()) {
-            addBookingShiftRow(section, "🌙 الشيفت الثاني", second);
-            shown = true;
-        }
-        if (!shown) {
+        if (shown == 0) {
             section.addView(makeText(
-                    "لا توجد شيفتات مختارة للمندوب.", 10, MUTED, false));
+                    "لم يتم العثور على أعمدة تواريخ الشيفتات في صف العناوين.",
+                    10, MUTED, false));
         }
     }
 
@@ -3631,7 +3640,7 @@ public class MainActivity extends Activity {
         new Thread(() -> {
             try {
                 JSONArray rows = fetchSheetRows(
-                    token, BOOKINGS_SHEET_ID, "'ان اصين المكتب'!A:T"
+                    token, BOOKINGS_SHEET_ID, "'ان اصين المكتب'!A:Z"
                 );
                 cachedBookingRows = rows;
                 String html = buildBookingsHtml(rows);
@@ -3694,27 +3703,40 @@ public class MainActivity extends Activity {
                  .append("</div>");
             }
             h.append("</div><div style='grid-column:1/-1;min-width:0'>");
-String shift1 = sheetCell(row, 6);
-String shift2 = sheetCell(row, 7);
-String pct = sheetCell(row, 19);
-h.append("<div style='display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:7px'>")
-.append("<div style='background:#0b0c0f;padding:7px;border-radius:7px;color:#ffad60;font-size:11px'>الشيفت الأول: ")
-.append(shift1.isEmpty() ? "—" : escapeSheetHtml(shift1))
-.append("</div><div style='background:#0b0c0f;padding:7px;border-radius:7px;color:#ffad60;font-size:11px'>الشيفت الثاني: ")
-.append(shift2.isEmpty() ? "—" : escapeSheetHtml(shift2))
-.append("</div></div>");
-h.append("<div style='display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin-top:7px'>");
-for (int d = 0; d < 6; d++) {
-String value = sheetCell(row, 8 + d);
-h.append("<div style='background:#171513;border:1px solid #423020;border-radius:6px;padding:6px 2px;text-align:center;font-size:10px'><b style='display:block;color:#ff9b3d'>اليوم ")
-.append(d + 1).append("</b><span>")
-.append(value.isEmpty() ? "—" : escapeSheetHtml(value))
-.append("</span></div>");
+JSONArray headerRow = rows.optJSONArray(0);
+h.append("<div style='display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:8px'>");
+int dateCount = 0;
+if (headerRow != null) {
+    for (int c = 5; c < row.length() && c < headerRow.length(); c++) {
+        String date = sheetCell(headerRow, c).trim();
+        if (!isBookingDateHeader(date)) continue;
+        String value = sheetCell(row, c).trim();
+        if (value.isEmpty()) value = "مش مختار";
+        String lower = value.toLowerCase(java.util.Locale.ROOT);
+        String stateColor = (lower.contains("إجاز") || lower.contains("اجاز")
+                || lower.contains("اجازة"))
+                ? "#ff5b62" : (lower.contains("مش مختار")
+                || lower.contains("مطلوب يختار")) ? "#ffd166" : "#ffad60";
+
+        h.append("<div style='min-width:0;background:#111216;border:1px solid #423020;border-radius:9px;padding:8px'>")
+         .append("<b style='display:block;color:#ff9b3d;font-size:11px;margin-bottom:5px'>📅 ")
+         .append(escapeSheetHtml(date))
+         .append("</b><span style='display:block;color:")
+         .append(stateColor)
+         .append(";font-size:11px;overflow-wrap:anywhere'>")
+         .append(escapeSheetHtml(value))
+         .append("</span></div>");
+        dateCount++;
+    }
 }
 h.append("</div>");
+if (dateCount == 0) {
+    h.append("<div style='margin-top:7px;color:#ffd166;font-size:11px'>لم يتم العثور على تواريخ في صف العناوين.</div>");
+}
+String pct = sheetCell(row, 19);
 if (!pct.isEmpty()) {
-h.append("<div style='margin-top:7px;padding:7px;background:#302014;border-radius:7px;color:#ff9b3d;font-size:12px'>نسبة الحجز: ")
-.append(escapeSheetHtml(pct)).append("</div>");
+    h.append("<div style='margin-top:7px;padding:7px;background:#302014;border-radius:7px;color:#ff9b3d;font-size:12px'>نسبة الحجز: ")
+     .append(escapeSheetHtml(pct)).append("</div>");
 }
 h.append("</div></div>");
             shown++;
