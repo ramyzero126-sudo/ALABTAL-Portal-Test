@@ -554,6 +554,37 @@ public class MainActivity extends Activity {
 
         riderCardsScroll = new ScrollView(this);
         riderCardsScroll.setFillViewport(false);
+
+        // Hide the top header while scrolling up; keep the LED banner fixed.
+        riderCardsScroll.setOnScrollChangeListener(
+                (View v, int scrollX, int scrollY,
+                 int oldScrollX, int oldScrollY) -> {
+            if (scrollY <= dp(2) || scrollY < oldScrollY) {
+                if (portalRow.getVisibility() != View.VISIBLE) {
+                    portalRow.setVisibility(View.VISIBLE);
+                    portalRow.setTranslationY(-portalRow.getHeight());
+                    portalRow.setAlpha(0f);
+                    portalRow.animate()
+                            .translationY(0f)
+                            .alpha(1f)
+                            .setDuration(180)
+                            .start();
+                }
+            } else if (scrollY > oldScrollY &&
+                    portalRow.getVisibility() == View.VISIBLE) {
+                portalRow.animate()
+                        .translationY(-portalRow.getHeight())
+                        .alpha(0f)
+                        .setDuration(180)
+                        .withEndAction(() -> {
+                            portalRow.setVisibility(View.GONE);
+                            portalRow.setTranslationY(0f);
+                            portalRow.setAlpha(1f);
+                        })
+                        .start();
+            }
+        });
+
         cards = new LinearLayout(this);
         cards.setOrientation(LinearLayout.VERTICAL);
         riderCardsScroll.addView(cards);
@@ -1840,6 +1871,11 @@ public class MainActivity extends Activity {
             tile.setElevation(dp(5));
             tile.setTranslationZ(dp(1));
 
+            TextView icon = makeText(statIcon(labels[i]), 10, colors[i], true);
+            icon.setGravity(Gravity.CENTER);
+            icon.setShadowLayer(dp(3), 0, 0, colors[i]);
+            tile.addView(icon, new LinearLayout.LayoutParams(-1, -2));
+
             TextView value = makeText(values[i], 12, colors[i], true);
             value.setGravity(Gravity.CENTER);
             value.setShadowLayer(dp(3), 0, 0, colors[i]);
@@ -1851,7 +1887,7 @@ public class MainActivity extends Activity {
             tile.addView(label, new LinearLayout.LayoutParams(-1, -2));
 
             LinearLayout.LayoutParams tileParams =
-                    new LinearLayout.LayoutParams(0, dp(38), 1f);
+                    new LinearLayout.LayoutParams(0, dp(45), 1f);
             tileParams.setMargins(dp(2), dp(2), dp(2), dp(3));
             row.addView(tile, tileParams);
         }
@@ -1860,6 +1896,20 @@ public class MainActivity extends Activity {
                 new LinearLayout.LayoutParams(-1, -2);
         rowParams.setMargins(0, 0, 0, dp(2));
         parent.addView(row, rowParams);
+    }
+
+    private String statIcon(String label) {
+        String key = label == null ? "" : label.trim();
+
+        if (key.contains("معاه أوردر") || key.contains("أوردرات")) return "📦";
+        if (key.contains("فاضي")) return "○";
+        if (key.contains("ساعات") || key.contains("الساعة")) return "◷";
+        if (key.contains("UTR")) return "⚡";
+        if (key.contains("محفظة")) return "◈";
+        if (key.contains("شغال")) return "●";
+        if (key.contains("بريك")) return "☕";
+        if (key.contains("غير محدد")) return "◇";
+        return "✦";
     }
 
     private String formatWorkDuration(long seconds) {
