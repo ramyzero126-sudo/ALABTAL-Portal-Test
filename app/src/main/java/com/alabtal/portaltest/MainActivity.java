@@ -2840,26 +2840,75 @@ public class MainActivity extends Activity {
 
         LinearLayout page = new LinearLayout(this);
         page.setOrientation(LinearLayout.VERTICAL);
-        page.setGravity(Gravity.CENTER_HORIZONTAL);
-        page.setPadding(dp(14), dp(10), dp(14), dp(14));
+        page.setGravity(Gravity.CENTER);
+        page.setPadding(dp(12), dp(8), dp(12), dp(10));
         scroll.addView(page, new android.widget.ScrollView.LayoutParams(-1, -1));
 
         FrameLayout hero = new FrameLayout(this);
         hero.setClipChildren(false);
         hero.setClipToPadding(false);
-        hero.setBackground(round(PANEL, ORANGE, 1));
+        hero.setBackground(round(BG, ORANGE_DEEP, 1));
+        hero.setElevation(dp(8));
+
+        // شعاع برتقالي خلف الشعار، مرسوم داخل التطبيق دون صورة جديدة.
+        View rayField = new View(this) {
+            private final android.graphics.Paint rayPaint =
+                    new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+
+            @Override
+            protected void onDraw(android.graphics.Canvas canvas) {
+                super.onDraw(canvas);
+                float cx = getWidth() / 2f;
+                float cy = getHeight() / 2f;
+                float radius = Math.max(getWidth(), getHeight()) * 0.58f;
+
+                rayPaint.setShader(new android.graphics.RadialGradient(
+                        cx, cy, radius,
+                        new int[]{0x66FF7900, 0x24FF7900, 0x00FF7900},
+                        new float[]{0f, 0.48f, 1f},
+                        android.graphics.Shader.TileMode.CLAMP));
+                canvas.drawCircle(cx, cy, radius, rayPaint);
+                rayPaint.setShader(null);
+
+                rayPaint.setColor(0x40FF8A1C);
+                rayPaint.setStrokeWidth(dp(1));
+                rayPaint.setStrokeCap(android.graphics.Paint.Cap.ROUND);
+                for (int i = 0; i < 36; i++) {
+                    double a = Math.PI * 2d * i / 36d;
+                    float inner = radius * 0.43f;
+                    float outer = radius * (0.76f + (i % 4) * 0.045f);
+                    canvas.drawLine(
+                            cx + (float) Math.cos(a) * inner,
+                            cy + (float) Math.sin(a) * inner,
+                            cx + (float) Math.cos(a) * outer,
+                            cy + (float) Math.sin(a) * outer,
+                            rayPaint);
+                }
+
+                rayPaint.setStyle(android.graphics.Paint.Style.STROKE);
+                rayPaint.setStrokeWidth(dp(1));
+                rayPaint.setColor(0x55FF7900);
+                canvas.drawCircle(cx, cy, radius * 0.47f, rayPaint);
+                canvas.drawCircle(cx, cy, radius * 0.61f, rayPaint);
+                rayPaint.setStyle(android.graphics.Paint.Style.FILL);
+            }
+        };
+        rayField.setLayerType(View.LAYER_TYPE_SOFTWARE, null);
+        hero.addView(rayField, new FrameLayout.LayoutParams(-1, -1));
 
         LinearLayout heroContent = new LinearLayout(this);
         heroContent.setOrientation(LinearLayout.VERTICAL);
         heroContent.setGravity(Gravity.CENTER);
-        heroContent.setPadding(dp(8), dp(8), dp(8), dp(8));
+        heroContent.setPadding(dp(4), dp(4), dp(4), dp(4));
+        heroContent.setElevation(dp(4));
 
         ImageView brand = new ImageView(this);
         brand.setImageResource(com.alabtal.portaltest.R.drawable.alabtal_logo);
         brand.setScaleType(ImageView.ScaleType.FIT_CENTER);
         brand.setContentDescription("شعار الأبطال");
 
-        heroContent.addView(brand, new LinearLayout.LayoutParams(dp(228), dp(178)));
+        brand.setAdjustViewBounds(true);
+        heroContent.addView(brand, new LinearLayout.LayoutParams(-1, dp(164)));
 
         TextView brandTitle = makeText("AL ABTAL", 25, ORANGE, true);
         brandTitle.setGravity(Gravity.CENTER);
@@ -2873,8 +2922,8 @@ public class MainActivity extends Activity {
         hero.addView(heroContent, new FrameLayout.LayoutParams(-1, -2, Gravity.CENTER));
 
         LinearLayout.LayoutParams heroParams =
-                new LinearLayout.LayoutParams(-1, dp(270));
-        heroParams.setMargins(0, 0, 0, dp(12));
+                new LinearLayout.LayoutParams(-1, dp(232));
+        heroParams.setMargins(0, 0, 0, dp(7));
         page.addView(hero, heroParams);
 
         brand.setAlpha(0f);
@@ -2888,10 +2937,19 @@ public class MainActivity extends Activity {
                 .start();
 
         ObjectAnimator glow = ObjectAnimator.ofFloat(
-                hero, "alpha", 0.90f, 1f, 0.94f, 1f);
-        glow.setDuration(2400);
+                hero, "alpha", 0.96f, 1f, 0.98f, 1f);
+        glow.setDuration(2800);
         glow.setRepeatCount(ObjectAnimator.INFINITE);
         glow.start();
+
+        // دوران بطيء للشعاع حتى يظل التأثير هادئاً.
+        ObjectAnimator rayRotation = ObjectAnimator.ofFloat(
+                rayField, View.ROTATION, 0f, 360f);
+        rayRotation.setDuration(36000);
+        rayRotation.setRepeatCount(ObjectAnimator.INFINITE);
+        rayRotation.setInterpolator(
+                new android.view.animation.LinearInterpolator());
+        rayRotation.start();
 
         // حركة منظور وطفو ناعمة للنسر مع الحفاظ على ظهوره بالكامل.
         ObjectAnimator eagleMotion = ObjectAnimator.ofFloat(
@@ -2932,11 +2990,12 @@ public class MainActivity extends Activity {
 
         LinearLayout form = new LinearLayout(this);
         form.setOrientation(LinearLayout.VERTICAL);
-        form.setPadding(dp(16), dp(18), dp(16), dp(16));
+        form.setPadding(dp(16), dp(14), dp(16), dp(13));
         form.setBackground(round(PANEL, ORANGE_DEEP, 1));
+        form.setElevation(dp(10));
         page.addView(form, new LinearLayout.LayoutParams(-1, -2));
 
-        TextView usernameLabel = makeText("اسم المستخدم", 12, ORANGE, true);
+        TextView usernameLabel = makeText("♙   اسم المستخدم", 13, ORANGE, true);
         form.addView(usernameLabel, new LinearLayout.LayoutParams(-1, dp(24)));
 
         EditText username = new EditText(this);
@@ -2950,11 +3009,11 @@ public class MainActivity extends Activity {
                 InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
         username.setPadding(dp(12), dp(8), dp(12), dp(8));
         username.setBackground(round(BG, ORANGE_DEEP, 1));
-        form.addView(username, new LinearLayout.LayoutParams(-1, dp(50)));
+        form.addView(username, new LinearLayout.LayoutParams(-1, dp(46)));
 
-        TextView passwordLabel = makeText("كلمة المرور", 12, ORANGE, true);
+        TextView passwordLabel = makeText("🔒   كلمة المرور", 13, ORANGE, true);
         LinearLayout.LayoutParams passwordLabelParams =
-                new LinearLayout.LayoutParams(-1, dp(26));
+                new LinearLayout.LayoutParams(-1, dp(24));
         passwordLabelParams.setMargins(0, dp(12), 0, 0);
         form.addView(passwordLabel, passwordLabelParams);
 
@@ -2970,13 +3029,45 @@ public class MainActivity extends Activity {
         password.setPadding(dp(12), dp(8), dp(12), dp(8));
         password.setBackground(round(BG, ORANGE_DEEP, 1));
         LinearLayout.LayoutParams passwordParams =
-                new LinearLayout.LayoutParams(-1, dp(50));
-        passwordParams.setMargins(0, 0, 0, dp(16));
+                new LinearLayout.LayoutParams(-1, dp(46));
+        passwordParams.setMargins(0, 0, 0, dp(4));
         form.addView(password, passwordParams);
+
+        // زر عين لإظهار وإخفاء كلمة المرور دون تغيير طريقة التحقق.
+        TextView passwordToggle = makeText("◉  إظهار كلمة المرور", 12, ORANGE, true);
+        passwordToggle.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
+        passwordToggle.setPadding(dp(4), dp(2), dp(4), dp(2));
+        passwordToggle.setClickable(true);
+        passwordToggle.setFocusable(true);
+        form.addView(passwordToggle,
+                new LinearLayout.LayoutParams(-1, dp(30)));
+
+        passwordToggle.setOnClickListener(view -> {
+            boolean showing = password.getInputType()
+                    == (InputType.TYPE_CLASS_TEXT
+                    | InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD);
+
+            int cursor = password.getSelectionStart();
+            if (showing) {
+                password.setInputType(
+                        InputType.TYPE_CLASS_TEXT
+                        | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+                passwordToggle.setText("◉  إظهار كلمة المرور");
+            } else {
+                password.setInputType(
+                        InputType.TYPE_CLASS_TEXT
+                        | InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD);
+                passwordToggle.setText("◎  إخفاء كلمة المرور");
+            }
+            password.setTypeface(Typeface.DEFAULT);
+            password.setSelection(Math.max(0,
+                    Math.min(cursor, password.length())));
+        });
 
         Button submit = makeButton(
                 setup ? "إنشاء الحساب والمتابعة" : "دخول إلى التطبيق");
         form.addView(submit, new LinearLayout.LayoutParams(-1, dp(48)));
+        submit.setElevation(dp(4));
 
         TextView note = makeText(
                 "حساب محلي على هذا الجهاز، منفصل عن حساب بوابة الشركة.",
