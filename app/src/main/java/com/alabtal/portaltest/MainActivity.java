@@ -1583,6 +1583,7 @@ public class MainActivity extends Activity {
             "  diagnostic_detail_keys:Object.keys(detail || {})," +
             "  diagnostic_delivery_info_keys:Object.keys((detail && detail.deliveries_info) || {})," +
             "  diagnostic_latest_count:Array.isArray(latest) ? latest.length : 0," +
+            "  diagnostic_latest_samples:(Array.isArray(latest) ? latest : []).slice(0,10).map(o => ({keys:Object.keys(o || {}), ids:{delivery_id:o.delivery_id,order_id:o.order_id,id:o.id,deliveryId:o.deliveryId,orderId:o.orderId}, status:o.status || o.order_status || o.delivery_status || o.stage || '', vendor_fields:Object.keys(o || {}).filter(k => /vendor|restaurant|merchant|store/i.test(k)), vendor_values:{vendor_name:o.vendor_name,restaurant_name:o.restaurant_name,merchant_name:o.merchant_name,vendorName:o.vendorName,restaurantName:o.restaurantName,restaurant:(o.restaurant && o.restaurant.name) || '',vendor:(o.vendor && o.vendor.name) || '',merchant:(o.merchant && o.merchant.name) || '',store:(o.store && o.store.name) || ''}}))," +
             "  diagnostic_latest_statuses:(Array.isArray(latest) ? latest : []).slice(0,10).map(o => String((o && (o.status || o.order_status || o.delivery_status || o.stage)) || ''))" +
             " };" +
             "}));" +
