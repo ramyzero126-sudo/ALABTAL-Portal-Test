@@ -1,5 +1,6 @@
 package com.alabtal.portaltest;
 
+import android.accounts.Account;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.animation.ObjectAnimator;
@@ -100,6 +101,7 @@ public class MainActivity extends Activity {
     private boolean mapTabActive = false;
     private boolean sheetTabActive = false;
     private boolean bookingMode = false;
+    private boolean sheetAuthBookingMode = false;
     private Button inspectButton;
     private EditText riderSearch;
     private JSONArray currentRiders = new JSONArray();
@@ -3367,11 +3369,20 @@ public class MainActivity extends Activity {
         "1qSs7DijUG2yIKPeD8bi4eq3gI1XdXsMpXM2MCiZKN5c";
     private static final String SHEETS_SCOPE =
         "https://www.googleapis.com/auth/spreadsheets.readonly";
+    private static final String BOOKINGS_GOOGLE_ACCOUNT =
+        "ramyzero120@gmail.com";
+    private static final String RESPONSES_GOOGLE_ACCOUNT =
+        "deltalogistics.elabtal@gmail.com";
 
     private void requestSheetAccess() {
-        showSheetMessage("جاري الاتصال بحساب Google...");
+        sheetAuthBookingMode = bookingMode;
+        String targetEmail = sheetAuthBookingMode
+            ? BOOKINGS_GOOGLE_ACCOUNT : RESPONSES_GOOGLE_ACCOUNT;
+
+        showSheetMessage("جاري الاتصال بحساب Google: " + targetEmail);
 
         AuthorizationRequest request = AuthorizationRequest.builder()
+            .setAccount(new Account(targetEmail, "com.google"))
             .setRequestedScopes(Collections.singletonList(new Scope(SHEETS_SCOPE)))
             .build();
 
@@ -3391,13 +3402,16 @@ public class MainActivity extends Activity {
                     if (token == null || token.isEmpty()) {
                         showSheetError("لم يستلم التطبيق رمز الوصول. حاول مرة أخرى.");
                     } else {
-                        loadPrivateSheets(token);
+                        loadPrivateSheets(token, sheetAuthBookingMode);
                     }
                 }
             })
-            .addOnFailureListener(e ->
-                showSheetError("تعذر طلب إذن Google. تأكد من الحساب وحاول مرة أخرى.")
-            );
+            .addOnFailureListener(e -> {
+                android.util.Log.e("ALABTAL_SHEETS",
+                    "Google authorization failed for " + targetEmail, e);
+                showSheetError("تعذر تفويض حساب " + targetEmail
+                    + ". تأكد أن الحساب مضاف على الهاتف ومسموح له بالتطبيق.");
+            });
     }
 
     @Override
@@ -3420,15 +3434,15 @@ public class MainActivity extends Activity {
             if (token == null || token.isEmpty()) {
                 showSheetError("رمز الوصول غير متاح. أعد المحاولة.");
             } else {
-                loadPrivateSheets(token);
+                loadPrivateSheets(token, sheetAuthBookingMode);
             }
         } catch (ApiException e) {
             showSheetError("تعذر إكمال تفويض Google. حاول مرة أخرى.");
         }
     }
 
-    private void loadPrivateSheets(String token) {
-        if (bookingMode) {
+    private void loadPrivateSheets(String token, boolean forBookings) {
+        if (forBookings) {
             loadBookingRows(token);
             return;
         }
@@ -3445,7 +3459,7 @@ public class MainActivity extends Activity {
 
                 String html = buildSheetHtml(shifts, breaks);
                 runOnUiThread(() -> {
-                    if (sheetView != null) {
+                    if (sheetView != null && sheetTabActive && !bookingMode) {
                         sheetView.loadDataWithBaseURL(
                             "https://alabtal.local/",
                             html, "text/html", "UTF-8", null
