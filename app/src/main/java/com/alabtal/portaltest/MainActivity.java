@@ -3517,7 +3517,7 @@ public class MainActivity extends Activity {
          .append(".head{padding:13px;border:1px solid #6b3b18;border-right:4px solid #ff7900;border-radius:14px;background:linear-gradient(145deg,#25201b,#111317);margin-bottom:10px}")
          .append(".title{color:#ff9b3d;font-size:17px;font-weight:900}")
          .append(".sub{color:#a0a6b0;font-size:11px;margin-top:5px}")
-         .append(".card{display:grid;grid-template-columns:30px minmax(0,1fr);align-items:start;gap:10px;padding:12px;margin-bottom:8px;border:1px solid #30323a;border-right:3px solid #ff7900;border-radius:12px;background:linear-gradient(145deg,#1c1e23,#101115);box-shadow:0 4px 10px #0008}")
+         .append(".card{display:grid;grid-template-columns:26px minmax(0,1fr);align-items:start;gap:6px;padding:8px;margin-bottom:8px;border:1px solid #30323a;border-right:3px solid #ff7900;border-radius:12px;background:linear-gradient(145deg,#1c1e23,#101115);box-shadow:0 4px 10px #0008}")
          .append(".num{width:30px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:9px;background:#38200f;color:#ff9b3d;font-weight:bold}")
          .append(".name{font-weight:bold;font-size:14px;overflow-wrap:anywhere}")
          .append(".id{font-size:10px;color:#9da3ae;margin-top:4px}")
