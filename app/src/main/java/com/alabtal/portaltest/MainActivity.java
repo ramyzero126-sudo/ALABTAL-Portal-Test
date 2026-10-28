@@ -232,54 +232,75 @@ public class MainActivity extends Activity {
         dashboardRoot = new LinearLayout(this);
         LinearLayout root = dashboardRoot;
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(BG);
-        root.setPadding(dp(4), 0, dp(4), 0);
+        GradientDrawable dashboardBg = new GradientDrawable(
+                GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{Color.rgb(8, 12, 18), Color.rgb(3, 5, 8),
+                          Color.rgb(8, 10, 15)}
+        );
+        root.setBackground(dashboardBg);
+        root.setPadding(dp(6), dp(2), dp(6), 0);
 
-        // Premium AL ABTAL LED Header
+        // Unified 3D operations header
         LinearLayout portalRow = new LinearLayout(this);
         portalRow.setOrientation(LinearLayout.HORIZONTAL);
-        portalRow.setGravity(Gravity.LEFT | Gravity.CENTER_VERTICAL);
+        portalRow.setGravity(Gravity.CENTER_VERTICAL);
+        portalRow.setPadding(dp(2), dp(3), dp(2), dp(4));
 
         Button portalButton = makeButton("🌐");
-        portalButton.setTextSize(16);
+        portalButton.setTextSize(18);
         portalButton.setPadding(0, 0, 0, 0);
         portalButton.setContentDescription("فتح بوابة الشركة");
-        portalButton.setBackground(round(PANEL, ORANGE_DEEP, 1));
+        portalButton.setBackground(round(Color.rgb(10, 23, 34), ORANGE, 2));
+        portalButton.setElevation(dp(5));
         LinearLayout.LayoutParams portalParams =
-                new LinearLayout.LayoutParams(dp(38), dp(30));
-        portalParams.setMargins(dp(2), 0, 0, dp(3));
+                new LinearLayout.LayoutParams(dp(43), dp(43));
+        portalParams.setMargins(0, 0, dp(7), 0);
         portalRow.addView(portalButton, portalParams);
         portalButton.setOnClickListener(v -> showPortalPage());
-        root.addView(portalRow);
 
         LinearLayout brand = new LinearLayout(this);
         brand.setOrientation(LinearLayout.VERTICAL);
         brand.setGravity(Gravity.CENTER);
-        brand.setPadding(dp(6), dp(2), dp(6), dp(3));
+        brand.setPadding(dp(4), dp(3), dp(4), dp(3));
+
+        GradientDrawable brandBg = new GradientDrawable(
+                GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{Color.rgb(60, 29, 8), Color.rgb(9, 14, 21)}
+        );
+        brandBg.setCornerRadius(dp(14));
+        brandBg.setStroke(dp(2), ORANGE);
+        brand.setBackground(brandBg);
+        brand.setElevation(dp(7));
 
         TextView title = makeText("AL ABTAL", 20, ORANGE, true);
         title.setGravity(Gravity.CENTER);
         title.setTypeface(Typeface.create("sans-serif-black", Typeface.BOLD));
-        title.setLetterSpacing(0.10f);
-        title.setShadowLayer(dp(5), 0, 0, ORANGE);
+        title.setLetterSpacing(0.09f);
+        title.setShadowLayer(dp(7), 0, 0, ORANGE);
         brand.addView(title, new LinearLayout.LayoutParams(-1, dp(26)));
 
-        TextView subtitle = makeText("L I V E   O P E R A T I O N S", 9, WHITE, true);
+        TextView subtitle = makeText("LIVE OPERATIONS", 9, WHITE, true);
         subtitle.setGravity(Gravity.CENTER);
-        brand.addView(subtitle, new LinearLayout.LayoutParams(-1, dp(12)));
-
-        GradientDrawable brandBg = new GradientDrawable(
-                GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[]{Color.rgb(65, 28, 5), Color.rgb(5, 6, 9)}
-        );
-        brandBg.setCornerRadius(dp(12));
-        brandBg.setStroke(dp(1), ORANGE);
-        brand.setBackground(brandBg);
+        subtitle.setLetterSpacing(0.18f);
+        brand.addView(subtitle, new LinearLayout.LayoutParams(-1, dp(13)));
 
         LinearLayout.LayoutParams brandParams =
-                new LinearLayout.LayoutParams(-1, dp(41));
-        brandParams.setMargins(0, dp(1), 0, dp(2));
-        root.addView(brand, brandParams);
+                new LinearLayout.LayoutParams(0, dp(47), 1f);
+        brandParams.setMargins(0, 0, dp(6), 0);
+        portalRow.addView(brand, brandParams);
+
+        TextView liveBadge = makeText("● LIVE", 9, GREEN, true);
+        liveBadge.setGravity(Gravity.CENTER);
+        liveBadge.setPadding(dp(5), dp(5), dp(5), dp(5));
+        liveBadge.setBackground(round(Color.rgb(8, 30, 25), GREEN, 1));
+        liveBadge.setElevation(dp(3));
+        portalRow.addView(liveBadge,
+                new LinearLayout.LayoutParams(-2, dp(34)));
+
+        LinearLayout.LayoutParams portalRowParams =
+                new LinearLayout.LayoutParams(-1, -2);
+        portalRowParams.setMargins(dp(1), dp(2), dp(1), dp(3));
+        root.addView(portalRow, portalRowParams);
 
         banner = makeText("", 14, ORANGE, true);
         banner.setGravity(Gravity.CENTER);
@@ -315,8 +336,8 @@ public class MainActivity extends Activity {
         root.addView(summary);
 
         TextView statsTitle = makeText(
-                "ملخص التشغيل المباشر", 10, ORANGE, true);
-        statsTitle.setPadding(dp(1), 0, dp(1), 0);
+                "◈  لوحة مؤشرات التشغيل", 11, ORANGE, true);
+        statsTitle.setPadding(dp(4), dp(3), dp(4), dp(2));
         root.addView(statsTitle);
 
         dashboardStats = new LinearLayout(this);
@@ -338,7 +359,9 @@ public class MainActivity extends Activity {
         );
         status.setMaxLines(1);
         status.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        status.setPadding(dp(1), 0, dp(2), 0);
+        status.setPadding(dp(7), dp(4), dp(5), dp(4));
+        status.setBackground(round(Color.rgb(14, 20, 28),
+                Color.rgb(95, 55, 24), 1));
         controls.addView(
             status, new LinearLayout.LayoutParams(0, -2, 1)
         );
@@ -347,7 +370,8 @@ public class MainActivity extends Activity {
         reportButton.setTextSize(9);
         reportButton.setTextColor(ORANGE);
         reportButton.setPadding(dp(5), 0, dp(5), 0);
-        reportButton.setBackground(round(PANEL, ORANGE_DEEP, 1));
+        reportButton.setBackground(round(Color.rgb(20, 17, 15), ORANGE, 1));
+        reportButton.setElevation(dp(3));
         reportButton.setContentDescription("تصدير تقرير المشرف");
         LinearLayout.LayoutParams reportParams =
                 new LinearLayout.LayoutParams(-2, dp(30));
@@ -359,7 +383,8 @@ public class MainActivity extends Activity {
         inspectButton.setTextSize(22);
         inspectButton.setTextColor(ORANGE);
         inspectButton.setPadding(0, 0, 0, 0);
-        inspectButton.setBackground(round(PANEL, ORANGE_DEEP, 1));
+        inspectButton.setBackground(round(Color.rgb(9, 28, 24), GREEN, 1));
+        inspectButton.setElevation(dp(4));
         inspectButton.setContentDescription("تحديث البيانات الآن");
         LinearLayout.LayoutParams refreshParams =
                 new LinearLayout.LayoutParams(dp(38), dp(30));
@@ -441,7 +466,8 @@ public class MainActivity extends Activity {
             chip.setTextColor(ORANGE);
             chip.setPadding(dp(7), 0, dp(7), 0);
             chip.setMinWidth(0);
-            chip.setBackground(round(PANEL, ORANGE_DEEP, 1));
+            chip.setBackground(round(Color.rgb(17, 23, 32), ORANGE, 1));
+            chip.setElevation(dp(2));
             LinearLayout.LayoutParams cp =
                     new LinearLayout.LayoutParams(-2, dp(23));
             cp.setMargins(0, 0, dp(3), 0);
@@ -467,10 +493,17 @@ public class MainActivity extends Activity {
         mapTab.setTextSize(10);
         sheetTab.setTextSize(9);
         bookingsTab.setTextSize(9);
-        ridersTab.setBackground(round(PANEL, ORANGE_DEEP, 1));
-        mapTab.setBackground(round(PANEL, ORANGE_DEEP, 1));
-        sheetTab.setBackground(round(PANEL, ORANGE_DEEP, 1));
-        bookingsTab.setBackground(round(PANEL, ORANGE_DEEP, 1));
+        ridersTab.setBackground(round(Color.rgb(27, 22, 18), ORANGE, 1));
+        mapTab.setBackground(round(Color.rgb(13, 24, 35),
+                Color.rgb(65, 150, 240), 1));
+        sheetTab.setBackground(round(Color.rgb(19, 18, 31),
+                Color.rgb(145, 110, 220), 1));
+        bookingsTab.setBackground(round(Color.rgb(28, 20, 11),
+                Color.rgb(230, 150, 45), 1));
+        ridersTab.setElevation(dp(4));
+        mapTab.setElevation(dp(4));
+        sheetTab.setElevation(dp(4));
+        bookingsTab.setElevation(dp(4));
 
         LinearLayout.LayoutParams tabParams =
                 new LinearLayout.LayoutParams(0, dp(34), 1);
