@@ -3671,7 +3671,7 @@ public class MainActivity extends Activity {
         new Thread(() -> {
             try {
                 JSONArray rows = fetchSheetRows(
-                    token, BOOKINGS_SHEET_ID, "'ان اصين المكتب'!A:Z"
+                    token, BOOKINGS_SHEET_ID, "'ان اصين المكتب'!A:ZZ"
                 );
                 cachedBookingRows = rows;
                 String html = buildBookingsHtml(rows);
@@ -3738,34 +3738,97 @@ public class MainActivity extends Activity {
             h.append("</div><div style='grid-column:1/-1;min-width:0'>");
 JSONArray headerRow = bookingHeaderIndex >= 0
         ? rows.optJSONArray(bookingHeaderIndex) : null;
-h.append("<div style='display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:8px'>");
-int dateCount = 0;
+
+java.util.ArrayList<String> bookingDates = new java.util.ArrayList<>();
+java.util.ArrayList<String> bookingValues = new java.util.ArrayList<>();
+java.util.ArrayList<Boolean> bookingSelected = new java.util.ArrayList<>();
+java.util.ArrayList<Boolean> bookingVacation = new java.util.ArrayList<>();
+
+int selectedDays = 0;
+String firstBookedDate = "";
+String lastBookedDate = "";
+
 if (headerRow != null) {
-    for (int c = 5; c < row.length() && c < headerRow.length(); c++) {
+    for (int c = 5; c < headerRow.length(); c++) {
         String date = sheetCell(headerRow, c).trim();
         if (!isBookingDateHeader(date)) continue;
-        String value = sheetCell(row, c).trim();
-        if (value.isEmpty()) value = "مش مختار";
-        String lower = value.toLowerCase(java.util.Locale.ROOT);
-        String stateColor = (lower.contains("إجاز") || lower.contains("اجاز")
-                || lower.contains("اجازة"))
-                ? "#ff5b62" : (lower.contains("مش مختار")
-                || lower.contains("مطلوب يختار")) ? "#ffd166" : "#ffad60";
 
-        h.append("<div style='min-width:0;background:#111216;border:1px solid #423020;border-radius:9px;padding:8px'>")
-         .append("<b style='display:block;color:#ff9b3d;font-size:11px;margin-bottom:5px'>📅 ")
-         .append(escapeSheetHtml(date))
-         .append("</b><span style='display:block;color:")
-         .append(stateColor)
-         .append(";font-size:11px;overflow-wrap:anywhere'>")
-         .append(escapeSheetHtml(value))
-         .append("</span></div>");
-        dateCount++;
+        String value = sheetCell(row, c).trim();
+        String lower = value.toLowerCase(java.util.Locale.ROOT);
+
+        boolean vacation = lower.contains("إجاز")
+                || lower.contains("اجاز");
+        boolean notSelected = value.isEmpty()
+                || lower.contains("مش مختار")
+                || lower.contains("مطلوب يختار")
+                || lower.contains("غير مختار");
+
+        boolean selected = !vacation && !notSelected;
+
+        bookingDates.add(date);
+        bookingValues.add(value);
+        bookingSelected.add(selected);
+        bookingVacation.add(vacation);
+
+        if (selected) {
+            selectedDays++;
+            if (firstBookedDate.isEmpty()) firstBookedDate = date;
+            lastBookedDate = date;
+        }
     }
 }
+
+h.append("<div style='display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin-top:9px'>")
+ .append("<div style='background:#17191e;border:1px solid #315b43;border-radius:9px;padding:8px 4px;text-align:center'>")
+ .append("<small style='display:block;color:#a0a6b0;font-size:10px'>الأيام المختارة</small>")
+ .append("<b style='display:block;color:#45dc91;font-size:17px;margin-top:4px'>")
+ .append(selectedDays)
+ .append("</b></div>")
+ .append("<div style='background:#17191e;border:1px solid #70421f;border-radius:9px;padding:8px 4px;text-align:center;min-width:0'>")
+ .append("<small style='display:block;color:#a0a6b0;font-size:10px'>بداية الحجز</small>")
+ .append("<b style='display:block;color:#ffad60;font-size:11px;margin-top:5px;overflow-wrap:anywhere'>")
+ .append(firstBookedDate.isEmpty() ? "—" : escapeSheetHtml(firstBookedDate))
+ .append("</b></div>")
+ .append("<div style='background:#17191e;border:1px solid #70421f;border-radius:9px;padding:8px 4px;text-align:center;min-width:0'>")
+ .append("<small style='display:block;color:#a0a6b0;font-size:10px'>نهاية الحجز</small>")
+ .append("<b style='display:block;color:#ffad60;font-size:11px;margin-top:5px;overflow-wrap:anywhere'>")
+ .append(lastBookedDate.isEmpty() ? "—" : escapeSheetHtml(lastBookedDate))
+ .append("</b></div></div>");
+
+h.append("<div style='margin-top:11px;color:#ff9b3d;font-size:12px;font-weight:bold'>📅 جدول الأيام</div>")
+ .append("<div style='display:flex;gap:7px;overflow-x:auto;overflow-y:hidden;padding:8px 1px 10px;direction:ltr;scrollbar-width:thin'>");
+
+for (int d = 0; d < bookingDates.size(); d++) {
+    String date = bookingDates.get(d);
+    String value = bookingValues.get(d);
+    boolean selected = bookingSelected.get(d);
+    boolean vacation = bookingVacation.get(d);
+
+    String state = vacation ? "إجازة"
+            : selected ? "✓ مختار" : "○ مش مختار";
+    String color = vacation ? "#ff5b62"
+            : selected ? "#45dc91" : "#ffd166";
+    String border = vacation ? "#79343a"
+            : selected ? "#315b43" : "#6c5828";
+    String shownValue = value.isEmpty() ? "لا يوجد اختيار" : value;
+
+    h.append("<div dir='rtl' style='flex:0 0 112px;min-width:112px;background:#111216;border:1px solid ")
+     .append(border)
+     .append(";border-radius:10px;padding:9px 7px;text-align:center'>")
+     .append("<b style='display:block;color:#ffad60;font-size:11px;white-space:nowrap'>")
+     .append(escapeSheetHtml(date))
+     .append("</b><span style='display:block;color:")
+     .append(color)
+     .append(";font-size:11px;font-weight:bold;margin-top:8px'>")
+     .append(state)
+     .append("</span><span style='display:block;color:#c5c8cf;font-size:10px;margin-top:5px;white-space:normal;overflow-wrap:anywhere'>")
+     .append(escapeSheetHtml(shownValue))
+     .append("</span></div>");
+}
 h.append("</div>");
-if (dateCount == 0) {
-    h.append("<div style='margin-top:7px;color:#ffd166;font-size:11px'>لم يتم العثور على تواريخ في صف العناوين.</div>");
+
+if (bookingDates.isEmpty()) {
+    h.append("<div style='margin-top:7px;color:#ffd166;font-size:11px'>لم يتم اكتشاف تواريخ في الشيت؛ راجع صف العناوين وصيغة التاريخ.</div>");
 }
 String pct = sheetCell(row, 19);
 if (!pct.isEmpty()) {
