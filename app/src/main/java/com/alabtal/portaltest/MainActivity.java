@@ -2727,38 +2727,145 @@ public class MainActivity extends Activity {
         JSONArray rows = cachedBookingRows;
         String riderId = firstValue(rider, "employee_id", "id", "rider_id").trim();
         String riderName = firstValue(rider, "name", "employee_name", "rider_name").trim();
-
         JSONArray match = null;
-        for (int i = 1; i < rows.length(); i++) {
-            JSONArray row = rows.optJSONArray(i);
-            if (row == null) continue;
-            String sheetId = sheetCell(row, 0).trim();
-            String sheetName = sheetCell(row, 1).trim();
 
-            if (!riderId.isEmpty() && !sheetId.isEmpty()
-                    && riderId.equalsIgnoreCase(sheetId)) {
-                match = row;
-                break;
-            }
-            if (riderId.isEmpty() && !riderName.isEmpty()
-                    && riderName.equalsIgnoreCase(sheetName)) {
-                match = row;
+        if (!riderId.isEmpty()) {
+            for (int i = 1; i < rows.length(); i++) {
+                JSONArray row = rows.optJSONArray(i);
+                if (row == null) continue;
+                String id = sheetCell(row, 0).trim();
+                if (!id.isEmpty() && riderId.equalsIgnoreCase(id)) {
+                    match = row;
+                    break;
+                }
             }
         }
 
-        TextView title = makeText("📅 الشيفتات المختارة", 12, ORANGE, true);
-        title.setPadding(dp(2), dp(4), dp(2), dp(2));
-        page.addView(title);
+        if (match == null && !riderName.isEmpty()) {
+            for (int i = 1; i < rows.length(); i++) {
+                JSONArray row = rows.optJSONArray(i);
+                if (row == null) continue;
+                String name = sheetCell(row, 1).trim();
+                if (!name.isEmpty() && riderName.equalsIgnoreCase(name)) {
+                    match = row;
+                    break;
+                }
+            }
+        }
 
+        LinearLayout section = new LinearLayout(this);
+        section.setOrientation(LinearLayout.VERTICAL);
+        section.setPadding(dp(9), dp(7), dp(9), dp(8));
+        section.setBackground(round(PANEL, ORANGE, 1));
+
+        LinearLayout.LayoutParams sectionParams =
+                new LinearLayout.LayoutParams(-1, -2);
+        sectionParams.setMargins(0, dp(5), 0, dp(5));
+        page.addView(section, sectionParams);
+
+        LinearLayout heading = new LinearLayout(this);
+        heading.setOrientation(LinearLayout.HORIZONTAL);
+        heading.setGravity(Gravity.CENTER_VERTICAL);
+
+        TextView icon = makeText("📅", 19, ORANGE, true);
+        icon.setGravity(Gravity.CENTER);
+        heading.addView(icon, new LinearLayout.LayoutParams(dp(32), dp(32)));
+
+        LinearLayout headingText = new LinearLayout(this);
+        headingText.setOrientation(LinearLayout.VERTICAL);
+        headingText.addView(makeText("الشيفتات المختارة", 13, ORANGE, true));
+        headingText.addView(makeText("حجوزات المندوب", 9, MUTED, false));
+        heading.addView(headingText, new LinearLayout.LayoutParams(0, -2, 1f));
+        section.addView(heading);
+
+        View divider = new View(this);
+        divider.setBackgroundColor(Color.rgb(76, 49, 29));
+        LinearLayout.LayoutParams dividerParams =
+                new LinearLayout.LayoutParams(-1, dp(1));
+        dividerParams.setMargins(0, dp(5), 0, dp(6));
+        section.addView(divider, dividerParams);
+
+        if (rows.length() == 0) {
+            section.addView(makeText(
+                    "افتح الحجوزات وحمّل الشيت أولًا.", 10, MUTED, false));
+            return;
+        }
         if (match == null) {
-            page.addView(makeText("افتح الحجوزات لتحميل الشيفتات.", 10, MUTED, false));
+            section.addView(makeText(
+                    "لم يتم العثور على المندوب في الحجوزات.", 10, MUTED, false));
             return;
         }
 
-        String first = sheetCell(match, 6);
-        String second = sheetCell(match, 7);
-        addCompactDetail(page, "🟠 الشيفت الأول", first.isEmpty() ? "غير مختار" : first);
-        addCompactDetail(page, "🟠 الشيفت الثاني", second.isEmpty() ? "غير مختار" : second);
+        String first = sheetCell(match, 6).trim();
+        String second = sheetCell(match, 7).trim();
+        boolean shown = false;
+
+        if (!first.isEmpty()) {
+            addBookingShiftRow(section, "☀ الشيفت الأول", first);
+            shown = true;
+        }
+        if (!second.isEmpty()) {
+            addBookingShiftRow(section, "🌙 الشيفت الثاني", second);
+            shown = true;
+        }
+        if (!shown) {
+            section.addView(makeText(
+                    "لا توجد شيفتات مختارة للمندوب.", 10, MUTED, false));
+        }
+    }
+
+    private void addBookingShiftRow(
+            LinearLayout parent, String label, String rawValue) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.VERTICAL);
+        row.setPadding(dp(8), dp(6), dp(8), dp(6));
+        row.setBackground(round(Color.rgb(25, 27, 32),
+                Color.rgb(67, 47, 31), 1));
+
+        LinearLayout.LayoutParams rowParams =
+                new LinearLayout.LayoutParams(-1, -2);
+        rowParams.setMargins(0, 0, 0, dp(5));
+        parent.addView(row, rowParams);
+
+        row.addView(makeText(label, 11, ORANGE, true));
+
+        java.util.regex.Pattern pattern =
+                java.util.regex.Pattern.compile(
+                "(?i)(\\d{1,2}[:.]\\d{2}\\s*(?:صباحًا|مساءً|صباحا|مساء|ص|م|AM|PM)?"
+                + "|\\d{1,2}\\s*(?:AM|PM|صباحًا|مساءً|صباحا|مساء|ص|م))");
+        java.util.regex.Matcher matcher = pattern.matcher(rawValue);
+        java.util.ArrayList<String> times = new java.util.ArrayList<>();
+        while (matcher.find()) times.add(matcher.group().trim());
+
+        if (times.size() >= 2) {
+            LinearLayout timeRow = new LinearLayout(this);
+            timeRow.setOrientation(LinearLayout.HORIZONTAL);
+
+            TextView from = makeText(
+                    "بداية\n" + times.get(0), 10, WHITE, true);
+            from.setGravity(Gravity.CENTER);
+            from.setPadding(dp(3), dp(5), dp(3), dp(5));
+            from.setBackground(round(Color.rgb(43, 31, 22), ORANGE, 1));
+
+            TextView to = makeText(
+                    "نهاية\n" + times.get(1), 10, WHITE, true);
+            to.setGravity(Gravity.CENTER);
+            to.setPadding(dp(3), dp(5), dp(3), dp(5));
+            to.setBackground(round(Color.rgb(43, 31, 22), ORANGE, 1));
+
+            LinearLayout.LayoutParams timeParams =
+                    new LinearLayout.LayoutParams(0, -2, 1f);
+            timeParams.setMargins(0, dp(5), dp(4), 0);
+            timeRow.addView(from, timeParams);
+
+            LinearLayout.LayoutParams endParams =
+                    new LinearLayout.LayoutParams(0, -2, 1f);
+            endParams.setMargins(dp(4), dp(5), 0, 0);
+            timeRow.addView(to, endParams);
+            row.addView(timeRow);
+        } else {
+            row.addView(makeText(rawValue, 11, WHITE, false));
+        }
     }
 
     private void showRiderDetails(JSONObject rider, JSONArray orders) {
@@ -3556,11 +3663,11 @@ public class MainActivity extends Activity {
          .append("<style>")
          .append("*{box-sizing:border-box}")
          .append("body{margin:0;padding:10px;background:#07080a;color:#f5f6f8;font-family:Arial,sans-serif}")
-         .append(".head{padding:13px;border:1px solid #6b3b18;border-right:4px solid #ff7900;border-radius:14px;background:linear-gradient(145deg,#25201b,#111317);margin-bottom:10px}")
-         .append(".title{color:#ff9b3d;font-size:17px;font-weight:900}")
+         .append(".head{padding:14px;border:1px solid #70421f;border-right:5px solid #ff7900;border-radius:16px;background:linear-gradient(135deg,#302116,#17191e 65%,#101115);margin-bottom:12px;box-shadow:0 5px 16px #0009}")
+         .append(".title{color:#ff9b3d;font-size:18px;font-weight:900;letter-spacing:.2px}")
          .append(".sub{color:#a0a6b0;font-size:11px;margin-top:5px}")
-         .append(".card{display:grid;grid-template-columns:26px minmax(0,1fr);align-items:start;gap:6px;padding:8px;margin-bottom:8px;border:1px solid #30323a;border-right:3px solid #ff7900;border-radius:12px;background:linear-gradient(145deg,#1c1e23,#101115);box-shadow:0 4px 10px #0008}")
-         .append(".num{width:30px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:9px;background:#38200f;color:#ff9b3d;font-weight:bold}")
+         .append(".card{display:grid;grid-template-columns:30px minmax(0,1fr);align-items:start;gap:8px;padding:10px;margin-bottom:10px;border:1px solid #35323a;border-right:4px solid #ff7900;border-radius:15px;background:linear-gradient(145deg,#22242a,#111216 75%);box-shadow:0 5px 14px #0009}")
+         .append(".num{width:30px;height:30px;display:flex;align-items:center;justify-content:center;border:1px solid #70421f;border-radius:10px;background:linear-gradient(145deg,#513019,#28180e);color:#ffb16d;font-weight:bold;box-shadow:inset 0 1px 2px #ffffff12}")
          .append(".name{font-weight:bold;font-size:14px;overflow-wrap:anywhere}")
          .append(".id{font-size:10px;color:#9da3ae;margin-top:4px}")
          .append(".empty{padding:20px;text-align:center;color:#a0a6b0;border:1px dashed #383a40;border-radius:12px}")
