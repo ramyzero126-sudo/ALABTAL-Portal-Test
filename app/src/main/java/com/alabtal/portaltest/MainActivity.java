@@ -1579,7 +1579,11 @@ public class MainActivity extends Activity {
             "   location_updated_at:r.current_location.location_updated_at || null" +
             "  } : null," +
             "  active_orders:activeOrders," +
-            "  detail_error:detailError" +
+            "  detail_error:detailError," +
+            "  diagnostic_detail_keys:Object.keys(detail || {})," +
+            "  diagnostic_delivery_info_keys:Object.keys((detail && detail.deliveries_info) || {})," +
+            "  diagnostic_latest_count:Array.isArray(latest) ? latest.length : 0," +
+            "  diagnostic_latest_statuses:(Array.isArray(latest) ? latest : []).slice(0,10).map(o => String((o && (o.status || o.order_status || o.delivery_status || o.stage)) || ''))" +
             " };" +
             "}));" +
 
@@ -2856,7 +2860,7 @@ public class MainActivity extends Activity {
             ledBg.setCornerRadius(dp(2));
             tile.addView(led, new LinearLayout.LayoutParams(-1, dp(2)));
 
-            TextView value = makeText(values[i], 16, colors[i], true);
+            TextView value = makeText(values[i], 13, colors[i], true);
             value.setGravity(Gravity.CENTER);
             value.setMaxLines(1);
             value.setEllipsize(android.text.TextUtils.TruncateAt.END);
@@ -2876,7 +2880,7 @@ public class MainActivity extends Activity {
             tile.addView(label, labelLp);
 
             LinearLayout.LayoutParams tileLp =
-                    new LinearLayout.LayoutParams(0, dp(57), 1f);
+                    new LinearLayout.LayoutParams(0, dp(51), 1f);
             tileLp.setMargins(dp(2), dp(2), dp(2), dp(2));
             row.addView(tile, tileLp);
         }
@@ -3722,7 +3726,16 @@ public class MainActivity extends Activity {
         int color;
         int background;
 
-        if (st.equals("completed") || st.equals("delivered")) {
+        if (st.equals("dispatched") || st.equals("assigned")
+                || st.equals("courier notified")) {
+            stage = "📨 تم إسناد الأوردر";
+            color = Color.rgb(255, 193, 7);
+            background = Color.rgb(57, 44, 15);
+        } else if (st.equals("accepted") || st.equals("accepted order")) {
+            stage = "✓ المندوب قبل الأوردر";
+            color = Color.rgb(255, 154, 67);
+            background = Color.rgb(65, 39, 18);
+        } else if (st.equals("completed") || st.equals("delivered")) {
             stage = "✓ تم التسليم";
             color = GREEN;
             background = Color.rgb(15, 53, 37);
