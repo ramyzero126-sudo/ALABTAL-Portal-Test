@@ -2873,8 +2873,8 @@ public class MainActivity extends Activity {
                 rayPaint.setColor(0x40FF8A1C);
                 rayPaint.setStrokeWidth(dp(1));
                 rayPaint.setStrokeCap(android.graphics.Paint.Cap.ROUND);
-                for (int i = 0; i < 36; i++) {
-                    double a = Math.PI * 2d * i / 36d;
+                for (int i = 0; i < 20; i++) {
+                    double a = Math.PI * 2d * i / 20d;
                     float inner = radius * 0.43f;
                     float outer = radius * (0.76f + (i % 4) * 0.045f);
                     canvas.drawLine(
@@ -2903,7 +2903,74 @@ public class MainActivity extends Activity {
         heroContent.setElevation(dp(4));
 
         ImageView brand = new ImageView(this);
-        brand.setImageResource(com.alabtal.portaltest.R.drawable.alabtal_logo);
+        // إزالة الخلفية الداكنة المتصلة بحواف الشعار مع الحفاظ على تفاصيله.
+        android.graphics.Bitmap logoBitmap =
+                android.graphics.BitmapFactory.decodeResource(
+                        getResources(), com.alabtal.portaltest.R.drawable.alabtal_logo);
+
+        if (logoBitmap != null) {
+            android.graphics.Bitmap mutableLogo =
+                    logoBitmap.copy(android.graphics.Bitmap.Config.ARGB_8888, true);
+            if (mutableLogo != null) {
+                int w = mutableLogo.getWidth();
+                int h = mutableLogo.getHeight();
+                int[] pixels = new int[w * h];
+                mutableLogo.getPixels(pixels, 0, w, 0, 0, w, h);
+                boolean[] seen = new boolean[pixels.length];
+                int[] queue = new int[pixels.length];
+                int head = 0, tail = 0;
+
+                // البكسلات السوداء/شبه السوداء المتصلة بحافة الصورة فقط.
+                for (int x = 0; x < w; x++) {
+                    int top = x, bottom = (h - 1) * w + x;
+                    if (!seen[top]) { seen[top] = true; queue[tail++] = top; }
+                    if (!seen[bottom]) { seen[bottom] = true; queue[tail++] = bottom; }
+                }
+                for (int y = 0; y < h; y++) {
+                    int left = y * w, right = y * w + w - 1;
+                    if (!seen[left]) { seen[left] = true; queue[tail++] = left; }
+                    if (!seen[right]) { seen[right] = true; queue[tail++] = right; }
+                }
+
+                while (head < tail) {
+                    int idx = queue[head++];
+                    int color = pixels[idx];
+                    int red = android.graphics.Color.red(color);
+                    int green = android.graphics.Color.green(color);
+                    int blue = android.graphics.Color.blue(color);
+                    int max = Math.max(red, Math.max(green, blue));
+                    int min = Math.min(red, Math.min(green, blue));
+
+                    if (max > 58 || max - min > 24) continue;
+
+                    pixels[idx] = 0x00000000;
+                    int x = idx % w, y = idx / w;
+                    int n;
+
+                    if (x > 0) {
+                        n = idx - 1;
+                        if (!seen[n]) { seen[n] = true; queue[tail++] = n; }
+                    }
+                    if (x + 1 < w) {
+                        n = idx + 1;
+                        if (!seen[n]) { seen[n] = true; queue[tail++] = n; }
+                    }
+                    if (y > 0) {
+                        n = idx - w;
+                        if (!seen[n]) { seen[n] = true; queue[tail++] = n; }
+                    }
+                    if (y + 1 < h) {
+                        n = idx + w;
+                        if (!seen[n]) { seen[n] = true; queue[tail++] = n; }
+                    }
+                }
+
+                mutableLogo.setPixels(pixels, 0, w, 0, 0, w, h);
+                brand.setImageBitmap(mutableLogo);
+            } else {
+                brand.setImageBitmap(logoBitmap);
+            }
+        }
         brand.setScaleType(ImageView.ScaleType.FIT_CENTER);
         brand.setContentDescription("شعار الأبطال");
 
@@ -2921,76 +2988,91 @@ public class MainActivity extends Activity {
 
         hero.addView(heroContent, new FrameLayout.LayoutParams(-1, -2, Gravity.CENTER));
 
-        // ABTAL_WINGS_OVERLAY: جناحان معدنيان مرسومان بالكود حول الشعار.
+        // ABTAL_WINGS_OVERLAY: جناحان متناسقان مع ريش متداخل.
         View wingsOverlay = new View(this) {
-            private final android.graphics.Paint wingPaint =
+            private final android.graphics.Paint paint =
                     new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
 
-            private void drawWing(android.graphics.Canvas c, float cx, float cy) {
-                float inner = cx + dp(78);
-                float outer = Math.min(getWidth() - dp(5), cx + dp(178));
+            private void feather(android.graphics.Canvas c, float x, float y,
+                                 float tipX, float tipY, float width) {
+                android.graphics.Path f = new android.graphics.Path();
+                f.moveTo(x, y);
+                f.quadTo(x + width * 0.40f, y - dp(4), tipX, tipY);
+                f.quadTo(x + width * 0.10f, y + dp(5), x, y);
+                f.close();
 
-                android.graphics.Path wing = new android.graphics.Path();
-                wing.moveTo(inner, cy + dp(2));
-                wing.cubicTo(
-                        cx + dp(105), cy - dp(5),
-                        cx + dp(133), cy - dp(48),
-                        outer, cy - dp(49));
-                wing.quadTo(
-                        cx + dp(153), cy - dp(21),
-                        cx + dp(139), cy - dp(7));
-                wing.quadTo(
-                        cx + dp(158), cy - dp(2),
-                        outer - dp(2), cy + dp(11));
-                wing.quadTo(
-                        cx + dp(148), cy + dp(9),
-                        cx + dp(128), cy + dp(19));
-                wing.quadTo(
-                        cx + dp(151), cy + dp(26),
-                        outer - dp(10), cy + dp(39));
-                wing.quadTo(
-                        cx + dp(116), cy + dp(36),
-                        cx + dp(96), cy + dp(18));
-                wing.close();
-
-                wingPaint.setStyle(android.graphics.Paint.Style.FILL);
-                wingPaint.setShader(new android.graphics.LinearGradient(
-                        inner, cy - dp(35), outer, cy + dp(30),
-                        new int[]{0xEE17191D, 0xFF4B250D, 0xFFFF7900},
+                paint.setStyle(android.graphics.Paint.Style.FILL);
+                paint.setShader(new android.graphics.LinearGradient(
+                        x, y, tipX, tipY,
+                        new int[]{0xFF2A211B, 0xFF8A430F, 0xFFFF9A2E},
                         null, android.graphics.Shader.TileMode.CLAMP));
-                c.drawPath(wing, wingPaint);
-                wingPaint.setShader(null);
+                c.drawPath(f, paint);
+                paint.setShader(null);
+                paint.setStyle(android.graphics.Paint.Style.STROKE);
+                paint.setStrokeWidth(dp(0.8f));
+                paint.setColor(0xFFFFA13A);
+                c.drawPath(f, paint);
+                paint.setStyle(android.graphics.Paint.Style.FILL);
+            }
 
-                wingPaint.setStyle(android.graphics.Paint.Style.STROKE);
-                wingPaint.setStrokeWidth(dp(1.5f));
-                wingPaint.setColor(0xFFFF8A1C);
-                c.drawPath(wing, wingPaint);
+            private void drawWing(android.graphics.Canvas c, float cx, float cy) {
+                float root = cx + dp(38);
+                float tip = Math.min(getWidth() - dp(3), cx + dp(174));
 
-                // ريش متدرج بخطوط معدنية مضيئة.
-                wingPaint.setStrokeWidth(dp(1.1f));
-                for (int i = 0; i < 6; i++) {
-                    float x = cx + dp(99 + i * 11);
-                    float y = cy - dp(4 + i * 5);
-                    wingPaint.setColor(i % 2 == 0
-                            ? 0xFFFFA13A : 0xAAFF7900);
-                    c.drawLine(
-                            x, y,
-                            Math.min(outer - dp(5), x + dp(27)),
-                            cy + dp(8 + i * 3),
-                            wingPaint);
+                android.graphics.Path base = new android.graphics.Path();
+                base.moveTo(root, cy + dp(13));
+                base.cubicTo(cx + dp(72), cy - dp(7),
+                        cx + dp(119), cy - dp(69), tip, cy - dp(73));
+                base.cubicTo(cx + dp(155), cy - dp(28),
+                        cx + dp(133), cy + dp(1), cx + dp(113), cy + dp(8));
+                base.cubicTo(cx + dp(139), cy + dp(17),
+                        cx + dp(155), cy + dp(31), tip - dp(7), cy + dp(43));
+                base.cubicTo(cx + dp(116), cy + dp(42),
+                        cx + dp(87), cy + dp(30), root, cy + dp(13));
+                base.close();
+
+                paint.setShader(new android.graphics.LinearGradient(
+                        root, cy - dp(35), tip, cy + dp(25),
+                        new int[]{0xFF151719, 0xFF50270D, 0xFFB85B12},
+                        null, android.graphics.Shader.TileMode.CLAMP));
+                c.drawPath(base, paint);
+                paint.setShader(null);
+                paint.setStyle(android.graphics.Paint.Style.STROKE);
+                paint.setStrokeWidth(dp(1.4f));
+                paint.setColor(0xFFFF8B1B);
+                c.drawPath(base, paint);
+                paint.setStyle(android.graphics.Paint.Style.FILL);
+
+                // صفوف ريش متداخل؛ كل ريشة لها طرف مضيء.
+                for (int i = 0; i < 7; i++) {
+                    float x = cx + dp(52 + i * 12);
+                    float y = cy + dp(7 - i * 8);
+                    float featherTipX = Math.min(tip - dp(4), x + dp(43));
+                    float featherTipY = cy - dp(35 + i * 5);
+                    feather(c, x, y, featherTipX, featherTipY, dp(38));
                 }
-                wingPaint.setStyle(android.graphics.Paint.Style.FILL);
+
+                for (int i = 0; i < 5; i++) {
+                    float x = cx + dp(62 + i * 12);
+                    feather(c, x, cy + dp(17 + i * 2),
+                            Math.min(tip - dp(8), x + dp(34)),
+                            cy + dp(25 + i * 3), dp(30));
+                }
+
+                paint.setColor(0xFFFFC078);
+                paint.setStrokeWidth(dp(1));
+                paint.setStyle(android.graphics.Paint.Style.STROKE);
+                c.drawLine(root, cy + dp(12), cx + dp(103), cy - dp(19), paint);
+                paint.setStyle(android.graphics.Paint.Style.FILL);
             }
 
             @Override
             protected void onDraw(android.graphics.Canvas canvas) {
                 super.onDraw(canvas);
                 float cx = getWidth() / 2f;
-                float cy = getHeight() * 0.38f;
-
+                float cy = getHeight() * 0.39f;
                 canvas.save();
                 drawWing(canvas, cx, cy);
-
                 canvas.scale(-1f, 1f, cx, cy);
                 drawWing(canvas, cx, cy);
                 canvas.restore();
@@ -3000,7 +3082,7 @@ public class MainActivity extends Activity {
         wingsOverlay.setFocusable(false);
         hero.addView(wingsOverlay,
                 new FrameLayout.LayoutParams(-1, -1));
-        // إبقاء الشعار فوق الجناحين حتى لا يغطي الرسم رأس النسر.
+        // الشعار في المقدمة والجناحان خلفه.
         heroContent.bringToFront();
 
 
