@@ -2806,58 +2806,79 @@ public class MainActivity extends Activity {
     private void addMicroStatSection(
             LinearLayout parent, String heading,
             String[] labels, String[] values, int[] colors) {
-        TextView title = makeText("◈  " + heading, 10, ORANGE, true);
-        title.setPadding(dp(4), dp(3), dp(4), dp(3));
-        parent.addView(title, new LinearLayout.LayoutParams(-1, -2));
+        LinearLayout section = new LinearLayout(this);
+        section.setOrientation(LinearLayout.VERTICAL);
+        section.setPadding(dp(7), dp(5), dp(7), dp(5));
+
+        GradientDrawable panel = new GradientDrawable(
+                GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{Color.rgb(23, 30, 41), Color.rgb(7, 10, 16)});
+        panel.setCornerRadius(dp(14));
+        panel.setStroke(dp(1), Color.rgb(76, 49, 30));
+        section.setBackground(panel);
+        section.setElevation(dp(4));
+
+        LinearLayout.LayoutParams sectionLp =
+                new LinearLayout.LayoutParams(-1, -2);
+        sectionLp.setMargins(0, dp(3), 0, dp(5));
+        parent.addView(section, sectionLp);
+
+        TextView title = makeText("◆  " + heading, 11, ORANGE, true);
+        title.setPadding(dp(3), dp(1), dp(3), dp(4));
+        title.setShadowLayer(dp(3), 0, 0, ORANGE_DEEP);
+        section.addView(title);
 
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
 
-        int count = Math.min(labels.length,
-                Math.min(values.length, colors.length));
-
+        int count = Math.min(labels.length, Math.min(values.length, colors.length));
         for (int i = 0; i < count; i++) {
             LinearLayout tile = new LinearLayout(this);
             tile.setOrientation(LinearLayout.VERTICAL);
             tile.setGravity(Gravity.CENTER);
-            tile.setPadding(dp(2), dp(1), dp(2), dp(1));
+            tile.setPadding(dp(3), dp(4), dp(3), dp(4));
 
-            GradientDrawable bg = new GradientDrawable(
+            GradientDrawable tileBg = new GradientDrawable(
                     GradientDrawable.Orientation.TOP_BOTTOM,
-                    new int[]{Color.rgb(31, 29, 27), Color.rgb(8, 10, 14)}
-            );
-            bg.setCornerRadius(dp(11));
-            bg.setStroke(dp(1), Color.rgb(112, 66, 34));
-            tile.setBackground(bg);
-            tile.setElevation(dp(5));
-            tile.setTranslationZ(dp(1));
+                    new int[]{Color.rgb(32, 40, 53), Color.rgb(8, 12, 19)});
+            tileBg.setCornerRadius(dp(11));
+            tileBg.setStroke(dp(1), colors[i]);
+            tile.setBackground(tileBg);
+            tile.setElevation(dp(4));
 
-            TextView icon = makeText(statIcon(labels[i]), 8, colors[i], true);
-            icon.setGravity(Gravity.CENTER);
-            icon.setShadowLayer(dp(3), 0, 0, colors[i]);
-            tile.addView(icon, new LinearLayout.LayoutParams(-1, -2));
+            View led = new View(this);
+            GradientDrawable ledBg = new GradientDrawable(
+                    GradientDrawable.Orientation.LEFT_RIGHT,
+                    new int[]{Color.TRANSPARENT, colors[i], Color.TRANSPARENT});
+            ledBg.setCornerRadius(dp(2));
+            tile.addView(led, new LinearLayout.LayoutParams(-1, dp(2)));
 
-            TextView value = makeText(values[i], 11, colors[i], true);
+            TextView value = makeText(values[i], 16, colors[i], true);
             value.setGravity(Gravity.CENTER);
+            value.setMaxLines(1);
+            value.setEllipsize(android.text.TextUtils.TruncateAt.END);
             value.setShadowLayer(dp(3), 0, 0, colors[i]);
-            tile.addView(value, new LinearLayout.LayoutParams(-1, -2));
+            LinearLayout.LayoutParams valueLp =
+                    new LinearLayout.LayoutParams(-1, -2);
+            valueLp.topMargin = dp(3);
+            tile.addView(value, valueLp);
 
-            TextView label = makeText(labels[i], 7, MUTED, false);
+            TextView label = makeText(labels[i], 8, WHITE, true);
             label.setGravity(Gravity.CENTER);
             label.setMaxLines(2);
-            tile.addView(label, new LinearLayout.LayoutParams(-1, -2));
+            label.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            LinearLayout.LayoutParams labelLp =
+                    new LinearLayout.LayoutParams(-1, -2);
+            labelLp.topMargin = dp(2);
+            tile.addView(label, labelLp);
 
-            LinearLayout.LayoutParams tileParams =
-                    new LinearLayout.LayoutParams(0, dp(39), 1f);
-            tileParams.setMargins(dp(2), dp(2), dp(2), dp(3));
-            row.addView(tile, tileParams);
+            LinearLayout.LayoutParams tileLp =
+                    new LinearLayout.LayoutParams(0, dp(57), 1f);
+            tileLp.setMargins(dp(2), dp(2), dp(2), dp(2));
+            row.addView(tile, tileLp);
         }
-
-        LinearLayout.LayoutParams rowParams =
-                new LinearLayout.LayoutParams(-1, -2);
-        rowParams.setMargins(0, 0, 0, dp(2));
-        parent.addView(row, rowParams);
+        section.addView(row);
     }
 
     private String statIcon(String label) {
@@ -3054,12 +3075,14 @@ public class MainActivity extends Activity {
                 "<meta name='viewport' content='width=device-width,initial-scale=1'>" +
                 "<link rel='stylesheet' href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'>" +
                 "<style>html,body,#map{height:100%;margin:0;background:#07080a;color:#fff}" +
-                ".note{position:absolute;z-index:999;bottom:12px;left:12px;right:12px;" +
-                "background:#111317;border:1px solid #ff7900;border-radius:10px;" +
-                "padding:10px;text-align:center;font:14px sans-serif;color:#fff}" +
-                ".leaflet-popup-content-wrapper{background:#111317;color:#fff}" +
-                ".leaflet-popup-tip{background:#111317}</style></head><body>" +
-                "<div id='map'></div><div id='note' class='note'>جاري تجهيز الخريطة...</div>" +
+                ".note{position:absolute;z-index:999;bottom:14px;left:12px;right:12px;" +
+                "background:linear-gradient(135deg,#172332ee,#090d14f2);border:1px solid #ff8a22;border-radius:15px;" +
+                "padding:12px;text-align:center;font:700 13px sans-serif;color:#fff;box-shadow:0 0 22px #ff790033}" +
+                ".hud{position:absolute;z-index:999;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;gap:8px;pointer-events:none}" +
+                ".chip{background:#0b111be8;border:1px solid #ff8a2277;border-radius:11px;padding:8px 10px;color:#ffb46a;font:700 11px sans-serif}" +
+                ".leaflet-popup-content-wrapper{background:linear-gradient(145deg,#1b2634,#0b1018);color:#fff;border:1px solid #ff7900;border-radius:13px}" +
+                ".leaflet-popup-tip{background:#111b27}.leaflet-control-zoom a{background:#111923!important;color:#ff9b3d!important;border-color:#3a4655!important}</style></head><body>" +
+                "<div id='map'></div><div class='hud'><div class='chip'>AL ABTAL • LIVE MAP</div><div id='count' class='chip'>GPS: —</div></div><div id='note' class='note'>جاري تجهيز الخريطة...</div>" +
                 "<script>" +
                 "window.mapLibraryReady=false;" +
                 "function loadLeafletFallback(){" +
@@ -3077,9 +3100,10 @@ public class MainActivity extends Activity {
                 "}" +
                 "function initRiderMap(){" +
                 "if(typeof L==='undefined'){loadLeafletFallback();return;}" +
-                "const map=L.map('map').setView([30.7865,31.0004],12);" +
-                "L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'," +
-                "{maxZoom:19,attribution:'&copy; OpenStreetMap'}).addTo(map);" +
+                "const map=L.map('map',{zoomControl:false}).setView([30.7865,31.0004],12);" +
+                "L.control.zoom({position:'bottomright'}).addTo(map);" +
+                "L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'," +
+                "{maxZoom:20,attribution:'&copy; OpenStreetMap &copy; CARTO'}).addTo(map);" +
                 "const safe=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');" +
                 "const pts=" + points.toString() + ";" +
                 "pts.forEach(p=>{const color=/بريك|استراحة/.test(p.status)?'#ff5252':" +
@@ -3293,7 +3317,9 @@ public class MainActivity extends Activity {
         orderStrip.addView(orderText,
                 new LinearLayout.LayoutParams(0, -2, 1f));
 
-        String stage = "";
+        String stage = firstValue(rider,
+                "active_order_status", "activeOrderStatus", "order_status",
+                "delivery_status", "order_stage", "orderStage");
         String vendor = "";
         JSONObject activeOrder = orders.optJSONObject(0);
         if (activeOrder != null) {
@@ -3303,6 +3329,7 @@ public class MainActivity extends Activity {
                     "vendor_name", "restaurant_name", "merchant_name",
                     "vendorName", "restaurantName");
         }
+        if (stage.isEmpty() && hasOrders) stage = "accepted order";
 
         if (hasOrders && activeOrder != null) {
             TextView stageBadge = makeText(
@@ -3319,7 +3346,7 @@ public class MainActivity extends Activity {
         orderStripLp.topMargin = dp(6);
         card.addView(orderStrip, orderStripLp);
 
-        if (hasOrders && activeOrder != null) {
+        if (hasOrders) {
             LinearLayout progress = new LinearLayout(this);
             progress.setOrientation(LinearLayout.VERTICAL);
             LinearLayout.LayoutParams progressLp =
@@ -3327,12 +3354,6 @@ public class MainActivity extends Activity {
             progressLp.topMargin = dp(2);
             card.addView(progress, progressLp);
             addOrderProgressTrack(progress, stage, vendor);
-        } else if (hasOrders) {
-            TextView missingStage = makeText(
-                    "الأوردر موجود — تفاصيل المرحلة لم تصل من المصدر",
-                    9, MUTED, false);
-            missingStage.setPadding(dp(2), dp(4), dp(2), dp(1));
-            card.addView(missingStage);
         }
 
         // مؤشرات تشغيل مضغوطة.
@@ -3398,38 +3419,6 @@ public class MainActivity extends Activity {
         addRiderAction(actions, rider, "＋", "تزويد", GREEN);
         addRiderAction(actions, rider, "☕", "بريك", ORANGE);
         addRiderAction(actions, rider, "↗", "التفاصيل", ORANGE);
-
-        // التفاصيل العامة قابلة للفتح؛ بيانات العناوين تبقى في صفحة التفاصيل فقط.
-        LinearLayout extra = new LinearLayout(this);
-        extra.setOrientation(LinearLayout.VERTICAL);
-        extra.setPadding(dp(3), dp(5), dp(3), dp(2));
-        extra.setVisibility(View.GONE);
-        card.addView(extra);
-
-        addCompactDetail(extra, "الحالة", stateLabel);
-        addCompactDetail(extra, "نقطة البداية",
-                firstValue(rider, "starting_point", "startingPoint",
-                        "start_point", "starting_point_name"));
-        addCompactDetail(extra, "المنطقة",
-                firstValue(rider, "zone", "area", "city"));
-        addCompactDetail(extra, "الأداء",
-                firstValue(rider, "performance", "performance_score",
-                        "utr", "performance_utr"));
-        addCompactDetail(extra, "نسبة القبول",
-                firstValue(rider, "acceptance_rate", "acceptance",
-                        "acceptance_percentage"));
-        addCompactDetail(extra, "المركبة",
-                firstValue(rider, "vehicle", "vehicle_type"));
-
-        TextView toggle = makeText("⌄ معلومات المندوب", 10, ORANGE, true);
-        toggle.setGravity(Gravity.CENTER);
-        toggle.setPadding(dp(6), dp(5), dp(6), dp(2));
-        card.addView(toggle);
-        toggle.setOnClickListener(v -> {
-            boolean visible = extra.getVisibility() != View.VISIBLE;
-            extra.setVisibility(visible ? View.VISIBLE : View.GONE);
-            toggle.setText(visible ? "⌃ إخفاء المعلومات" : "⌄ معلومات المندوب");
-        });
 
         // صفحة منفصلة لبيانات المندوب والأوردر والعناوين.
         View.OnClickListener openDetails = v ->
@@ -4966,7 +4955,7 @@ public class MainActivity extends Activity {
          .append(".pick{display:flex;align-items:center;gap:8px;margin-top:11px}")
          .append(".pick label{font-size:12px;color:#ffb16d;font-weight:bold;white-space:nowrap}")
          .append(".pick input{min-width:0;flex:1;background:#101115;color:#fff;border:1px solid #70421f;border-radius:9px;padding:9px;font-size:13px;min-height:38px}")
-         .append(".card{padding:10px;margin-bottom:8px;border:1px solid #35323a;border-right:4px solid #ff7900;border-radius:12px;background:linear-gradient(145deg,#202228,#111216);box-shadow:0 4px 12px #0008}")
+         .append(".card{position:relative;padding:12px 11px 11px;margin-bottom:10px;border:1px solid #3a414d;border-right:5px solid #ff7900;border-radius:16px;background:linear-gradient(145deg,#222b38 0%,#121720 56%,#090c12 100%);box-shadow:0 7px 18px #000a;overflow:hidden}")
          .append(".person{display:flex;align-items:center;gap:8px;min-width:0}")
          .append(".num{flex:0 0 29px;width:29px;height:29px;display:flex;align-items:center;justify-content:center;border:1px solid #70421f;border-radius:9px;background:#2c1b10;color:#ffb16d;font-weight:bold;font-size:12px}")
          .append(".namebox{min-width:0;flex:1}.name{font-size:14px;font-weight:bold;overflow-wrap:anywhere}")
@@ -5253,7 +5242,7 @@ public class MainActivity extends Activity {
          .append(".tabs{display:flex;gap:7px;position:sticky;top:0;background:#07080a;padding:5px 0 10px;z-index:2}")
          .append("button{flex:1;padding:11px 5px;border:1px solid #633719;border-radius:12px;background:linear-gradient(145deg,#202126,#111216);color:#eee;font-weight:bold;box-shadow:0 3px 8px #0008}")
          .append("button.active{background:linear-gradient(135deg,#ff9d3b,#ff7900);border-color:#ffb66c;color:#17100a;box-shadow:0 0 12px #ff790033}")
-         .append(".card{position:relative;background:linear-gradient(145deg,#1c1e23,#101115 72%);border:1px solid #30323a;border-right:4px solid #ff7900;border-radius:15px;padding:11px;margin-bottom:9px;overflow-wrap:anywhere;box-shadow:0 5px 12px #0008}")
+         .append(".card{position:relative;background:linear-gradient(145deg,#222b38 0%,#121720 58%,#090c12 100%);border:1px solid #394351;border-right:5px solid #ff7900;border-radius:16px;padding:13px 11px 11px;margin-bottom:11px;overflow-wrap:anywhere;box-shadow:0 8px 20px #000a;overflow:hidden}")
          .append(".card:before{content:'';display:block;height:1px;margin:-2px 0 7px;background:linear-gradient(90deg,transparent,#ff790077,transparent)}")
          .append(".line{display:flex;justify-content:space-between;align-items:flex-start;gap:9px;margin:0;padding:8px 1px;border-bottom:1px solid #292b31;font-size:12px;line-height:1.45}")
          .append(".line:last-child{border-bottom:0}")
