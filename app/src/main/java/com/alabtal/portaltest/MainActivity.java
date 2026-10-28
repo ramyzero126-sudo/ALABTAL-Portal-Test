@@ -466,10 +466,17 @@ public class MainActivity extends Activity {
             chip.setTextColor(ORANGE);
             chip.setPadding(dp(7), 0, dp(7), 0);
             chip.setMinWidth(0);
-            chip.setBackground(round(Color.rgb(17, 23, 32), ORANGE, 1));
-            chip.setElevation(dp(2));
+            GradientDrawable chipBg = new GradientDrawable(
+                    GradientDrawable.Orientation.TOP_BOTTOM,
+                    new int[]{Color.rgb(39, 27, 18), Color.rgb(10, 14, 21)}
+            );
+            chipBg.setCornerRadius(dp(18));
+            chipBg.setStroke(dp(1), ORANGE);
+            chip.setBackground(chipBg);
+            chip.setElevation(dp(4));
+            chip.setTranslationZ(dp(1));
             LinearLayout.LayoutParams cp =
-                    new LinearLayout.LayoutParams(-2, dp(23));
+                    new LinearLayout.LayoutParams(-2, dp(28));
             cp.setMargins(0, 0, dp(3), 0);
             filterRow.addView(chip, cp);
             chip.setOnClickListener(v -> {
@@ -493,32 +500,36 @@ public class MainActivity extends Activity {
         mapTab.setTextSize(10);
         sheetTab.setTextSize(9);
         bookingsTab.setTextSize(9);
-        ridersTab.setBackground(round(Color.rgb(27, 22, 18), ORANGE, 1));
-        mapTab.setBackground(round(Color.rgb(13, 24, 35),
-                Color.rgb(65, 150, 240), 1));
-        sheetTab.setBackground(round(Color.rgb(19, 18, 31),
-                Color.rgb(145, 110, 220), 1));
-        bookingsTab.setBackground(round(Color.rgb(28, 20, 11),
-                Color.rgb(230, 150, 45), 1));
-        ridersTab.setElevation(dp(4));
-        mapTab.setElevation(dp(4));
-        sheetTab.setElevation(dp(4));
-        bookingsTab.setElevation(dp(4));
+        ridersTab.setBackground(round(Color.rgb(39, 24, 13), ORANGE, 2));
+        mapTab.setBackground(round(Color.rgb(12, 27, 42),
+                Color.rgb(65, 150, 240), 2));
+        sheetTab.setBackground(round(Color.rgb(25, 19, 39),
+                Color.rgb(145, 110, 220), 2));
+        bookingsTab.setBackground(round(Color.rgb(39, 27, 12),
+                Color.rgb(230, 150, 45), 2));
+        ridersTab.setElevation(dp(7));
+        mapTab.setElevation(dp(7));
+        sheetTab.setElevation(dp(7));
+        bookingsTab.setElevation(dp(7));
+        ridersTab.setTranslationZ(dp(1));
+        mapTab.setTranslationZ(dp(1));
+        sheetTab.setTranslationZ(dp(1));
+        bookingsTab.setTranslationZ(dp(1));
 
         LinearLayout.LayoutParams tabParams =
-                new LinearLayout.LayoutParams(0, dp(34), 1);
+                new LinearLayout.LayoutParams(0, dp(42), 1);
         tabParams.setMargins(0, 0, dp(3), 0);
         mapTabs.addView(ridersTab, tabParams);
         LinearLayout.LayoutParams mapTabParams =
-                new LinearLayout.LayoutParams(0, dp(34), 1);
+                new LinearLayout.LayoutParams(0, dp(42), 1);
         mapTabParams.setMargins(0, 0, dp(3), 0);
         mapTabs.addView(mapTab, mapTabParams);
         LinearLayout.LayoutParams sheetTabParams =
-                new LinearLayout.LayoutParams(0, dp(34), 1);
+                new LinearLayout.LayoutParams(0, dp(42), 1);
         sheetTabParams.setMargins(0, 0, dp(3), 0);
         mapTabs.addView(sheetTab, sheetTabParams);
         LinearLayout.LayoutParams bookingsParams =
-                new LinearLayout.LayoutParams(0, dp(34), 1);
+                new LinearLayout.LayoutParams(0, dp(42), 1);
         mapTabs.addView(bookingsTab, bookingsParams);
         root.addView(mapTabs);
 
@@ -1597,8 +1608,8 @@ public class MainActivity extends Activity {
     private void addMicroStatSection(
             LinearLayout parent, String heading,
             String[] labels, String[] values, int[] colors) {
-        TextView title = makeText(heading, 10, ORANGE, true);
-        title.setPadding(dp(1), 0, dp(1), 0);
+        TextView title = makeText("◈  " + heading, 10, ORANGE, true);
+        title.setPadding(dp(4), dp(3), dp(4), dp(3));
         parent.addView(title, new LinearLayout.LayoutParams(-1, -2));
 
         LinearLayout row = new LinearLayout(this);
@@ -1612,33 +1623,37 @@ public class MainActivity extends Activity {
             LinearLayout tile = new LinearLayout(this);
             tile.setOrientation(LinearLayout.VERTICAL);
             tile.setGravity(Gravity.CENTER);
-            tile.setPadding(dp(1), dp(2), dp(1), dp(2));
+            tile.setPadding(dp(3), dp(4), dp(3), dp(4));
 
-            GradientDrawable bg = new GradientDrawable();
-            bg.setColor(Color.rgb(20, 20, 24));
-            bg.setCornerRadius(dp(8));
-            bg.setStroke(dp(1), Color.rgb(80, 55, 38));
+            GradientDrawable bg = new GradientDrawable(
+                    GradientDrawable.Orientation.TOP_BOTTOM,
+                    new int[]{Color.rgb(29, 35, 46), Color.rgb(8, 11, 17)}
+            );
+            bg.setCornerRadius(dp(11));
+            bg.setStroke(dp(1), Color.rgb(92, 62, 43));
             tile.setBackground(bg);
-            tile.setElevation(dp(2));
+            tile.setElevation(dp(5));
+            tile.setTranslationZ(dp(1));
 
             TextView value = makeText(values[i], 12, colors[i], true);
             value.setGravity(Gravity.CENTER);
+            value.setShadowLayer(dp(3), 0, 0, colors[i]);
             tile.addView(value, new LinearLayout.LayoutParams(-1, -2));
 
             TextView label = makeText(labels[i], 7, MUTED, false);
             label.setGravity(Gravity.CENTER);
-            label.setPadding(0, 0, 0, 0);
+            label.setMaxLines(2);
             tile.addView(label, new LinearLayout.LayoutParams(-1, -2));
 
             LinearLayout.LayoutParams tileParams =
-                    new LinearLayout.LayoutParams(0, dp(32), 1f);
-            tileParams.setMargins(dp(1), dp(1), dp(1), dp(1));
+                    new LinearLayout.LayoutParams(0, dp(38), 1f);
+            tileParams.setMargins(dp(2), dp(2), dp(2), dp(3));
             row.addView(tile, tileParams);
         }
 
         LinearLayout.LayoutParams rowParams =
                 new LinearLayout.LayoutParams(-1, -2);
-        rowParams.setMargins(0, 0, 0, dp(1));
+        rowParams.setMargins(0, 0, 0, dp(2));
         parent.addView(row, rowParams);
     }
 
