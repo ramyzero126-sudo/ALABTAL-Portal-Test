@@ -3126,7 +3126,7 @@ public class MainActivity extends Activity {
     private void addRiderCard(JSONObject rider, JSONArray orders) {
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(dp(8), dp(7), dp(8), dp(6));
+        card.setPadding(dp(7), dp(5), dp(7), dp(4));
 
         GradientDrawable cardBg = new GradientDrawable(
                 GradientDrawable.Orientation.TOP_BOTTOM,
@@ -3150,7 +3150,7 @@ public class MainActivity extends Activity {
         railBg.setCornerRadius(dp(3));
         ledRail.setBackground(railBg);
         LinearLayout.LayoutParams railParams =
-                new LinearLayout.LayoutParams(-1, dp(2));
+                new LinearLayout.LayoutParams(-1, dp(3));
         railParams.setMargins(dp(1), 0, dp(1), dp(5));
         card.addView(ledRail, railParams);
         ObjectAnimator railPulse = ObjectAnimator.ofFloat(
@@ -3185,14 +3185,14 @@ public class MainActivity extends Activity {
         identity.setGravity(Gravity.CENTER_VERTICAL);
         identity.setLayoutParams(new LinearLayout.LayoutParams(0, -2, 1));
 
-        TextView nameView = makeText(name, 15, Color.WHITE, true);
+        TextView nameView = makeText(name, 14, Color.WHITE, true);
         nameView.setShadowLayer(dp(6), 0, 0, Color.rgb(180, 67, 8));
         nameView.setMaxLines(1);
         nameView.setEllipsize(android.text.TextUtils.TruncateAt.END);
         identity.addView(nameView);
 
         TextView idView = makeText(
-                id.isEmpty() ? "مندوب" : "ID: " + id, 10, Color.LTGRAY, false);
+                id.isEmpty() ? "مندوب" : "ID: " + id, 9, Color.LTGRAY, false);
         identity.addView(idView);
         heading.addView(identity);
 
@@ -3260,7 +3260,7 @@ public class MainActivity extends Activity {
         metrics.setWeightSum(4f);
         LinearLayout.LayoutParams metricParams = new LinearLayout.LayoutParams(
                 -1, -2);
-        metricParams.topMargin = dp(8);
+        metricParams.topMargin = dp(5);
         card.addView(metrics, metricParams);
 
         addCompactMetric(metrics, "💰 المحفظة",
@@ -3286,7 +3286,7 @@ public class MainActivity extends Activity {
         LinearLayout shiftRow = new LinearLayout(this);
         shiftRow.setOrientation(LinearLayout.HORIZONTAL);
         shiftRow.setGravity(Gravity.CENTER_VERTICAL);
-        shiftRow.setPadding(dp(7), dp(5), dp(7), dp(5));
+        shiftRow.setPadding(dp(6), dp(3), dp(6), dp(3));
         shiftRow.setBackground(round(Color.rgb(17, 18, 21), ORANGE, 1));
         TextView shiftStart = makeText("بداية الشيفت  " + displayValue(
                 firstValue(rider, "shift_start", "shiftStart", "shift_start_time", "session_start", "planned_shift_start")),
@@ -3346,7 +3346,7 @@ public class MainActivity extends Activity {
         LinearLayout actions = new LinearLayout(this);
         actions.setOrientation(LinearLayout.HORIZONTAL);
         actions.setGravity(Gravity.CENTER);
-        actions.setPadding(0, dp(4), 0, dp(3));
+        actions.setPadding(0, dp(2), 0, dp(1));
         addRiderAction(actions, rider, "📞", "اتصال", ORANGE);
         addRiderAction(actions, rider, "🔋", "تزويد", GREEN);
         addRiderAction(actions, rider, "☕", "بريك", ORANGE);
@@ -3355,7 +3355,7 @@ public class MainActivity extends Activity {
 
         TextView toggle = makeText("⌄ تفاصيل المندوب", 11, ORANGE, true);
         toggle.setGravity(Gravity.CENTER);
-        toggle.setPadding(dp(8), dp(6), dp(8), dp(6));
+        toggle.setPadding(dp(8), dp(4), dp(8), dp(4));
         toggle.setBackground(round(Color.rgb(15, 23, 33), ORANGE, 1));
         card.addView(toggle);
 
@@ -3421,10 +3421,7 @@ public class MainActivity extends Activity {
             details.setVisibility(show ? View.VISIBLE : View.GONE);
             toggle.setText(show ? "⌃ إخفاء التفاصيل" : "⌄ عرض التفاصيل");
         };
-        card.setClickable(true);
-        card.setFocusable(true);
-        toggle.setOnClickListener(v -> showRiderDetails(rider, orders));
-        card.setOnClickListener(v -> showRiderDetails(rider, orders));
+        toggle.setOnClickListener(toggleDetails);
     }
 
     // 1 = حاجز، 0 = مش حاجز، -1 = لا توجد بيانات كافية للعرض.
