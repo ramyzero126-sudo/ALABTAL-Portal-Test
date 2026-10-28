@@ -2730,14 +2730,43 @@ public class MainActivity extends Activity {
         ).matcher(header.trim()).find();
     }
 
+    private int findBookingDateHeaderRowIndex(JSONArray rows) {
+        if (rows == null) return -1;
+
+        int bestIndex = -1;
+        int bestCount = 0;
+        int limit = Math.min(rows.length(), 30);
+
+        for (int r = 0; r < limit; r++) {
+            JSONArray candidate = rows.optJSONArray(r);
+            if (candidate == null) continue;
+
+            int count = 0;
+            for (int c = 5; c < candidate.length(); c++) {
+                if (isBookingDateHeader(sheetCell(candidate, c).trim())) {
+                    count++;
+                }
+            }
+
+            if (count > bestCount) {
+                bestCount = count;
+                bestIndex = r;
+            }
+        }
+        return bestIndex;
+    }
+
     private void addSelectedShiftsToDetails(LinearLayout page, JSONObject rider) {
         JSONArray rows = cachedBookingRows;
         String riderId = firstValue(rider, "employee_id", "id", "rider_id").trim();
         String riderName = firstValue(rider, "name", "employee_name", "rider_name").trim();
         JSONArray match = null;
 
+        int bookingHeaderIndex = findBookingDateHeaderRowIndex(rows);
+
         if (!riderId.isEmpty()) {
             for (int i = 1; i < rows.length(); i++) {
+                if (i == bookingHeaderIndex) continue;
                 JSONArray row = rows.optJSONArray(i);
                 if (row == null) continue;
                 String id = sheetCell(row, 0).trim();
@@ -2750,6 +2779,7 @@ public class MainActivity extends Activity {
 
         if (match == null && !riderName.isEmpty()) {
             for (int i = 1; i < rows.length(); i++) {
+                if (i == bookingHeaderIndex) continue;
                 JSONArray row = rows.optJSONArray(i);
                 if (row == null) continue;
                 String name = sheetCell(row, 1).trim();
@@ -2803,7 +2833,8 @@ public class MainActivity extends Activity {
             return;
         }
 
-        JSONArray headerRow = rows.optJSONArray(0);
+        JSONArray headerRow = bookingHeaderIndex >= 0
+                ? rows.optJSONArray(bookingHeaderIndex) : null;
         int shown = 0;
         if (headerRow != null) {
             for (int c = 5; c < match.length() && c < headerRow.length(); c++) {
@@ -3684,8 +3715,10 @@ public class MainActivity extends Activity {
          .append("<div class='head'><div class='title'>📦 حجوزات المناديب</div>")
          .append("<div class='sub'>ورقة ان اصين المكتب • الأسماء من العمود B</div></div>");
 
+        int bookingHeaderIndex = findBookingDateHeaderRowIndex(rows);
         int shown = 0;
         for (int i = 1; i < rows.length(); i++) {
+            if (i == bookingHeaderIndex) continue;
             JSONArray row = rows.optJSONArray(i);
             if (row == null) continue;
             String id = sheetCell(row, 0);
@@ -3703,7 +3736,8 @@ public class MainActivity extends Activity {
                  .append("</div>");
             }
             h.append("</div><div style='grid-column:1/-1;min-width:0'>");
-JSONArray headerRow = rows.optJSONArray(0);
+JSONArray headerRow = bookingHeaderIndex >= 0
+        ? rows.optJSONArray(bookingHeaderIndex) : null;
 h.append("<div style='display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:8px'>");
 int dateCount = 0;
 if (headerRow != null) {
