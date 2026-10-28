@@ -234,8 +234,8 @@ public class MainActivity extends Activity {
         root.setOrientation(LinearLayout.VERTICAL);
         GradientDrawable dashboardBg = new GradientDrawable(
                 GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[]{Color.rgb(8, 12, 18), Color.rgb(3, 5, 8),
-                          Color.rgb(8, 10, 15)}
+                new int[]{Color.rgb(19, 23, 30), Color.rgb(5, 8, 13),
+                          Color.rgb(18, 13, 10)}
         );
         root.setBackground(dashboardBg);
         root.setPadding(dp(6), dp(2), dp(6), 0);
@@ -265,7 +265,7 @@ public class MainActivity extends Activity {
 
         GradientDrawable brandBg = new GradientDrawable(
                 GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[]{Color.rgb(60, 29, 8), Color.rgb(9, 14, 21)}
+                new int[]{Color.rgb(74, 38, 13), Color.rgb(15, 19, 26)}
         );
         brandBg.setCornerRadius(dp(14));
         brandBg.setStroke(dp(2), ORANGE);
@@ -331,8 +331,8 @@ public class MainActivity extends Activity {
 
         GradientDrawable ledBg = new GradientDrawable(
                 GradientDrawable.Orientation.LEFT_RIGHT,
-                new int[]{Color.rgb(35, 16, 4), Color.rgb(12, 12, 13),
-                          Color.rgb(35, 16, 4)}
+                new int[]{Color.rgb(48, 25, 10), Color.rgb(15, 18, 24),
+                          Color.rgb(48, 25, 10)}
         );
         ledBg.setCornerRadius(dp(8));
         ledBg.setStroke(dp(1), ORANGE);
@@ -1435,7 +1435,7 @@ public class MainActivity extends Activity {
             }
         }
 
-        addMicroStatSection(dashboardStats, "📡 رادار الحالات",
+        addInteractiveStatusSection(dashboardStats, riders,
                 new String[]{"شغال", "بريك", "معاه أوردر", "فاضي", "غير محدد"},
                 new String[]{
                         String.valueOf(working),
@@ -1445,6 +1445,140 @@ public class MainActivity extends Activity {
                         String.valueOf(unknown)
                 },
                 new int[]{GREEN, RED, ORANGE, MUTED, Color.LTGRAY});
+    }
+
+
+    private void addInteractiveStatusSection(LinearLayout parent,
+            JSONArray riders, String[] labels, String[] values, int[] colors) {
+        TextView title = makeText(
+                "◈  رادار الحالات  •  اضغط لعرض أسماء المندوبين",
+                10, ORANGE, true);
+        title.setPadding(dp(4), dp(5), dp(4), dp(4));
+        parent.addView(title, new LinearLayout.LayoutParams(-1, -2));
+
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+
+        int count = Math.min(labels.length,
+                Math.min(values.length, colors.length));
+
+        for (int i = 0; i < count; i++) {
+            final String filter = labels[i];
+
+            LinearLayout tile = new LinearLayout(this);
+            tile.setOrientation(LinearLayout.VERTICAL);
+            tile.setGravity(Gravity.CENTER);
+            tile.setPadding(dp(2), dp(5), dp(2), dp(5));
+
+            GradientDrawable bg = new GradientDrawable(
+                    GradientDrawable.Orientation.TOP_BOTTOM,
+                    new int[]{Color.rgb(38, 35, 31), Color.rgb(13, 16, 21)});
+            bg.setCornerRadius(dp(12));
+            bg.setStroke(dp(1), colors[i]);
+            tile.setBackground(bg);
+            tile.setElevation(dp(3));
+            tile.setClickable(true);
+            tile.setFocusable(true);
+
+            TextView value = makeText(values[i], 13, colors[i], true);
+            value.setGravity(Gravity.CENTER);
+            tile.addView(value, new LinearLayout.LayoutParams(-1, -2));
+
+            TextView label = makeText(labels[i], 8, WHITE, true);
+            label.setGravity(Gravity.CENTER);
+            label.setMaxLines(1);
+            tile.addView(label, new LinearLayout.LayoutParams(-1, -2));
+
+            LinearLayout.LayoutParams lp =
+                    new LinearLayout.LayoutParams(0, dp(44), 1f);
+            lp.setMargins(dp(2), dp(2), dp(2), dp(4));
+            row.addView(tile, lp);
+
+            tile.setOnClickListener(v -> showRidersByStatus(riders, filter));
+        }
+
+        parent.addView(row, new LinearLayout.LayoutParams(-1, -2));
+    }
+
+    private void showRidersByStatus(JSONArray riders, String filter) {
+        java.util.ArrayList<String> names = new java.util.ArrayList<>();
+
+        if (riders != null) {
+            for (int i = 0; i < riders.length(); i++) {
+                JSONObject rider = riders.optJSONObject(i);
+                if (rider == null) continue;
+
+                String state = rider.optString("rider_status",
+                        rider.optString("status", ""))
+                        .trim().toLowerCase(Locale.ROOT)
+                        .replace('-', '_').replace(' ', '_');
+
+                boolean working = state.equals("working")
+                        || state.equals("active")
+                        || state.equals("on_delivery")
+                        || state.equals("on_delivery_order");
+
+                boolean onBreak = state.equals("break")
+                        || state.equals("on_break")
+                        || state.equals("onbreak");
+
+                boolean hasOrder = false;
+                JSONArray orders = rider.optJSONArray("active_orders");
+                if (orders != null && orders.length() > 0) hasOrder = true;
+                if (rider.optInt("active_count") > 0
+                        || rider.optBoolean("has_active_deliveries", false)) {
+                    hasOrder = true;
+                }
+
+                JSONObject deliveries = rider.optJSONObject("deliveries_info");
+                if (deliveries != null) {
+                    JSONArray ids = deliveries.optJSONArray("active_delivery_ids");
+                    if (ids != null && ids.length() > 0) hasOrder = true;
+                }
+
+                boolean match;
+                switch (filter) {
+                    case "شغال": match = working; break;
+                    case "بريك": match = onBreak; break;
+                    case "معاه أوردر": match = hasOrder; break;
+                    case "فاضي": match = working && !hasOrder; break;
+                    default:
+                        match = !working && !onBreak
+                                && !state.equals("offline")
+                                && !state.equals("inactive")
+                                && !state.isEmpty() && !state.equals("null");
+                }
+
+                if (!match) continue;
+
+                String name = rider.optString("name", "").trim();
+                if (name.isEmpty()) name = rider.optString("rider_name", "").trim();
+                if (name.isEmpty()) name = rider.optString("employee_name", "").trim();
+                if (name.isEmpty()) name = rider.optString("employee_id", "").trim();
+                if (name.isEmpty()) name = rider.optString("id", "مندوب بدون اسم");
+
+                if (filter.equals("شغال") || filter.equals("معاه أوردر")
+                        || filter.equals("فاضي")) {
+                    names.add("● " + name + (hasOrder
+                            ? "   |   🟠 معاه أوردر"
+                            : "   |   ⚪ من غير أوردر"));
+                } else {
+                    names.add("● " + name);
+                }
+            }
+        }
+
+        java.util.Collections.sort(names, String.CASE_INSENSITIVE_ORDER);
+        String message = names.isEmpty()
+                ? "مفيش مندوبين في الحالة دي حاليًا"
+                : android.text.TextUtils.join("\n", names);
+
+        new AlertDialog.Builder(this)
+                .setTitle(filter + " (" + names.size() + ")")
+                .setMessage(message)
+                .setPositiveButton("إغلاق", (dialog, which) -> dialog.dismiss())
+                .show();
     }
 
     // تنبيهات مرة واحدة لكل حالة، مع مهلة 30 دقيقة قبل تكرارها
