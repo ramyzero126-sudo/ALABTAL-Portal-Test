@@ -161,8 +161,24 @@ public class MainActivity extends Activity {
 
     private void recordSyncFailure() {
         consecutiveSyncFailures++;
+
+        // Recover a stale portal connection automatically.
+        if (consecutiveSyncFailures >= 3
+                && webView != null && pageLoaded && !destroyed) {
+            pageLoaded = false;
+            handler.removeCallbacks(refreshRunnable);
+            handler.removeCallbacks(resumeRefreshRunnable);
+            status.setText("جاري إعادة الاتصال بالبوابة تلقائيًا...");
+            handler.postDelayed(() -> {
+                if (destroyed || webView == null) return;
+                webView.loadUrl(PORTAL_URL);
+            }, 1000L);
+            return;
+        }
+
         long delay = SYNC_RETRY_MIN_MS;
-        for (int i = 1; i < consecutiveSyncFailures && delay < SYNC_RETRY_MAX_MS; i++) {
+        for (int i = 1; i < consecutiveSyncFailures
+                && delay < SYNC_RETRY_MAX_MS; i++) {
             delay = Math.min(delay * 2, SYNC_RETRY_MAX_MS);
         }
         nextSyncDelayMs = delay;
