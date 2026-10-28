@@ -3240,6 +3240,21 @@ public class MainActivity extends Activity {
                 || rider.optBoolean("has_active_deliveries", false)
                 || (activeIds != null && activeIds.length() > 0);
 
+        String diagnosticStage = "";
+        JSONArray diagnosticStatuses = rider.optJSONArray("diagnostic_latest_statuses");
+        if (diagnosticStatuses != null) {
+            for (int i = 0; i < diagnosticStatuses.length(); i++) {
+                String candidate = diagnosticStatuses.optString(i, "").trim();
+                String normalized = candidate.toLowerCase(Locale.ROOT)
+                        .replace('_', ' ').replace('-', ' ');
+                if (normalized.matches(".*(accepted|picked up|ongoing|in progress|assigned|preparing|ready|on the way|arrived|مقبول|استلم|جاري|في الطريق).*")) {
+                    hasOrders = true;
+                    diagnosticStage = candidate;
+                    break;
+                }
+            }
+        }
+
         int stateColor = onBreak ? RED
                 : working ? GREEN : Color.rgb(255, 193, 7);
 
@@ -3326,16 +3341,23 @@ public class MainActivity extends Activity {
         String stage = firstValue(rider,
                 "active_order_status", "activeOrderStatus", "order_status",
                 "delivery_status", "order_stage", "orderStage");
+        if ("غير متاح".equals(stage)) stage = "";
+        if (stage.isEmpty()) stage = diagnosticStage;
         String vendor = "";
         JSONObject activeOrder = orders.optJSONObject(0);
         if (activeOrder != null) {
-            stage = firstValue(activeOrder,
+            String orderStage = firstValue(activeOrder,
                     "status", "order_status", "stage", "delivery_status");
+            if (!"غير متاح".equals(orderStage) && !orderStage.isEmpty()) {
+                stage = orderStage;
+            }
             vendor = firstValue(activeOrder,
                     "vendor_name", "restaurant_name", "merchant_name",
                     "vendorName", "restaurantName");
         }
-        if (stage.isEmpty() && hasOrders) stage = "accepted order";
+        if ((stage.isEmpty() || "غير متاح".equals(stage)) && hasOrders) {
+            stage = "accepted order";
+        }
 
         if (hasOrders) {
             TextView stageBadge = makeText(
