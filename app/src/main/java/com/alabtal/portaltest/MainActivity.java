@@ -105,6 +105,7 @@ public class MainActivity extends Activity {
     private Button inspectButton;
     private EditText riderSearch;
     private JSONArray currentRiders = new JSONArray();
+    private volatile JSONArray cachedBookingRows = new JSONArray();
     private String riderFilter = "الكل";
     private int riderLimit = 10;
     private boolean portalVisible = false;
@@ -2722,6 +2723,44 @@ public class MainActivity extends Activity {
         parent.addView(row);
     }
 
+    private void addSelectedShiftsToDetails(LinearLayout page, JSONObject rider) {
+        JSONArray rows = cachedBookingRows;
+        String riderId = firstValue(rider, "employee_id", "id", "rider_id").trim();
+        String riderName = firstValue(rider, "name", "employee_name", "rider_name").trim();
+
+        JSONArray match = null;
+        for (int i = 1; i < rows.length(); i++) {
+            JSONArray row = rows.optJSONArray(i);
+            if (row == null) continue;
+            String sheetId = sheetCell(row, 0).trim();
+            String sheetName = sheetCell(row, 1).trim();
+
+            if (!riderId.isEmpty() && !sheetId.isEmpty()
+                    && riderId.equalsIgnoreCase(sheetId)) {
+                match = row;
+                break;
+            }
+            if (riderId.isEmpty() && !riderName.isEmpty()
+                    && riderName.equalsIgnoreCase(sheetName)) {
+                match = row;
+            }
+        }
+
+        TextView title = makeText("📅 الشيفتات المختارة", 12, ORANGE, true);
+        title.setPadding(dp(2), dp(4), dp(2), dp(2));
+        page.addView(title);
+
+        if (match == null) {
+            page.addView(makeText("افتح الحجوزات لتحميل الشيفتات.", 10, MUTED, false));
+            return;
+        }
+
+        String first = sheetCell(match, 6);
+        String second = sheetCell(match, 7);
+        addCompactDetail(page, "🟠 الشيفت الأول", first.isEmpty() ? "غير مختار" : first);
+        addCompactDetail(page, "🟠 الشيفت الثاني", second.isEmpty() ? "غير مختار" : second);
+    }
+
     private void showRiderDetails(JSONObject rider, JSONArray orders) {
         detailVisible = true;
         ScrollView scroll = new ScrollView(this);
@@ -2782,6 +2821,8 @@ public class MainActivity extends Activity {
                 "المحطة", firstValue(rider, "starting_point"));
         addDetailPair(page, "المنطقة", firstValue(rider, "zone"),
                 "وسيلة التوصيل", firstValue(rider, "vehicle", "vehicle_type"));
+
+        addSelectedShiftsToDetails(page, rider);
 
         TextView ordersTitle = makeText("الأوردرات النشطة", 13, ORANGE, true);
         ordersTitle.setPadding(dp(2), dp(5), dp(2), dp(4));
@@ -3485,6 +3526,7 @@ public class MainActivity extends Activity {
                 JSONArray rows = fetchSheetRows(
                     token, BOOKINGS_SHEET_ID, "'ان اصين المكتب'!A:T"
                 );
+                cachedBookingRows = rows;
                 String html = buildBookingsHtml(rows);
                 runOnUiThread(() -> {
                     if (sheetView != null && bookingMode) {
