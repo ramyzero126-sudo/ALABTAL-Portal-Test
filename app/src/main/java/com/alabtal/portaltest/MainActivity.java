@@ -1,5 +1,6 @@
 package com.alabtal.portaltest;
 
+import android.widget.PopupWindow;
 import android.accounts.Account;
 import android.app.Activity;
 import android.app.Notification;
@@ -108,10 +109,14 @@ public class MainActivity extends Activity {
     private LinearLayout movementAlertsList;
     private TextView movementAlertsCount;
     private TextView topOrderAlertBanner;
+    private PopupWindow topOrderAlertPopup;
 
     private final Runnable topOrderBannerRunnable = new Runnable() {
         @Override
         public void run() {
+            if (topOrderAlertPopup != null && topOrderAlertPopup.isShowing()) {
+                topOrderAlertPopup.dismiss();
+            }
             if (topOrderAlertBanner != null) {
                 topOrderAlertBanner.setVisibility(View.GONE);
             }
@@ -721,19 +726,20 @@ public class MainActivity extends Activity {
         root.addView(filterScroll);
 
         topOrderAlertBanner = new TextView(this);
-        topOrderAlertBanner.setText("⏳ جاري تحميل حالة الأوردرات...");
         topOrderAlertBanner.setTextColor(WHITE);
-        topOrderAlertBanner.setTextSize(12);
-        topOrderAlertBanner.setMaxLines(1);
-        topOrderAlertBanner.setVisibility(View.GONE);
-        topOrderAlertBanner.setPadding(dp(9), dp(4), dp(9), dp(4));
-        topOrderAlertBanner.setGravity(Gravity.CENTER_VERTICAL);
+        topOrderAlertBanner.setTextSize(14);
+        topOrderAlertBanner.setMaxLines(2);
+        topOrderAlertBanner.setGravity(Gravity.CENTER);
+        topOrderAlertBanner.setPadding(dp(16), dp(12), dp(16), dp(12));
         topOrderAlertBanner.setBackground(round(
-                Color.rgb(25, 22, 18), ORANGE, 1));
-        LinearLayout.LayoutParams alertBannerParams =
-                new LinearLayout.LayoutParams(-1, -2);
-        alertBannerParams.setMargins(dp(3), dp(2), dp(3), dp(3));
-        root.addView(topOrderAlertBanner, alertBannerParams);
+                Color.rgb(25, 22, 18), ORANGE, 2));
+        topOrderAlertBanner.setElevation(dp(10));
+        topOrderAlertBanner.setVisibility(View.GONE);
+
+        topOrderAlertPopup = new PopupWindow(
+                topOrderAlertBanner, -1, -2, false);
+        topOrderAlertPopup.setElevation(dp(12));
+        topOrderAlertPopup.setClippingEnabled(true);
 
         // تبويبات مضغوطة: المناديب والخريطة
         LinearLayout mapTabs = new LinearLayout(this);
@@ -2356,10 +2362,21 @@ public class MainActivity extends Activity {
 
                 topOrderAlertBanner.setText(
                         "🔔 " + name + " وصل عند العميل" + elapsed);
-                topOrderAlertBanner.setTextColor(WHITE);
                 topOrderAlertBanner.setVisibility(View.VISIBLE);
 
                 handler.removeCallbacks(topOrderBannerRunnable);
+                if (topOrderAlertPopup != null) {
+                    if (topOrderAlertPopup.isShowing()) {
+                        topOrderAlertPopup.dismiss();
+                    }
+                    int popupWidth = getResources().getDisplayMetrics().widthPixels
+                            - dp(28);
+                    topOrderAlertPopup.setWidth(popupWidth);
+                    topOrderAlertPopup.showAtLocation(
+                            getWindow().getDecorView(),
+                            Gravity.TOP | Gravity.CENTER_HORIZONTAL,
+                            0, dp(72));
+                }
                 handler.postDelayed(topOrderBannerRunnable, 10000L);
                 return;
             }
