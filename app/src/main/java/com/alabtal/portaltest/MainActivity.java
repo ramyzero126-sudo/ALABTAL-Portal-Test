@@ -452,11 +452,11 @@ public class MainActivity extends Activity {
         root.setOrientation(LinearLayout.VERTICAL);
         GradientDrawable dashboardBg = new GradientDrawable(
                 GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[]{Color.rgb(16, 18, 26), Color.rgb(4, 6, 10),
-                          Color.rgb(20, 9, 4)}
+                new int[]{Color.rgb(13, 17, 25), Color.rgb(5, 7, 11),
+                          Color.rgb(12, 9, 7)}
         );
         root.setBackground(dashboardBg);
-        root.setPadding(dp(6), dp(2), dp(6), dp(2));
+        root.setPadding(dp(8), dp(4), dp(8), dp(5));
 
         // Unified 3D operations header
         LinearLayout portalRow = new LinearLayout(this);
@@ -746,7 +746,11 @@ public class MainActivity extends Activity {
         // تبويبات مضغوطة: المناديب والخريطة
         LinearLayout mapTabs = new LinearLayout(this);
         mapTabs.setOrientation(LinearLayout.HORIZONTAL);
-        mapTabs.setPadding(0, dp(1), 0, dp(2));
+        mapTabs.setGravity(Gravity.CENTER_VERTICAL);
+        mapTabs.setPadding(dp(4), dp(5), dp(4), dp(5));
+        mapTabs.setBackground(round(
+                Color.rgb(10, 14, 21), Color.rgb(43, 52, 65), 1));
+        mapTabs.setElevation(dp(8));
 
         Button ridersTab = makeButton("☷ المناديب");
         Button mapTab = makeButton("⌖ الخريطة");
@@ -756,10 +760,10 @@ public class MainActivity extends Activity {
         mapTab.setTextSize(10);
         sheetTab.setTextSize(9);
         bookingsTab.setTextSize(9);
-        ridersTab.setBackground(round(Color.rgb(30, 22, 16), ORANGE, 2));
-        mapTab.setBackground(round(Color.rgb(15, 22, 31), ORANGE, 2));
-        sheetTab.setBackground(round(Color.rgb(15, 22, 31), ORANGE, 2));
-        bookingsTab.setBackground(round(Color.rgb(30, 22, 16), ORANGE, 2));
+        ridersTab.setBackground(round(Color.rgb(48, 27, 10), ORANGE, 1));
+        mapTab.setBackground(round(Color.rgb(16, 22, 31), Color.rgb(43, 53, 66), 1));
+        sheetTab.setBackground(round(Color.rgb(16, 22, 31), Color.rgb(43, 53, 66), 1));
+        bookingsTab.setBackground(round(Color.rgb(16, 22, 31), Color.rgb(43, 53, 66), 1));
         ridersTab.setElevation(dp(7));
         mapTab.setElevation(dp(7));
         sheetTab.setElevation(dp(7));
@@ -784,7 +788,7 @@ public class MainActivity extends Activity {
         LinearLayout.LayoutParams bookingsParams =
                 new LinearLayout.LayoutParams(0, dp(36), 1);
         mapTabs.addView(bookingsTab, bookingsParams);
-        root.addView(mapTabs, new LinearLayout.LayoutParams(-1, dp(36)));
+
 
         FrameLayout contentFrame = new FrameLayout(this);
 
@@ -972,6 +976,10 @@ public class MainActivity extends Activity {
         root.addView(contentFrame,
                 new LinearLayout.LayoutParams(-1, 0, 1));
 
+        // شريط تنقّل سفلي ثابت، ومحتوى الداش يتمرر فوقه.
+        root.addView(mapTabs,
+                new LinearLayout.LayoutParams(-1, dp(50)));
+
         ridersTab.setOnClickListener(v -> {
             mapTabActive = false;
             sheetTabActive = false;
@@ -981,6 +989,15 @@ public class MainActivity extends Activity {
             ridersTab.setTextColor(ORANGE);
             mapTab.setTextColor(WHITE);
             sheetTab.setTextColor(WHITE);
+            bookingsTab.setTextColor(WHITE);
+            ridersTab.setBackground(round(
+                    Color.rgb(48, 27, 10), ORANGE, 1));
+            mapTab.setBackground(round(
+                    Color.rgb(16, 22, 31), Color.rgb(43, 53, 66), 1));
+            sheetTab.setBackground(round(
+                    Color.rgb(16, 22, 31), Color.rgb(43, 53, 66), 1));
+            bookingsTab.setBackground(round(
+                    Color.rgb(16, 22, 31), Color.rgb(43, 53, 66), 1));
             renderRiderCards();
         });
 
@@ -993,6 +1010,15 @@ public class MainActivity extends Activity {
             mapTab.setTextColor(ORANGE);
             ridersTab.setTextColor(WHITE);
             sheetTab.setTextColor(WHITE);
+            bookingsTab.setTextColor(WHITE);
+            mapTab.setBackground(round(
+                    Color.rgb(48, 27, 10), ORANGE, 1));
+            ridersTab.setBackground(round(
+                    Color.rgb(16, 22, 31), Color.rgb(43, 53, 66), 1));
+            sheetTab.setBackground(round(
+                    Color.rgb(16, 22, 31), Color.rgb(43, 53, 66), 1));
+            bookingsTab.setBackground(round(
+                    Color.rgb(16, 22, 31), Color.rgb(43, 53, 66), 1));
             renderRiderMap();
         });
 
@@ -1007,6 +1033,14 @@ public class MainActivity extends Activity {
             ridersTab.setTextColor(WHITE);
             mapTab.setTextColor(WHITE);
             sheetTab.setTextColor(WHITE);
+            bookingsTab.setBackground(round(
+                    Color.rgb(48, 27, 10), ORANGE, 1));
+            ridersTab.setBackground(round(
+                    Color.rgb(16, 22, 31), Color.rgb(43, 53, 66), 1));
+            mapTab.setBackground(round(
+                    Color.rgb(16, 22, 31), Color.rgb(43, 53, 66), 1));
+            sheetTab.setBackground(round(
+                    Color.rgb(16, 22, 31), Color.rgb(43, 53, 66), 1));
             requestSheetAccess();
         });
 
@@ -1020,6 +1054,15 @@ public class MainActivity extends Activity {
             sheetTab.setTextColor(ORANGE);
             ridersTab.setTextColor(WHITE);
             mapTab.setTextColor(WHITE);
+            bookingsTab.setTextColor(WHITE);
+            sheetTab.setBackground(round(
+                    Color.rgb(48, 27, 10), ORANGE, 1));
+            ridersTab.setBackground(round(
+                    Color.rgb(16, 22, 31), Color.rgb(43, 53, 66), 1));
+            mapTab.setBackground(round(
+                    Color.rgb(16, 22, 31), Color.rgb(43, 53, 66), 1));
+            bookingsTab.setBackground(round(
+                    Color.rgb(16, 22, 31), Color.rgb(43, 53, 66), 1));
 
             requestSheetAccess();
         });
