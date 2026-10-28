@@ -33,6 +33,15 @@ android {
     }
 }
 
+// توحيد إصدارات Kotlin لمنع Duplicate class.
+configurations.configureEach {
+    resolutionStrategy.force(
+        "org.jetbrains.kotlin:kotlin-stdlib:1.8.22",
+        "org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.8.22",
+        "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.22"
+    )
+}
+
 dependencies {
     implementation "androidx.core:core:1.15.0"
     implementation "com.google.android.gms:play-services-auth:21.3.0"
