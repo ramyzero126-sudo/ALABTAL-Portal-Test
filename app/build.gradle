@@ -2,6 +2,8 @@ plugins {
     id 'com.android.application'
 }
 
+def buildNumber = System.getenv('GITHUB_RUN_NUMBER') ?: '1'
+
 android {
     namespace 'com.alabtal.portaltest'
     compileSdk 35
@@ -10,8 +12,8 @@ android {
         applicationId 'com.alabtal.portaltest'
         minSdk 23
         targetSdk 28
-        versionCode 1
-        versionName '1.0'
+        versionCode buildNumber.toInteger()
+        versionName "1.0.${buildNumber}"
     }
 
     signingConfigs {
@@ -32,5 +34,6 @@ android {
 }
 
 dependencies {
+    implementation "androidx.core:core:1.15.0"
     implementation "com.google.android.gms:play-services-auth:21.3.0"
 }

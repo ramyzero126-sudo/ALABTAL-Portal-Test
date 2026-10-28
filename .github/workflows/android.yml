@@ -6,7 +6,7 @@ on:
     branches: [main]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -45,3 +45,14 @@ jobs:
         with:
           name: ALABTAL-Portal-Test-debug
           path: app/build/outputs/apk/debug/app-debug.apk
+
+
+      - name: Publish APK release for in-app updates
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: ALABTAL Portal Test v1.0.${{ github.run_number }}
+          body: "تحديث تلقائي من GitHub Actions."
+          files: app/build/outputs/apk/debug/app-debug.apk
+          make_latest: true
+          fail_on_unmatched_files: true

@@ -33,6 +33,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.ScrollView;
 import android.widget.Toast;
+import androidx.core.content.FileProvider;
 import android.content.ContentValues;
 import android.content.SharedPreferences;
 import android.text.InputType;
@@ -41,6 +42,7 @@ import android.text.TextWatcher;
 import android.widget.EditText;
 import android.widget.HorizontalScrollView;
 import android.provider.MediaStore;
+import android.provider.Settings;
 import android.os.Environment;
 import android.net.Uri;
 import android.content.Intent;
@@ -51,6 +53,8 @@ import com.google.android.gms.auth.api.identity.Identity;
 import com.google.android.gms.common.api.ApiException;
 import com.google.android.gms.common.api.Scope;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
@@ -140,6 +144,9 @@ public class MainActivity extends Activity {
     private boolean detailVisible = false;
     private SharedPreferences authPrefs;
     private SharedPreferences rosterCachePrefs;
+    private volatile boolean updateCheckRunning = false;
+    private File pendingUpdateFile;
+    private boolean waitingForInstallPermission = false;
 
     private boolean inspectionRunning = false;
     private boolean pageLoaded = false;
@@ -266,6 +273,168 @@ public class MainActivity extends Activity {
         } else {
             showLoginScreen(false);
         }
+
+        // افحص التحديث بعد تجهيز شاشة الدخول أو لوحة التحكم.
+        handler.postDelayed(() -> checkForAppUpdate(false), 2500L);
+    }
+
+
+    private void checkForAppUpdate(boolean manual) {
+        if (updateCheckRunning) return;
+        updateCheckRunning = true;
+
+        new Thread(() -> {
+            HttpURLConnection connection = null;
+            try {
+                URL api = new URL(
+                    "https://api.github.com/repos/ramyzero126-sudo/ALABTAL-Portal-Test/releases/latest");
+                connection = (HttpURLConnection) api.openConnection();
+                connection.setRequestProperty("Accept", "application/vnd.github+json");
+                connection.setRequestProperty("User-Agent", "ALABTAL-Portal-Test");
+                connection.setConnectTimeout(12000);
+                connection.setReadTimeout(12000);
+
+                if (connection.getResponseCode() != 200) {
+                    throw new IOException("تعذر فحص آخر إصدار");
+                }
+
+                ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+                try (InputStream in = connection.getInputStream()) {
+                    byte[] chunk = new byte[8192];
+                    int n;
+                    while ((n = in.read(chunk)) != -1) buffer.write(chunk, 0, n);
+                }
+
+                JSONObject release = new JSONObject(
+                    new String(buffer.toByteArray(), StandardCharsets.UTF_8));
+                String tag = release.optString("tag_name", "");
+                String[] tagParts = tag.split("\\.");
+                int latestCode = Integer.parseInt(tagParts[tagParts.length - 1]);
+
+                String apkUrl = null;
+                JSONArray assets = release.optJSONArray("assets");
+                if (assets != null) {
+                    for (int i = 0; i < assets.length(); i++) {
+                        JSONObject asset = assets.optJSONObject(i);
+                        if (asset != null
+                                && "app-debug.apk".equals(asset.optString("name"))) {
+                            apkUrl = asset.optString("browser_download_url", null);
+                            break;
+                        }
+                    }
+                }
+                if (apkUrl == null || apkUrl.isEmpty()) {
+                    throw new IOException("ملف التحديث غير موجود في الإصدار");
+                }
+
+                final String downloadUrl = apkUrl;
+                final int remoteCode = latestCode;
+                runOnUiThread(() -> {
+                    if (remoteCode > BuildConfig.VERSION_CODE) {
+                        new AlertDialog.Builder(this)
+                            .setTitle("تحديث جديد متاح")
+                            .setMessage("الإصدار الحالي: " + BuildConfig.VERSION_NAME
+                                + "\nالإصدار الجديد: " + tag
+                                + "\n\nهننزّل التحديث ونفتح شاشة التثبيت.")
+                            .setNegativeButton("لاحقًا", (d, which) -> d.dismiss())
+                            .setPositiveButton("تنزيل التحديث", (d, which) ->
+                                downloadAndInstallUpdate(downloadUrl))
+                            .show();
+                    } else if (manual) {
+                        Toast.makeText(this, "أنت تستخدم أحدث إصدار بالفعل",
+                            Toast.LENGTH_SHORT).show();
+                    }
+                });
+            } catch (Exception e) {
+                if (manual) runOnUiThread(() ->
+                    Toast.makeText(this, "تعذر فحص التحديث: تحقق من الإنترنت",
+                        Toast.LENGTH_LONG).show());
+            } finally {
+                if (connection != null) connection.disconnect();
+                updateCheckRunning = false;
+            }
+        }).start();
+    }
+
+    private void downloadAndInstallUpdate(String downloadUrl) {
+        Toast.makeText(this, "جاري تنزيل تحديث التطبيق...", Toast.LENGTH_LONG).show();
+        new Thread(() -> {
+            HttpURLConnection connection = null;
+            try {
+                URL url = new URL(downloadUrl);
+                connection = (HttpURLConnection) url.openConnection();
+                connection.setConnectTimeout(15000);
+                connection.setReadTimeout(30000);
+                connection.setInstanceFollowRedirects(true);
+
+                if (connection.getResponseCode() != 200) {
+                    throw new IOException("فشل تنزيل ملف التحديث");
+                }
+
+                File folder = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS);
+                if (folder == null) throw new IOException("مساحة التنزيل غير متاحة");
+                if (!folder.exists() && !folder.mkdirs()) {
+                    throw new IOException("تعذر إنشاء مجلد التنزيل");
+                }
+
+                File apk = new File(folder, "alabtal-update.apk");
+                if (apk.exists()) apk.delete();
+
+                try (InputStream in = connection.getInputStream();
+                     FileOutputStream out = new FileOutputStream(apk)) {
+                    byte[] chunk = new byte[16384];
+                    int n;
+                    while ((n = in.read(chunk)) != -1) out.write(chunk, 0, n);
+                    out.flush();
+                }
+
+                if (!apk.isFile() || apk.length() < 100000) {
+                    throw new IOException("ملف التحديث غير مكتمل");
+                }
+                runOnUiThread(() -> installDownloadedUpdate(apk));
+            } catch (Exception e) {
+                runOnUiThread(() -> Toast.makeText(this,
+                    "فشل تنزيل التحديث. جرّب مرة أخرى مع اتصال إنترنت مستقر.",
+                    Toast.LENGTH_LONG).show());
+            } finally {
+                if (connection != null) connection.disconnect();
+            }
+        }).start();
+    }
+
+    private void installDownloadedUpdate(File apk) {
+        if (apk == null || !apk.isFile()) {
+            Toast.makeText(this, "ملف التحديث غير موجود", Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+                && !getPackageManager().canRequestPackageInstalls()) {
+            pendingUpdateFile = apk;
+            waitingForInstallPermission = true;
+            Intent settingsIntent = new Intent(
+                Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                Uri.parse("package:" + getPackageName()));
+            startActivity(settingsIntent);
+            Toast.makeText(this,
+                "اسمح للتطبيق بتثبيت التطبيقات من هذا المصدر ثم ارجع هنا",
+                Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        try {
+            Uri apkUri = FileProvider.getUriForFile(
+                this, getPackageName() + ".fileprovider", apk);
+            Intent install = new Intent(Intent.ACTION_VIEW);
+            install.setDataAndType(apkUri,
+                "application/vnd.android.package-archive");
+            install.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            install.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(install);
+        } catch (Exception e) {
+            Toast.makeText(this, "تعذر فتح مُثبّت التحديث",
+                Toast.LENGTH_LONG).show();
+        }
     }
 
     private void buildDashboard() {
@@ -334,6 +503,8 @@ public class MainActivity extends Activity {
         portalRow.addView(brand, brandParams);
 
         TextView liveBadge = makeText("● LIVE", 9, GREEN, true);
+        liveBadge.setContentDescription("فحص تحديث التطبيق");
+        liveBadge.setOnClickListener(v -> checkForAppUpdate(true));
         liveBadge.setGravity(Gravity.CENTER);
         liveBadge.setPadding(dp(5), dp(5), dp(5), dp(5));
         liveBadge.setBackground(round(Color.rgb(8, 30, 25), GREEN, 1));
@@ -5123,6 +5294,22 @@ public class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+
+        if (waitingForInstallPermission) {
+            waitingForInstallPermission = false;
+            File apk = pendingUpdateFile;
+            pendingUpdateFile = null;
+
+            if (apk != null && apk.isFile()
+                    && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+                    && getPackageManager().canRequestPackageInstalls()) {
+                installDownloadedUpdate(apk);
+            } else if (apk != null && apk.isFile()) {
+                Toast.makeText(this,
+                    "لم يتم تفعيل صلاحية تثبيت التطبيقات",
+                    Toast.LENGTH_LONG).show();
+            }
+        }
 
         if (webView != null) {
             webView.onResume();
