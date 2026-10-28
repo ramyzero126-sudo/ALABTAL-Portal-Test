@@ -3167,304 +3167,284 @@ public class MainActivity extends Activity {
     }
 
     private void addRiderCard(JSONObject rider, JSONArray orders) {
-        LinearLayout card = new LinearLayout(this);
-        card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(dp(7), dp(5), dp(7), dp(4));
+        if (rider == null) return;
+        if (orders == null) orders = new JSONArray();
 
-        GradientDrawable cardBg = new GradientDrawable(
-                GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[]{
-                        Color.rgb(36, 17, 7),
-                        Color.rgb(12, 17, 27),
-                        Color.rgb(4, 6, 10)
-                }
-        );
-        cardBg.setCornerRadius(dp(13));
-        cardBg.setStroke(dp(1), Color.rgb(224, 91, 18));
-        card.setBackground(cardBg);
-        card.setElevation(dp(7));
-        card.setTranslationZ(dp(1));
-
-        TextView ledRail = new TextView(this);
-        ledRail.setText("");
-        GradientDrawable railBg = new GradientDrawable(
-                GradientDrawable.Orientation.LEFT_RIGHT,
-                new int[]{Color.rgb(105, 42, 8), ORANGE, Color.rgb(255, 185, 76)});
-        railBg.setCornerRadius(dp(3));
-        ledRail.setBackground(railBg);
-        LinearLayout.LayoutParams railParams =
-                new LinearLayout.LayoutParams(-1, dp(3));
-        railParams.setMargins(dp(1), 0, dp(1), dp(5));
-        card.addView(ledRail, railParams);
-        ObjectAnimator railPulse = ObjectAnimator.ofFloat(
-                ledRail, View.ALPHA, 0.58f, 1f);
-        railPulse.setDuration(1400);
-        railPulse.setRepeatMode(ObjectAnimator.REVERSE);
-        railPulse.setRepeatCount(1);
-        railPulse.start();
-
-        LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(
-                -1, -2);
-        cardParams.setMargins(dp(2), dp(3), dp(2), dp(5));
-        cards.addView(card, cardParams);
+        final JSONObject riderData = rider;
+        final JSONArray riderOrders = orders;
 
         String name = firstValue(rider, "name", "employee_name", "rider_name");
         if (name.isEmpty()) name = "مندوب بدون اسم";
         String id = firstValue(rider, "employee_id", "id", "rider_id");
-        String wallet = firstValue(rider, "wallet", "wallet_balance",
+        String state = firstValue(rider, "rider_status", "state", "status", "work_status");
+        String stateLabel = translateRiderStatus(state);
+        String batch = firstValue(rider, "batch", "batch_number", "patch",
+                "patch_number", "rider_batch");
+        String wallet = firstValue(rider, "wallet_balance", "wallet",
                 "walletBalance", "balance");
         String totalOrders = firstValue(rider, "total_orders",
                 "orders_count", "totalOrders");
-        String state = firstValue(rider, "rider_status", "state", "status", "work_status");
-        String stateLabel = translateRiderStatus(state);
-        String batch = firstValue(rider, "batch", "batch_number", "patch", "patch_number", "rider_batch");
+        String worked = firstValue(rider, "worked_time", "worked",
+                "worked_hours", "worked_duration", "work_time");
+        String breakTime = firstValue(rider, "break_time", "break_duration",
+                "break_minutes", "breaks", "breakTime");
 
-        LinearLayout heading = new LinearLayout(this);
-        heading.setOrientation(LinearLayout.HORIZONTAL);
-        heading.setGravity(Gravity.CENTER_VERTICAL);
+        String normalizedState = state == null ? ""
+                : state.trim().toLowerCase(Locale.ROOT)
+                .replace('-', '_').replace(' ', '_');
 
-        LinearLayout identity = new LinearLayout(this);
-        identity.setOrientation(LinearLayout.VERTICAL);
-        identity.setGravity(Gravity.CENTER_VERTICAL);
-        identity.setLayoutParams(new LinearLayout.LayoutParams(0, -2, 1));
+        boolean onBreak = normalizedState.equals("break")
+                || normalizedState.equals("on_break")
+                || normalizedState.equals("onbreak")
+                || "استراحة".equals(stateLabel);
 
-        TextView nameView = makeText(name, 14, Color.WHITE, true);
-        nameView.setShadowLayer(dp(6), 0, 0, Color.rgb(180, 67, 8));
-        nameView.setMaxLines(1);
-        nameView.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        identity.addView(nameView);
-
-        TextView idView = makeText(
-                id.isEmpty() ? "مندوب" : "ID: " + id, 9, Color.LTGRAY, false);
-        identity.addView(idView);
-        heading.addView(identity);
+        boolean working = normalizedState.equals("working")
+                || normalizedState.equals("active")
+                || normalizedState.equals("on_delivery")
+                || normalizedState.equals("on_delivery_order")
+                || "شغال".equals(stateLabel);
 
         JSONArray activeIds = rider.optJSONArray("active_delivery_ids");
-        boolean hasOrders = (orders != null && orders.length() > 0)
+        boolean hasOrders = orders.length() > 0
                 || rider.optInt("active_count") > 0
                 || rider.optBoolean("has_active_deliveries", false)
                 || (activeIds != null && activeIds.length() > 0);
 
-        // لون شارة الحالة: الاستراحة أحمر، الشغال أخضر، والباقي أصفر.
-        String normalizedState = state == null
-                ? "" : state.trim().toLowerCase(Locale.ROOT);
+        int stateColor = onBreak ? RED
+                : working ? GREEN : Color.rgb(255, 193, 7);
 
-        int stateColor;
-        if (normalizedState.equals("break")
-                || normalizedState.equals("on_break")
-                || stateLabel.equals("استراحة")) {
-            stateColor = RED;
-        } else if (normalizedState.equals("working")
-                || normalizedState.equals("active")
-                || stateLabel.equals("شغال")) {
-            stateColor = GREEN;
-        } else {
-            stateColor = Color.rgb(255, 193, 7);
-        }
+        // كارت مدمج بحد علوي مضيء وظل خفيف.
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(dp(9), dp(7), dp(9), dp(7));
 
-        TextView orderBadge = makeText(
-                "● " + stateLabel,
-                10, stateColor, true);
-        orderBadge.setShadowLayer(dp(4), 0, 0, stateColor);
-        orderBadge.setGravity(Gravity.CENTER);
-        orderBadge.setPadding(dp(6), dp(4), dp(6), dp(4));
+        GradientDrawable bg = new GradientDrawable(
+                GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{Color.rgb(25, 29, 37), Color.rgb(10, 13, 19)});
+        bg.setCornerRadius(dp(15));
+        bg.setStroke(dp(1), Color.rgb(63, 53, 43));
+        card.setBackground(bg);
+        card.setElevation(dp(4));
 
-        android.graphics.drawable.GradientDrawable stateBadgeBg =
-                new android.graphics.drawable.GradientDrawable();
-        stateBadgeBg.setColor(Color.argb(
-                28, Color.red(stateColor),
+        LinearLayout.LayoutParams cardLp =
+                new LinearLayout.LayoutParams(-1, -2);
+        cardLp.setMargins(dp(1), dp(3), dp(1), dp(5));
+        cards.addView(card, cardLp);
+
+        View led = new View(this);
+        GradientDrawable ledBg = new GradientDrawable(
+                GradientDrawable.Orientation.LEFT_RIGHT,
+                new int[]{Color.rgb(95, 43, 12), ORANGE,
+                        Color.rgb(255, 188, 82)});
+        ledBg.setCornerRadius(dp(3));
+        led.setBackground(ledBg);
+        card.addView(led, new LinearLayout.LayoutParams(-1, dp(3)));
+
+        // الهوية والحالة في سطر واحد.
+        LinearLayout heading = new LinearLayout(this);
+        heading.setOrientation(LinearLayout.HORIZONTAL);
+        heading.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout.LayoutParams headingLp =
+                new LinearLayout.LayoutParams(-1, -2);
+        headingLp.topMargin = dp(6);
+        card.addView(heading, headingLp);
+
+        LinearLayout identity = new LinearLayout(this);
+        identity.setOrientation(LinearLayout.VERTICAL);
+        identity.setGravity(Gravity.CENTER_VERTICAL);
+        identity.setLayoutParams(new LinearLayout.LayoutParams(0, -2, 1f));
+
+        TextView nameView = makeText(name, 14, WHITE, true);
+        nameView.setMaxLines(1);
+        nameView.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        identity.addView(nameView);
+
+        String identityLine = id.isEmpty() ? "مندوب" : "ID  " + id;
+        if (!batch.isEmpty()) identityLine += "   •   باتش " + batch;
+        identity.addView(makeText(identityLine, 9, MUTED, false));
+        heading.addView(identity);
+
+        TextView stateBadge = makeText("● " + stateLabel, 10, stateColor, true);
+        stateBadge.setGravity(Gravity.CENTER);
+        stateBadge.setPadding(dp(8), dp(5), dp(8), dp(5));
+        GradientDrawable stateBg = new GradientDrawable();
+        stateBg.setColor(Color.argb(24, Color.red(stateColor),
                 Color.green(stateColor), Color.blue(stateColor)));
-        stateBadgeBg.setCornerRadius(dp(12));
-        stateBadgeBg.setStroke(dp(1), stateColor);
-        orderBadge.setBackground(stateBadgeBg);
-        orderBadge.setElevation(dp(4));
-        heading.addView(orderBadge);
+        stateBg.setCornerRadius(dp(10));
+        stateBg.setStroke(dp(1), stateColor);
+        stateBadge.setBackground(stateBg);
+        heading.addView(stateBadge);
 
-        if (!batch.isEmpty()) {
-            TextView batchView = makeText(
-                    "باتش " + batch,
-                    10, ORANGE, true);
-            batchView.setPadding(dp(6), 0, 0, 0);
-            batchView.setShadowLayer(dp(4), 0, 0, ORANGE);
-            heading.addView(batchView);
+        // شارة الأوردر منفصلة وواضحة.
+        LinearLayout orderStrip = new LinearLayout(this);
+        orderStrip.setOrientation(LinearLayout.HORIZONTAL);
+        orderStrip.setGravity(Gravity.CENTER_VERTICAL);
+        orderStrip.setPadding(dp(8), dp(5), dp(8), dp(5));
+        GradientDrawable orderStripBg = new GradientDrawable();
+        orderStripBg.setColor(hasOrders
+                ? Color.rgb(10, 37, 27) : Color.rgb(27, 30, 36));
+        orderStripBg.setCornerRadius(dp(9));
+        orderStripBg.setStroke(dp(1), hasOrders ? GREEN : Color.rgb(76, 84, 96));
+        orderStrip.setBackground(orderStripBg);
+
+        TextView orderText = makeText(
+                hasOrders ? "● معاه أوردر" : "○ مفيش أوردر نشط",
+                10, hasOrders ? GREEN : MUTED, true);
+        orderStrip.addView(orderText,
+                new LinearLayout.LayoutParams(0, -2, 1f));
+
+        String stage = "";
+        String vendor = "";
+        JSONObject activeOrder = orders.optJSONObject(0);
+        if (activeOrder != null) {
+            stage = firstValue(activeOrder,
+                    "status", "order_status", "stage", "delivery_status");
+            vendor = firstValue(activeOrder,
+                    "vendor_name", "restaurant_name", "merchant_name",
+                    "vendorName", "restaurantName");
         }
-        card.addView(heading);
 
-        // شارة الحجز المتحركة
-        int bookingState = bookingStatusForRider(rider);
-        if (bookingState >= 0) {
-            addAnimatedBookingBadge(card, bookingState == 1);
+        if (hasOrders && activeOrder != null) {
+            TextView stageBadge = makeText(
+                    stage.isEmpty() ? "مرحلة غير متاحة" : arabicStatus(stage),
+                    9, ORANGE, true);
+            stageBadge.setGravity(Gravity.CENTER);
+            stageBadge.setPadding(dp(6), dp(4), dp(6), dp(4));
+            stageBadge.setBackground(round(Color.rgb(39, 25, 14), ORANGE, 1));
+            orderStrip.addView(stageBadge);
         }
 
-        // ملخص صغير ظاهر دائمًا
+        LinearLayout.LayoutParams orderStripLp =
+                new LinearLayout.LayoutParams(-1, -2);
+        orderStripLp.topMargin = dp(6);
+        card.addView(orderStrip, orderStripLp);
+
+        if (hasOrders && activeOrder != null) {
+            LinearLayout progress = new LinearLayout(this);
+            progress.setOrientation(LinearLayout.VERTICAL);
+            LinearLayout.LayoutParams progressLp =
+                    new LinearLayout.LayoutParams(-1, -2);
+            progressLp.topMargin = dp(2);
+            card.addView(progress, progressLp);
+            addOrderProgressTrack(progress, stage, vendor);
+        } else if (hasOrders) {
+            TextView missingStage = makeText(
+                    "الأوردر موجود — تفاصيل المرحلة لم تصل من المصدر",
+                    9, MUTED, false);
+            missingStage.setPadding(dp(2), dp(4), dp(2), dp(1));
+            card.addView(missingStage);
+        }
+
+        // مؤشرات تشغيل مضغوطة.
         LinearLayout metrics = new LinearLayout(this);
         metrics.setOrientation(LinearLayout.HORIZONTAL);
         metrics.setGravity(Gravity.CENTER_VERTICAL);
         metrics.setWeightSum(4f);
-        LinearLayout.LayoutParams metricParams = new LinearLayout.LayoutParams(
-                -1, -2);
-        metricParams.topMargin = dp(5);
-        card.addView(metrics, metricParams);
+        LinearLayout.LayoutParams metricsLp =
+                new LinearLayout.LayoutParams(-1, -2);
+        metricsLp.topMargin = dp(6);
+        card.addView(metrics, metricsLp);
 
-        addCompactMetric(metrics, "💰 المحفظة",
-                wallet.isEmpty() ? "—" : wallet);
-        addCompactMetric(metrics, "📦 الأوردرات",
+        addCompactMetric(metrics, "المحفظة", displayValue(wallet));
+        addCompactMetric(metrics, "الأوردرات",
                 totalOrders.isEmpty()
-                        ? String.valueOf(orders == null ? 0 : orders.length())
-                        : totalOrders);
+                        ? String.valueOf(orders.length()) : totalOrders);
+        addCompactMetric(metrics, "وقت العمل",
+                worked.isEmpty() ? "—" : worked);
+        addCompactMetric(metrics, "البريك",
+                breakTime.isEmpty() ? "—" : breakTime);
 
-        addCompactMetric(metrics, "◷ الساعة",
-                firstValue(rider, "worked", "worked_time", "worked_hours",
-                        "worked_duration", "work_time").isEmpty()
-                        ? "—"
-                        : firstValue(rider, "worked", "worked_time", "worked_hours",
-                                "worked_duration", "work_time"));
-        addCompactMetric(metrics, "☕ بريك",
-                firstValue(rider, "break_time", "break_duration", "break_minutes",
-                        "breaks", "breakTime").isEmpty()
-                        ? "—"
-                        : firstValue(rider, "break_time", "break_duration",
-                                "break_minutes", "breaks", "breakTime"));
+        // الشيفت في شريط واحد.
+        String shiftStart = firstValue(rider, "shift_start", "shiftStart",
+                "shift_start_time", "session_start", "planned_shift_start");
+        String shiftEnd = firstValue(rider, "shift_end", "shiftEnd",
+                "shift_end_time", "session_end", "planned_shift_end");
 
-        LinearLayout shiftRow = new LinearLayout(this);
-        shiftRow.setOrientation(LinearLayout.HORIZONTAL);
-        shiftRow.setGravity(Gravity.CENTER_VERTICAL);
-        shiftRow.setPadding(dp(6), dp(3), dp(6), dp(3));
-        shiftRow.setBackground(round(Color.rgb(17, 18, 21), ORANGE, 1));
-        TextView shiftStart = makeText("بداية الشيفت  " + displayValue(
-                firstValue(rider, "shift_start", "shiftStart", "shift_start_time", "session_start", "planned_shift_start")),
+        LinearLayout shift = new LinearLayout(this);
+        shift.setOrientation(LinearLayout.HORIZONTAL);
+        shift.setGravity(Gravity.CENTER_VERTICAL);
+        shift.setPadding(dp(7), dp(5), dp(7), dp(5));
+        shift.setBackground(round(Color.rgb(17, 21, 28),
+                Color.rgb(91, 57, 30), 1));
+
+        TextView from = makeText("بداية  " + displayValue(shiftStart),
                 9, ORANGE, true);
-        shiftStart.setShadowLayer(dp(3), 0, 0, ORANGE_DEEP);
-        shiftStart.setLayoutParams(new LinearLayout.LayoutParams(0, -2, 1));
-        shiftRow.addView(shiftStart);
-        TextView shiftEnd = makeText("النهاية  " + displayValue(
-                firstValue(rider, "shift_end", "shiftEnd", "shift_end_time", "session_end", "planned_shift_end")),
-                9, ORANGE, true);
-        shiftEnd.setGravity(Gravity.RIGHT | Gravity.CENTER_VERTICAL);
-        shiftEnd.setShadowLayer(dp(3), 0, 0, ORANGE_DEEP);
-        shiftEnd.setLayoutParams(new LinearLayout.LayoutParams(0, -2, 1));
-        shiftRow.addView(shiftEnd);
-        LinearLayout.LayoutParams shiftParams = new LinearLayout.LayoutParams(-1, -2);
-        shiftParams.topMargin = dp(2);
-        card.addView(shiftRow, shiftParams);
+        from.setLayoutParams(new LinearLayout.LayoutParams(0, -2, 1f));
+        shift.addView(from);
 
-        // لا تعرض تنبيهًا إلا عند توفر توقيت صالح.
+        TextView to = makeText("نهاية  " + displayValue(shiftEnd),
+                9, ORANGE, true);
+        to.setGravity(Gravity.RIGHT | Gravity.CENTER_VERTICAL);
+        to.setLayoutParams(new LinearLayout.LayoutParams(0, -2, 1f));
+        shift.addView(to);
+
+        LinearLayout.LayoutParams shiftLp =
+                new LinearLayout.LayoutParams(-1, -2);
+        shiftLp.topMargin = dp(5);
+        card.addView(shift, shiftLp);
+
         addSmartAlerts(card, rider, orders, state);
 
-        if (hasOrders) {
-            JSONObject activeOrder = orders == null
-                    ? null : orders.optJSONObject(0);
-
-            if (activeOrder != null) {
-                TextView activeLabel = makeText(
-                        "● معاه أوردر نشط", 11, GREEN, true);
-                activeLabel.setPadding(dp(4), dp(6), dp(4), dp(4));
-                activeLabel.setShadowLayer(dp(3), 0, 0,
-                        Color.rgb(15, 100, 55));
-                card.addView(activeLabel);
-
-                LinearLayout progress = new LinearLayout(this);
-                progress.setOrientation(LinearLayout.VERTICAL);
-                addOrderProgressTrack(progress,
-                        firstValue(activeOrder,
-                                "status", "order_status", "stage", "delivery_status"),
-                        firstValue(activeOrder,
-                                "vendor_name", "restaurant_name", "merchant_name",
-                                "vendorName", "restaurantName"));
-                card.addView(progress);
-            } else {
-                TextView activeLabel = makeText(
-                        "● معاه أوردر نشط • تفاصيل المرحلة غير متاحة حاليًا",
-                        10, GREEN, true);
-                activeLabel.setPadding(dp(3), dp(7), dp(3), dp(4));
-                card.addView(activeLabel);
-            }
-        } else {
-            TextView noActiveOrder = makeText(
-                    "○ مفيش أوردر نشط", 10, Color.LTGRAY, true);
-            noActiveOrder.setPadding(dp(3), dp(5), dp(3), dp(3));
-            card.addView(noActiveOrder);
-        }
-
+        // إجراءات مختصرة.
         LinearLayout actions = new LinearLayout(this);
         actions.setOrientation(LinearLayout.HORIZONTAL);
         actions.setGravity(Gravity.CENTER);
-        actions.setPadding(0, dp(2), 0, dp(1));
-        addRiderAction(actions, rider, "📞", "اتصال", ORANGE);
-        addRiderAction(actions, rider, "🔋", "تزويد", GREEN);
+        LinearLayout.LayoutParams actionsLp =
+                new LinearLayout.LayoutParams(-1, -2);
+        actionsLp.topMargin = dp(5);
+        card.addView(actions, actionsLp);
+
+        addRiderAction(actions, rider, "☎", "اتصال", ORANGE);
+        addRiderAction(actions, rider, "＋", "تزويد", GREEN);
         addRiderAction(actions, rider, "☕", "بريك", ORANGE);
-        addRiderAction(actions, rider, "✉", "رسالة", ORANGE);
-        card.addView(actions);
+        addRiderAction(actions, rider, "↗", "التفاصيل", ORANGE);
 
-        TextView toggle = makeText("⌄ تفاصيل المندوب", 11, ORANGE, true);
-        toggle.setGravity(Gravity.CENTER);
-        toggle.setPadding(dp(8), dp(4), dp(8), dp(4));
-        toggle.setBackground(round(Color.rgb(15, 23, 33), ORANGE, 1));
-        card.addView(toggle);
+        // التفاصيل العامة قابلة للفتح؛ بيانات العناوين تبقى في صفحة التفاصيل فقط.
+        LinearLayout extra = new LinearLayout(this);
+        extra.setOrientation(LinearLayout.VERTICAL);
+        extra.setPadding(dp(3), dp(5), dp(3), dp(2));
+        extra.setVisibility(View.GONE);
+        card.addView(extra);
 
-        LinearLayout details = new LinearLayout(this);
-        details.setOrientation(LinearLayout.VERTICAL);
-        details.setVisibility(View.GONE);
-        details.setPadding(dp(2), dp(5), dp(2), 0);
-        card.addView(details);
-
-        addCompactDetail(details, "الحالة", state);
-        addCompactDetail(details, "نقطة البداية",
+        addCompactDetail(extra, "الحالة", stateLabel);
+        addCompactDetail(extra, "نقطة البداية",
                 firstValue(rider, "starting_point", "startingPoint",
                         "start_point", "starting_point_name"));
-        addCompactDetail(details, "المنطقة",
+        addCompactDetail(extra, "المنطقة",
                 firstValue(rider, "zone", "area", "city"));
-        addCompactDetail(details, "الأداء",
-                firstValue(rider, "performance", "performance_score"));
-        addCompactDetail(details, "نسبة القبول",
-                firstValue(rider, "acceptance", "acceptance_rate"));
-        addCompactDetail(details, "بداية الشيفت",
-                firstValue(rider, "shift_start", "shiftStart",
-                        "shift_start_time", "session_start"));
-        addCompactDetail(details, "نهاية الشيفت",
-                firstValue(rider, "shift_end", "shiftEnd",
-                        "shift_end_time", "session_end"));
-        addCompactDetail(details, "وقت العمل",
-                firstValue(rider, "worked", "worked_time",
-                        "worked_duration", "work_time"));
-        addCompactDetail(details, "المركبة",
+        addCompactDetail(extra, "الأداء",
+                firstValue(rider, "performance", "performance_score",
+                        "utr", "performance_utr"));
+        addCompactDetail(extra, "نسبة القبول",
+                firstValue(rider, "acceptance_rate", "acceptance",
+                        "acceptance_percentage"));
+        addCompactDetail(extra, "المركبة",
                 firstValue(rider, "vehicle", "vehicle_type"));
 
-        if (hasOrders) {
-            for (int i = 0; i < orders.length(); i++) {
-                JSONObject order = orders.optJSONObject(i);
-                if (order == null) continue;
-                TextView orderTitle = makeText(
-                        "📦 أوردر " + (i + 1), 12, ORANGE, true);
-                LinearLayout.LayoutParams op = new LinearLayout.LayoutParams(
-                        -1, -2);
-                op.topMargin = dp(5);
-                details.addView(orderTitle, op);
+        TextView toggle = makeText("⌄ معلومات المندوب", 10, ORANGE, true);
+        toggle.setGravity(Gravity.CENTER);
+        toggle.setPadding(dp(6), dp(5), dp(6), dp(2));
+        card.addView(toggle);
+        toggle.setOnClickListener(v -> {
+            boolean visible = extra.getVisibility() != View.VISIBLE;
+            extra.setVisibility(visible ? View.VISIBLE : View.GONE);
+            toggle.setText(visible ? "⌃ إخفاء المعلومات" : "⌄ معلومات المندوب");
+        });
 
-                addCompactDetail(details, "رقم الأوردر",
-                        firstValue(order, "order_code", "order_id", "id"));
-                addCompactDetail(details, "الحالة",
-                        firstValue(order, "status", "order_status", "stage"));
-                addCompactDetail(details, "الاستلام",
-                        firstValue(order, "pickup_address", "pickup",
-                                "pickupAddress"));
-                addCompactDetail(details, "التسليم",
-                        firstValue(order, "dropoff_address", "dropoff",
-                                "dropoffAddress", "address"));
+        // صفحة منفصلة لبيانات المندوب والأوردر والعناوين.
+        View.OnClickListener openDetails = v ->
+                showRiderDetails(riderData, riderOrders);
+        for (int i = 0; i < actions.getChildCount(); i++) {
+            View child = actions.getChildAt(i);
+            if (child instanceof LinearLayout) {
+                View caption = ((LinearLayout) child).getChildAt(1);
+                if (caption instanceof TextView
+                        && "التفاصيل".contentEquals(((TextView) caption).getText())) {
+                    child.setOnClickListener(openDetails);
+                    child.setContentDescription("فتح صفحة تفاصيل المندوب والأوردر");
+                }
             }
-        } else {
-            TextView noOrder = makeText(
-                    "لا يوجد أوردر ظاهر لهذا المندوب", 11, Color.LTGRAY, false);
-            noOrder.setPadding(0, dp(4), 0, dp(4));
-            details.addView(noOrder);
         }
-
-        View.OnClickListener toggleDetails = v -> {
-            boolean show = details.getVisibility() != View.VISIBLE;
-            details.setVisibility(show ? View.VISIBLE : View.GONE);
-            toggle.setText(show ? "⌃ إخفاء التفاصيل" : "⌄ عرض التفاصيل");
-        };
-        toggle.setOnClickListener(toggleDetails);
     }
 
     // 1 = حاجز، 0 = مش حاجز، -1 = لا توجد بيانات كافية للعرض.
