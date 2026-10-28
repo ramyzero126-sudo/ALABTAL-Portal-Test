@@ -106,6 +106,8 @@ public class MainActivity extends Activity {
     private EditText riderSearch;
     private JSONArray currentRiders = new JSONArray();
     private volatile JSONArray cachedBookingRows = new JSONArray();
+    private volatile JSONArray cachedShiftRequestRows = new JSONArray();
+    private volatile JSONArray cachedBreakRequestRows = new JSONArray();
     private String riderFilter = "الكل";
     private int riderLimit = 10;
     private boolean portalVisible = false;
@@ -2300,6 +2302,12 @@ public class MainActivity extends Activity {
         }
         card.addView(heading);
 
+        // شارة الحجز المتحركة
+        int bookingState = bookingStatusForRider(rider);
+        if (bookingState >= 0) {
+            addAnimatedBookingBadge(card, bookingState == 1);
+        }
+
         // ملخص صغير ظاهر دائمًا
         LinearLayout metrics = new LinearLayout(this);
         metrics.setOrientation(LinearLayout.HORIZONTAL);
@@ -2472,6 +2480,122 @@ public class MainActivity extends Activity {
         card.setFocusable(true);
         toggle.setOnClickListener(v -> showRiderDetails(rider, orders));
         card.setOnClickListener(v -> showRiderDetails(rider, orders));
+    }
+
+    // 1 = حاجز، 0 = مش حاجز، -1 = لا توجد بيانات كافية للعرض.
+    private int bookingStatusForRider(JSONObject rider) {
+        JSONArray rows = cachedBookingRows;
+        if (rows == null || rows.length() == 0 || rider == null) return -1;
+
+        int headerIndex = findBookingDateHeaderRowIndex(rows);
+        JSONArray header = headerIndex >= 0 ? rows.optJSONArray(headerIndex) : null;
+        if (header == null) return -1;
+
+        String today = new SimpleDateFormat("yyyy-MM-dd", Locale.US).format(new Date());
+        int dateColumn = -1;
+
+        for (int c = 5; c < header.length(); c++) {
+            if (today.equals(bookingDateIso(sheetCell(header, c)))) {
+                dateColumn = c;
+                break;
+            }
+        }
+        if (dateColumn < 0) return -1;
+
+        String riderId = firstValue(
+                rider, "employee_id", "id", "rider_id", "riderId").trim();
+        String riderName = firstValue(
+                rider, "name", "employee_name", "rider_name")
+                .replaceAll("\\s+", " ").trim();
+
+        JSONArray matched = null;
+
+        if (!riderId.isEmpty()) {
+            for (int i = 0; i < rows.length(); i++) {
+                if (i == headerIndex) continue;
+                JSONArray row = rows.optJSONArray(i);
+                if (row != null && riderId.equals(sheetCell(row, 0).trim())) {
+                    matched = row;
+                    break;
+                }
+            }
+        }
+
+        if (matched == null && !riderName.isEmpty()) {
+            for (int i = 0; i < rows.length(); i++) {
+                if (i == headerIndex) continue;
+                JSONArray row = rows.optJSONArray(i);
+                if (row == null) continue;
+
+                String sheetName = sheetCell(row, 1)
+                        .replaceAll("\\s+", " ").trim();
+                if (riderName.equalsIgnoreCase(sheetName)) {
+                    matched = row;
+                    break;
+                }
+            }
+        }
+
+        if (matched == null) return -1;
+
+        String value = sheetCell(matched, dateColumn)
+                .trim().toLowerCase(Locale.ROOT);
+
+        boolean vacation = value.contains("إجاز") || value.contains("اجاز");
+        boolean emptyChoice = value.isEmpty()
+                || value.contains("مش مختار")
+                || value.contains("مطلوب يختار")
+                || value.contains("غير مختار");
+
+        return (!vacation && !emptyChoice) ? 1 : 0;
+    }
+
+    private void addAnimatedBookingBadge(
+            LinearLayout parent, boolean booked) {
+        final int color = booked ? GREEN : RED;
+        final String fullText = booked ? "✓ حاجز" : "✕ مش حاجز";
+
+        TextView badge = makeText("", 11, color, true);
+        badge.setGravity(Gravity.CENTER);
+        badge.setPadding(dp(10), dp(5), dp(10), dp(5));
+        badge.setShadowLayer(dp(5), 0, 0, color);
+
+        GradientDrawable background = new GradientDrawable(
+                GradientDrawable.Orientation.LEFT_RIGHT,
+                booked
+                        ? new int[]{Color.rgb(12, 42, 27), Color.rgb(14, 25, 20)}
+                        : new int[]{Color.rgb(48, 15, 20), Color.rgb(25, 15, 18)});
+        background.setCornerRadius(dp(10));
+        background.setStroke(dp(1), color);
+        badge.setBackground(background);
+        badge.setElevation(dp(3));
+
+        LinearLayout.LayoutParams params =
+                new LinearLayout.LayoutParams(-1, -2);
+        params.topMargin = dp(6);
+        parent.addView(badge, params);
+
+        final int[] position = {0};
+        Runnable typing = new Runnable() {
+            @Override public void run() {
+                if (badge.getParent() == null) return;
+
+                if (position[0] < fullText.length()) {
+                    badge.setText(
+                            fullText.substring(0, ++position[0]) + "▌");
+                    handler.postDelayed(this, 85);
+                } else {
+                    badge.setText(fullText);
+                    ObjectAnimator glow = ObjectAnimator.ofFloat(
+                            badge, View.ALPHA, 0.72f, 1f);
+                    glow.setDuration(650);
+                    glow.setRepeatCount(1);
+                    glow.setRepeatMode(ObjectAnimator.REVERSE);
+                    glow.start();
+                }
+            }
+        };
+        handler.postDelayed(typing, 100);
     }
 
     private void addRiderAction(
@@ -2854,6 +2978,133 @@ public class MainActivity extends Activity {
         }
     }
 
+
+    private void addRiderSheetRequestsToDetails(
+            LinearLayout page, JSONObject rider) {
+        LinearLayout section = new LinearLayout(this);
+        section.setOrientation(LinearLayout.VERTICAL);
+        section.setPadding(dp(9), dp(8), dp(9), dp(8));
+        section.setBackground(round(PANEL, ORANGE, 1));
+
+        LinearLayout.LayoutParams params =
+                new LinearLayout.LayoutParams(-1, -2);
+        params.setMargins(0, dp(5), 0, dp(6));
+        page.addView(section, params);
+
+        section.addView(makeText(
+                "📋 طلبات التزويد والبريك", 13, ORANGE, true));
+
+        String riderId = firstValue(
+                rider, "employee_id", "id", "rider_id").trim();
+
+        if (riderId.isEmpty()) {
+            section.addView(makeText(
+                    "معرّف المندوب غير متاح للمطابقة.",
+                    10, MUTED, false));
+            return;
+        }
+
+        int count = appendRiderRequests(
+                section, cachedShiftRequestRows, riderId, true);
+        count += appendRiderRequests(
+                section, cachedBreakRequestRows, riderId, false);
+
+        if (count == 0) {
+            section.addView(makeText(
+                    "لا توجد طلبات مطابقة في الشيتات المحمّلة.",
+                    10, MUTED, false));
+        }
+    }
+
+    private int appendRiderRequests(
+            LinearLayout parent, JSONArray rows,
+            String riderId, boolean isShift) {
+        if (rows == null || rows.length() < 2) return 0;
+
+        int idColumn = isShift ? 3 : 2;
+        int shown = 0;
+        boolean headingAdded = false;
+
+        for (int i = rows.length() - 1; i >= 1 && shown < 5; i--) {
+            JSONArray row = rows.optJSONArray(i);
+            if (row == null) continue;
+
+            String id = sheetCell(row, idColumn);
+            if (id.isEmpty() || !riderId.equalsIgnoreCase(id)) continue;
+
+            if (!headingAdded) {
+                parent.addView(makeText(
+                        isShift ? "طلبات تزويد الشيفتات" : "طلبات فك البريك",
+                        11, WHITE, true));
+                headingAdded = true;
+            }
+
+            LinearLayout card = new LinearLayout(this);
+            card.setOrientation(LinearLayout.VERTICAL);
+            card.setPadding(dp(8), dp(7), dp(8), dp(7));
+            card.setBackground(round(
+                    Color.rgb(25, 27, 32),
+                    Color.rgb(67, 47, 31), 1));
+
+            LinearLayout.LayoutParams cp =
+                    new LinearLayout.LayoutParams(-1, -2);
+            cp.setMargins(0, dp(4), 0, dp(5));
+            parent.addView(card, cp);
+
+            addRequestDetailLine(card, "وقت الطلب", sheetCell(row, 0), false);
+            addRequestDetailLine(card, "نوع الطلب", sheetCell(row, 1), false);
+
+            if (isShift) {
+                addRequestDetailLine(card, "ساعات التزويد", sheetCell(row, 2), false);
+                addRequestDetailLine(card, "المدينة", sheetCell(row, 4), false);
+                addRequestDetailLine(card, "حالة الطلب", sheetCell(row, 5), true);
+                addRequestDetailLine(card, "الرد على الطلب", sheetCell(row, 6), true);
+                addRequestDetailLine(card, "سبب الرفض", sheetCell(row, 7), false);
+            } else {
+                addRequestDetailLine(card, "حالة الطلب", sheetCell(row, 3), true);
+                addRequestDetailLine(card, "القرار النهائي", sheetCell(row, 4), true);
+                addRequestDetailLine(card, "سبب الرفض", sheetCell(row, 5), false);
+            }
+            shown++;
+        }
+        return shown;
+    }
+
+    private void addRequestDetailLine(
+            LinearLayout parent, String label,
+            String value, boolean status) {
+        if (value == null || value.trim().isEmpty()) return;
+
+        String v = value.trim();
+        int color = MUTED;
+
+        if (status) {
+            String lower = v.toLowerCase(java.util.Locale.ROOT);
+            if (lower.contains("مرفوض") || lower.contains("رفض")) {
+                color = Color.rgb(255, 75, 75);
+            } else if (lower.contains("مقبول")
+                    || lower.contains("موافق")
+                    || lower.contains("معتمد")
+                    || lower.contains("تمت الموافقة")
+                    || lower.contains("تم القبول")
+                    || lower.contains("مكتمل")) {
+                color = GREEN;
+            } else {
+                color = Color.rgb(255, 195, 65);
+            }
+        }
+
+        LinearLayout line = new LinearLayout(this);
+        line.setOrientation(LinearLayout.HORIZONTAL);
+        line.setGravity(Gravity.CENTER_VERTICAL);
+        line.addView(makeText(label + ": ", 10, MUTED, false));
+
+        TextView valueView = makeText(v, 10, color, status);
+        line.addView(valueView,
+                new LinearLayout.LayoutParams(0, -2, 1f));
+        parent.addView(line);
+    }
+
     private void addBookingShiftRow(
             LinearLayout parent, String label, String rawValue) {
         LinearLayout row = new LinearLayout(this);
@@ -2970,6 +3221,7 @@ public class MainActivity extends Activity {
                 "وسيلة التوصيل", firstValue(rider, "vehicle", "vehicle_type"));
 
         addSelectedShiftsToDetails(page, rider);
+        addRiderSheetRequestsToDetails(page, rider);
 
         TextView ordersTitle = makeText("الأوردرات النشطة", 13, ORANGE, true);
         ordersTitle.setPadding(dp(2), dp(5), dp(2), dp(4));
@@ -3645,6 +3897,9 @@ public class MainActivity extends Activity {
                     token, "'فك البريك'!A:F"
                 );
 
+                cachedShiftRequestRows = shifts;
+                cachedBreakRequestRows = breaks;
+
                 String html = buildSheetHtml(shifts, breaks);
                 runOnUiThread(() -> {
                     if (sheetView != null && sheetTabActive && !bookingMode) {
@@ -3682,6 +3937,7 @@ public class MainActivity extends Activity {
                             html, "text/html", "UTF-8", null
                         );
                     }
+                    if (currentRiders.length() > 0) renderRiderCards();
                 });
             } catch (Exception e) {
                 String detail = e.getMessage();
