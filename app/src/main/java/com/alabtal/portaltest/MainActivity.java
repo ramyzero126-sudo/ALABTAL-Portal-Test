@@ -720,6 +720,18 @@ public class MainActivity extends Activity {
         });
         reportButton.setVisibility(isAdmin ? View.VISIBLE : View.GONE);
 
+        Button ordersButton = makeButton("📦 الأوردرات");
+        ordersButton.setTextSize(9);
+        ordersButton.setTextColor(ORANGE);
+        ordersButton.setPadding(dp(6), 0, dp(6), 0);
+        ordersButton.setBackground(round(
+                Color.rgb(20, 17, 15), ORANGE, 1));
+        LinearLayout.LayoutParams ordersParams =
+                new LinearLayout.LayoutParams(-2, dp(30));
+        ordersParams.setMargins(dp(3), 0, 0, 0);
+        controls.addView(ordersButton, ordersParams);
+        ordersButton.setOnClickListener(v -> showAllOrdersPage());
+
         inspectButton = makeButton("↻");
         inspectButton.setTextSize(22);
         inspectButton.setTextColor(ORANGE);
@@ -4285,6 +4297,169 @@ private void addRequestDetailLine(
         line.addView(valueView,
                 new LinearLayout.LayoutParams(0, -2, 1f));
         parent.addView(line);
+    }
+
+    private void showAllOrdersPage() {
+        detailVisible = true;
+
+        ScrollView scroll = new ScrollView(this);
+        scroll.setFillViewport(false);
+        scroll.setBackgroundColor(BG);
+
+        LinearLayout page = new LinearLayout(this);
+        page.setOrientation(LinearLayout.VERTICAL);
+        page.setPadding(dp(10), dp(10), dp(10), dp(14));
+        page.setBackgroundColor(BG);
+        scroll.addView(page);
+
+        LinearLayout toolbar = new LinearLayout(this);
+        toolbar.setOrientation(LinearLayout.HORIZONTAL);
+        toolbar.setGravity(Gravity.CENTER_VERTICAL);
+
+        Button back = makeButton("← رجوع");
+        back.setTextSize(11);
+        back.setOnClickListener(v -> returnToDashboard());
+        toolbar.addView(back, new LinearLayout.LayoutParams(dp(88), dp(36)));
+
+        TextView title = makeText("متابعة الأوردرات", 16, ORANGE, true);
+        title.setPadding(dp(9), 0, 0, 0);
+        toolbar.addView(title);
+        page.addView(toolbar);
+
+        int total = 0;
+        int ridersWithOrders = 0;
+
+        for (int i = 0; i < currentRiders.length(); i++) {
+            JSONObject rider = currentRiders.optJSONObject(i);
+            if (rider == null) continue;
+
+            JSONArray orders = rider.optJSONArray("active_orders");
+            JSONArray ids = rider.optJSONArray("active_delivery_ids");
+
+            int riderOrderCount = orders != null && orders.length() > 0
+                    ? orders.length() : (ids == null ? 0 : ids.length());
+
+            boolean activeUnknown =
+                    rider.optBoolean("has_active_deliveries", false)
+                    || rider.optInt("active_count", 0) > 0;
+
+            if (riderOrderCount == 0 && !activeUnknown) continue;
+
+            ridersWithOrders++;
+            LinearLayout group = new LinearLayout(this);
+            group.setOrientation(LinearLayout.VERTICAL);
+            group.setPadding(dp(9), dp(8), dp(9), dp(8));
+            group.setBackground(round(PANEL, ORANGE_DEEP, 1));
+
+            String riderName = rider.optString("name", "مندوب بدون اسم");
+            String riderId = firstValue(rider, "employee_id", "rider_id", "id");
+
+            group.addView(makeText("👤 " + riderName, 13, WHITE, true));
+            if (!riderId.isEmpty()) {
+                group.addView(makeText("ID: " + riderId, 10, MUTED, false));
+            }
+
+            if (orders != null && orders.length() > 0) {
+                for (int j = 0; j < orders.length(); j++) {
+                    JSONObject order = orders.optJSONObject(j);
+                    if (order == null) continue;
+
+                    String code = firstValue(order,
+                            "order_code", "code", "reference",
+                            "delivery_id", "order_id", "id");
+                    if (code.isEmpty()) code = "معرّف غير متاح";
+
+                    String state = firstValue(order,
+                            "status", "stage", "order_status", "delivery_status");
+                    String vendor = firstValue(order,
+                            "vendor_name", "restaurant_name", "merchant_name");
+
+                    LinearLayout card = new LinearLayout(this);
+                    card.setOrientation(LinearLayout.VERTICAL);
+                    card.setPadding(dp(8), dp(7), dp(8), dp(7));
+                    card.setBackground(round(
+                            Color.rgb(24, 20, 17), ORANGE, 1));
+
+                    LinearLayout.LayoutParams cp =
+                            new LinearLayout.LayoutParams(-1, -2);
+                    cp.setMargins(0, dp(6), 0, 0);
+                    group.addView(card, cp);
+
+                    card.addView(makeText("📦 " + code, 12, ORANGE, true));
+                    card.addView(makeText(
+                            "الحالة: " + (state.isEmpty()
+                                    ? "الحالة غير متاحة"
+                                    : arabicStatus(state)),
+                            11, GREEN, true));
+
+                    if (!vendor.isEmpty()) {
+                        card.addView(makeText("المطعم: " + vendor,
+                                10, WHITE, false));
+                    }
+
+                    String pickup = firstValue(order,
+                            "pickup_address", "pickupAddress");
+                    String dropoff = firstValue(order,
+                            "dropoff_address", "dropoffAddress");
+                    if (!pickup.isEmpty()) {
+                        card.addView(makeText("الاستلام: " + pickup,
+                                10, MUTED, false));
+                    }
+                    if (!dropoff.isEmpty()) {
+                        card.addView(makeText("التسليم: " + dropoff,
+                                10, MUTED, false));
+                    }
+                    total++;
+                }
+            } else if (ids != null && ids.length() > 0) {
+                for (int j = 0; j < ids.length(); j++) {
+                    Object item = ids.opt(j);
+                    String id = "";
+
+                    if (item instanceof JSONObject) {
+                        JSONObject obj = (JSONObject) item;
+                        id = firstValue(obj, "delivery_id", "order_id", "id");
+                    } else if (item != null && item != JSONObject.NULL) {
+                        id = String.valueOf(item).trim();
+                    }
+
+                    if (id.isEmpty()) continue;
+                    group.addView(makeText(
+                            "📦 " + id + "  •  تفاصيل الحالة غير متاحة",
+                            11, ORANGE, true));
+                    total++;
+                }
+            } else {
+                group.addView(makeText(
+                        "يوجد أوردر نشط لكن تفاصيله غير متاحة حاليًا.",
+                        11, ORANGE, false));
+                total++;
+            }
+
+            LinearLayout.LayoutParams gp =
+                    new LinearLayout.LayoutParams(-1, -2);
+            gp.setMargins(0, dp(8), 0, 0);
+            page.addView(group, gp);
+        }
+
+        TextView summary = makeText(
+                "الأوردرات المعروضة: " + total
+                        + "  •  المناديب: " + ridersWithOrders,
+                12, ORANGE, true);
+        summary.setPadding(0, dp(10), 0, dp(2));
+        page.addView(summary, 0);
+
+        if (currentRiders.length() == 0) {
+            page.addView(makeText(
+                    "لا توجد بيانات روستر محمّلة حتى الآن. حدّث البيانات ثم افتح الشاشة.",
+                    12, MUTED, false));
+        } else if (total == 0) {
+            page.addView(makeText(
+                    "لا توجد أوردرات نشطة في البيانات الحالية.",
+                    12, MUTED, false));
+        }
+
+        setContentView(scroll);
     }
 
     private void showRiderDetails(JSONObject rider, JSONArray orders) {
