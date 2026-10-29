@@ -3193,8 +3193,15 @@ public class MainActivity extends Activity {
                 ".hud{position:absolute;z-index:999;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;gap:8px;pointer-events:none}" +
                 ".chip{background:#0b111be8;border:1px solid #ff8a2277;border-radius:11px;padding:8px 10px;color:#ffb46a;font:700 11px sans-serif}" +
                 ".leaflet-popup-content-wrapper{background:linear-gradient(145deg,#1b2634,#0b1018);color:#fff;border:1px solid #ff7900;border-radius:13px}" +
-                ".leaflet-popup-tip{background:#111b27}.leaflet-control-zoom a{background:#111923!important;color:#ff9b3d!important;border-color:#3a4655!important}</style></head><body>" +
-                "<div id='map'></div><div class='hud'><div class='chip'>AL ABTAL • LIVE MAP</div><div id='count' class='chip'>GPS: —</div></div><div id='note' class='note'>جاري تجهيز الخريطة...</div>" +
+                " .leaflet-popup-tip{background:#111b27}.leaflet-control-zoom a{background:#111923!important;color:#ff9b3d!important;border-color:#3a4655!important}" +
+                ".leaflet-tile{filter:brightness(.62) saturate(.78) contrast(1.1)}" +
+                ".leaflet-overlay-pane path.rider-marker{filter:drop-shadow(0 0 5px #ff7900);animation:glow 1.8s ease-in-out infinite alternate}" +
+                "@keyframes glow{from{stroke-width:2;opacity:.82}to{stroke-width:4;opacity:1}}" +
+                ".legend{position:absolute;z-index:999;top:58px;left:12px;background:#0b111be8;border:1px solid #ff8a2277;border-radius:11px;padding:8px 10px;font:700 11px sans-serif;line-height:1.9;color:#eee}" +
+                ".dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-left:5px;box-shadow:0 0 7px currentColor}</style></head><body>" +
+                "<div id='map'></div><div class='hud'><div class='chip'>طنطا الرقمية • AL ABTAL</div><div id='count' class='chip'>GPS: —</div></div>" +
+                "<div class='legend'><div><span class='dot' style='color:#2dd27d;background:#2dd27d'></span> شغال</div><div><span class='dot' style='color:#ff5252;background:#ff5252'></span> بريك</div><div><span class='dot' style='color:#ffb52e;background:#ffb52e'></span> حالة أخرى</div></div>" +
+                "<div id='note' class='note'>جاري تجهيز الخريطة...</div>" +
                 "<script>" +
                 "window.mapLibraryReady=false;" +
                 "function loadLeafletFallback(){" +
@@ -3221,13 +3228,14 @@ public class MainActivity extends Activity {
                 "setTimeout(function(){map.invalidateSize(true);},500);" +
                 "const safe=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');" +
                 "const pts=" + points.toString() + ";" +
-                "pts.forEach(p=>{const color=/بريك|استراحة/.test(p.status)?'#ff5252':" +
-                "(/شغال|عمل|توصيل/.test(p.status)?'#2dd27d':'#ffb52e');" +
-                "L.circleMarker([p.lat,p.lon],{radius:8,color:color,fillColor:color," +
-                "fillOpacity:.9,weight:2}).addTo(map).bindPopup(" +
-                "'<b>'+safe(p.name)+'</b><br>'+safe(p.status)+'<br>أوردرات نشطة: '+p.orders);});" +
+                "let orderTotal=0;pts.forEach(p=>{orderTotal+=Number(p.orders)||0;const color=/بريك|استراحة/.test(p.status)?'#ff5252':" +
+                "(/شغال|عمل|توصيل|working|active/.test(p.status)?'#2dd27d':'#ffb52e');" +
+                "L.circleMarker([p.lat,p.lon],{radius:9,color:color,fillColor:color," +
+                "fillOpacity:.95,weight:2,className:'rider-marker'}).addTo(map).bindPopup(" +
+                "'<b style=\"color:#ff9b3d\">'+safe(p.name)+'</b><br>'+safe(p.status)+'<br>أوردرات نشطة: <b>'+p.orders+'</b>');});" +
+                "document.getElementById('count').textContent='GPS: '+pts.length+' • أوردرات: '+orderTotal;" +
                 "const note=document.getElementById('note');" +
-                "if(pts.length){note.textContent='المندوبون على الخريطة: '+pts.length;" +
+                "if(pts.length){note.textContent='مواقع GPS الفعلية: '+pts.length+' • إجمالي الأوردرات النشطة: '+orderTotal;" +
                 "if(pts.length>1)map.fitBounds(L.latLngBounds(pts.map(p=>[p.lat,p.lon]))," +
                 "{padding:[25,25],maxZoom:15});else map.setView([pts[0].lat,pts[0].lon],15);" +
                 "}else{note.textContent='لا توجد إحداثيات GPS حقيقية للمندوبين في البيانات الحالية.';}" +
