@@ -578,7 +578,7 @@ public class MainActivity extends Activity {
 
         Button logoutButton = makeButton("⇥");
         logoutButton.setTextSize(17);
-        logoutButton.setContentDescription("تسجيل الخروج من البوابة");
+        logoutButton.setContentDescription("تسجيل الخروج من التطبيق");
         logoutButton.setBackground(round(
                 Color.rgb(35, 13, 13), Color.rgb(230, 75, 65), 1));
         logoutButton.setElevation(dp(4));
@@ -589,11 +589,11 @@ public class MainActivity extends Activity {
         logoutButton.setOnClickListener(v ->
                 new AlertDialog.Builder(this)
                         .setTitle("تسجيل الخروج")
-                        .setMessage("سيتم تسجيل الخروج من بوابة الشركة. ستظل إحصائيات اليوم محفوظة.")
+                        .setMessage("سيتم تسجيل الخروج من حساب التطبيق والعودة إلى شاشة الدخول.")
                         .setNegativeButton("إلغاء",
                                 (dialog, which) -> dialog.dismiss())
                         .setPositiveButton("تسجيل الخروج",
-                                (dialog, which) -> logoutPortal())
+                                (dialog, which) -> logoutApp())
                         .show());
 
         LinearLayout.LayoutParams portalRowParams =
