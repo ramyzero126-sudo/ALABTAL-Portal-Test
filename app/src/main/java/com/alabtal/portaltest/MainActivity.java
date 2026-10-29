@@ -3400,6 +3400,49 @@ public class MainActivity extends Activity {
         addCompactMetric(metrics, "البريك",
                 breakTime.isEmpty() ? "—" : breakTime);
 
+        // حالة الأوردر في شريط مستقل أسفل المؤشرات، وليست داخل المحفظة.
+        String orderStage = diagnosticStage;
+        String restaurantName = "";
+        for (int i = 0; i < orders.length(); i++) {
+            JSONObject order = orders.optJSONObject(i);
+            if (order == null) continue;
+
+            String candidateRestaurant = firstValue(order,
+                    "vendor_name", "restaurant_name", "merchant_name",
+                    "vendorName", "restaurantName", "store_name");
+            if (!candidateRestaurant.equals("غير متاح")
+                    && !candidateRestaurant.equals("غير متاح من المصدر")) {
+                restaurantName = candidateRestaurant;
+            }
+
+            String candidateStage = firstValue(order,
+                    "status", "order_status", "delivery_status", "stage");
+            if (!candidateStage.equals("غير متاح")) {
+                orderStage = candidateStage;
+            }
+            if (!restaurantName.isEmpty()) break;
+        }
+
+        LinearLayout orderTrack = new LinearLayout(this);
+        orderTrack.setOrientation(LinearLayout.VERTICAL);
+        orderTrack.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams orderTrackLp =
+                new LinearLayout.LayoutParams(-1, -2);
+        orderTrackLp.topMargin = dp(2);
+        card.addView(orderTrack, orderTrackLp);
+
+        if (hasOrders) {
+            addOrderProgressTrack(orderTrack,
+                    orderStage == null || orderStage.trim().isEmpty()
+                            ? "ongoing" : orderStage,
+                    restaurantName);
+        } else {
+            TextView noOrder = makeText("○ بدون أوردر", 9, MUTED, true);
+            noOrder.setGravity(Gravity.CENTER);
+            noOrder.setPadding(dp(8), dp(3), dp(8), dp(3));
+            orderTrack.addView(noOrder);
+        }
+
         // الشيفت في شريط واحد.
         String shiftStart = firstValue(rider, "shift_start", "shiftStart",
                 "shift_start_time", "session_start", "planned_shift_start");
@@ -3679,7 +3722,7 @@ public class MainActivity extends Activity {
         LinearLayout item = new LinearLayout(this);
         item.setOrientation(LinearLayout.VERTICAL);
         item.setGravity(Gravity.CENTER);
-        item.setPadding(dp(3), dp(4), dp(3), dp(4));
+        item.setPadding(dp(3), dp(5), dp(3), dp(5));
 
         GradientDrawable bg = new GradientDrawable(
                 GradientDrawable.Orientation.TOP_BOTTOM,
@@ -3703,36 +3746,6 @@ public class MainActivity extends Activity {
         value.setMaxLines(1);
         value.setEllipsize(android.text.TextUtils.TruncateAt.END);
         item.addView(value);
-
-        String status = hasOrders
-                ? "🚚 " + (rawStage == null || rawStage.trim().isEmpty()
-                    ? "معاه أوردر" : arabicStatus(rawStage))
-                : "بدون أوردر";
-
-        TextView orderState = makeText("", 8,
-                hasOrders ? ORANGE : MUTED, true);
-        orderState.setGravity(Gravity.CENTER);
-        orderState.setSingleLine(true);
-        orderState.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        orderState.setShadowLayer(dp(3), 0, 0,
-                hasOrders ? ORANGE : Color.TRANSPARENT);
-        item.addView(orderState);
-
-        if (hasOrders) {
-            final android.animation.ValueAnimator typing =
-                    android.animation.ValueAnimator.ofInt(0, status.length());
-            typing.setDuration(Math.max(700, status.length() * 65L));
-            typing.setRepeatCount(android.animation.ValueAnimator.INFINITE);
-            typing.setRepeatMode(android.animation.ValueAnimator.RESTART);
-            typing.addUpdateListener(a -> {
-                int count = (Integer) a.getAnimatedValue();
-                orderState.setText(status.substring(0,
-                        Math.min(count, status.length())));
-            });
-            typing.start();
-        } else {
-            orderState.setText(status);
-        }
     }
 
     private void addCompactMetric(LinearLayout parent, String label, String value) {
@@ -3841,19 +3854,18 @@ public class MainActivity extends Activity {
             color = Color.rgb(255, 174, 70);
             background = Color.rgb(65, 39, 18);
         } else {
-            String restaurant = restaurantName == null
-                    ? "" : restaurantName.trim();
-
-            if (restaurant.length() > 14) {
-                restaurant = restaurant.substring(0, 13) + "…";
-            }
-
-            stage = restaurant.isEmpty()
-                    ? "معاه أوردر"
-                    : "معاه أوردر • " + restaurant;
-
+            stage = "معاه أوردر";
             color = Color.rgb(255, 154, 67);
             background = Color.rgb(65, 39, 18);
+        }
+
+        String restaurant = restaurantName == null
+                ? "" : restaurantName.trim();
+        if (!restaurant.isEmpty() && !stage.contains(restaurant)) {
+            if (restaurant.length() > 18) {
+                restaurant = restaurant.substring(0, 17) + "…";
+            }
+            stage += " • " + restaurant;
         }
 
         TextView badge = makeText(stage, 10, color, true);
@@ -3865,8 +3877,8 @@ public class MainActivity extends Activity {
         badge.setElevation(dp(3));
 
         LinearLayout.LayoutParams params =
-                new LinearLayout.LayoutParams(-2, -2);
-        params.setMargins(dp(3), dp(4), dp(3), dp(3));
+                new LinearLayout.LayoutParams(-1, -2);
+        params.setMargins(dp(3), dp(3), dp(3), dp(3));
         target.addView(badge, params);
 
 
