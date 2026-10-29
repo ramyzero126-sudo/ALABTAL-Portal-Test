@@ -49,6 +49,7 @@ import android.net.Uri;
 import android.content.Intent;
 import android.content.IntentSender;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.android.gms.auth.api.identity.AuthorizationRequest;
 import com.google.android.gms.auth.api.identity.AuthorizationResult;
 import com.google.android.gms.auth.api.identity.Identity;
@@ -149,6 +150,7 @@ public class MainActivity extends Activity {
     private LinearLayout dashboardRoot;
     private boolean detailVisible = false;
     private SharedPreferences authPrefs;
+    private boolean isAdmin = false;
     private SharedPreferences rosterCachePrefs;
     private volatile boolean updateCheckRunning = false;
     private File pendingUpdateFile;
@@ -272,7 +274,7 @@ public class MainActivity extends Activity {
         ensureOperationsNotificationChannel();
         FirebaseAuth firebaseAuth = FirebaseAuth.getInstance();
         if (firebaseAuth.getCurrentUser() != null) {
-            buildDashboard();
+            checkRoleAndOpenDashboard();
         } else {
             showLoginScreen(true);
         }
@@ -438,6 +440,65 @@ public class MainActivity extends Activity {
             Toast.makeText(this, "تعذر فتح مُثبّت التحديث",
                 Toast.LENGTH_LONG).show();
         }
+    }
+
+    private void checkRoleAndOpenDashboard() {
+        FirebaseAuth auth = FirebaseAuth.getInstance();
+
+        if (auth.getCurrentUser() == null) {
+            isAdmin = false;
+            showLoginScreen(true);
+            return;
+        }
+
+        String uid = auth.getCurrentUser().getUid();
+
+        FirebaseFirestore.getInstance()
+                .collection("user_roles")
+                .document(uid)
+                .get()
+                .addOnSuccessListener(document -> {
+                    if (isFinishing() || isDestroyed()) return;
+
+                    String role = document.exists()
+                            ? document.getString("role") : null;
+
+                    if ("admin".equals(role)) {
+                        isAdmin = true;
+                        buildDashboard();
+                    } else if ("user".equals(role)) {
+                        isAdmin = false;
+                        buildDashboard();
+                    } else {
+                        isAdmin = false;
+                        auth.signOut();
+                        authPrefs.edit()
+                                .putBoolean("logged_in", false)
+                                .apply();
+                        Toast.makeText(
+                                this,
+                                "الحساب غير مُعتمد. تواصل مع المدير لتحديد الصلاحية.",
+                                Toast.LENGTH_LONG
+                        ).show();
+                        showLoginScreen(false);
+                    }
+                })
+                .addOnFailureListener(error -> {
+                    if (isFinishing() || isDestroyed()) return;
+
+                    isAdmin = false;
+                    auth.signOut();
+                    authPrefs.edit()
+                            .putBoolean("logged_in", false)
+                            .apply();
+
+                    Toast.makeText(
+                            this,
+                            "تعذر التحقق من الصلاحيات. افحص الإنترنت وقواعد Firestore.",
+                            Toast.LENGTH_LONG
+                    ).show();
+                    showLoginScreen(false);
+                });
     }
 
     private void buildDashboard() {
@@ -615,7 +676,15 @@ public class MainActivity extends Activity {
                 new LinearLayout.LayoutParams(-2, dp(30));
         reportParams.setMargins(dp(3), 0, 0, 0);
         controls.addView(reportButton, reportParams);
-        reportButton.setOnClickListener(v -> exportSupervisorReport());
+        reportButton.setOnClickListener(v -> {
+            if (!isAdmin) {
+                Toast.makeText(this, "الصلاحية للمدير فقط",
+                        Toast.LENGTH_SHORT).show();
+                return;
+            }
+            exportSupervisorReport();
+        });
+        reportButton.setVisibility(isAdmin ? View.VISIBLE : View.GONE);
 
         inspectButton = makeButton("↻");
         inspectButton.setTextSize(22);
@@ -786,6 +855,10 @@ public class MainActivity extends Activity {
         LinearLayout.LayoutParams bookingsParams =
                 new LinearLayout.LayoutParams(0, dp(28), 1);
         mapTabs.addView(bookingsTab, bookingsParams);
+
+        // المستخدم العادي لا يرى أدوات الإدارة أو بيانات الشيت الحساسة.
+        sheetTab.setVisibility(isAdmin ? View.VISIBLE : View.GONE);
+        bookingsTab.setVisibility(isAdmin ? View.VISIBLE : View.GONE);
 
 
         FrameLayout contentFrame = new FrameLayout(this);
@@ -4855,7 +4928,7 @@ public class MainActivity extends Activity {
                             Toast.LENGTH_SHORT
                     ).show();
 
-                    buildDashboard();
+                    checkRoleAndOpenDashboard();
                     return;
                 }
 
