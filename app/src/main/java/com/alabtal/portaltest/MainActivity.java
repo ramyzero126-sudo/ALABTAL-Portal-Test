@@ -4454,6 +4454,7 @@ public class MainActivity extends Activity {
     }
 
     private void showLoginScreen(boolean setup) {
+        setup = false;
         getWindow().setStatusBarColor(Color.rgb(5, 6, 8));
         getWindow().setNavigationBarColor(Color.rgb(5, 6, 8));
         getWindow().getDecorView().setSystemUiVisibility(0);
@@ -4771,15 +4772,14 @@ public class MainActivity extends Activity {
         eaglePulse.start();
 
         TextView heading = makeText(
-                setup ? "إنشاء حساب التطبيق" : "مرحباً بعودتك",
+                "مرحباً بعودتك",
                 22, WHITE, true);
         heading.setGravity(Gravity.CENTER);
         heading.setShadowLayer(dp(8), 0, dp(2), 0xAAFF7900);
         page.addView(heading, new LinearLayout.LayoutParams(-1, dp(34)));
 
         TextView description = makeText(
-                setup ? "أنشئ حسابك الآمن للمتابعة"
-                      : "سجّل الدخول لمتابعة عملياتك",
+                "سجّل الدخول لمتابعة عملياتك",
                 13, MUTED, false);
         description.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams descParams =
@@ -4888,13 +4888,6 @@ public class MainActivity extends Activity {
         form.addView(submit, new LinearLayout.LayoutParams(-1, dp(48)));
         submit.setElevation(dp(12));
 
-        Button switchMode = makeButton(
-                setup ? "لدي حساب بالفعل — تسجيل الدخول"
-                      : "إنشاء حساب جديد");
-        form.addView(switchMode,
-                new LinearLayout.LayoutParams(-1, dp(42)));
-        switchMode.setOnClickListener(v -> showLoginScreen(!setup));
-
         TextView note = makeText(
                 "تسجيل الدخول محمي عبر Firebase Authentication.",
                 11, MUTED, false);
@@ -4931,9 +4924,7 @@ public class MainActivity extends Activity {
 
             FirebaseAuth firebaseAuth = FirebaseAuth.getInstance();
             com.google.android.gms.tasks.Task<com.google.firebase.auth.AuthResult>
-                    task = setup
-                    ? firebaseAuth.createUserWithEmailAndPassword(email, pw)
-                    : firebaseAuth.signInWithEmailAndPassword(email, pw);
+                    task = firebaseAuth.signInWithEmailAndPassword(email, pw);
 
             task.addOnCompleteListener(this, result -> {
                 submit.setEnabled(true);
