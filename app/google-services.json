@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "598287254304",
+    "project_id": "al-abtal-operations",
+    "storage_bucket": "al-abtal-operations.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:598287254304:android:c67fb7ad590e8eb88e8d45",
+        "android_client_info": {
+          "package_name": "com.alabtal.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCS5aIIFBaBpOfiPgbogwZAsaXGwH79zX4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:598287254304:android:e086e8a04add391b8e8d45",
+        "android_client_info": {
+          "package_name": "com.alabtal.portaltest"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCS5aIIFBaBpOfiPgbogwZAsaXGwH79zX4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
