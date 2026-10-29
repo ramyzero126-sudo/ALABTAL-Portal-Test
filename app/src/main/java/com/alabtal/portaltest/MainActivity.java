@@ -3372,6 +3372,19 @@ public class MainActivity extends Activity {
         String breakTime = firstValue(rider, "break_time", "break_duration",
                 "break_minutes", "breaks", "breakTime");
 
+        if (breakTime.isEmpty() && (state != null && (state.trim().equalsIgnoreCase("break") || state.trim().equalsIgnoreCase("on_break") || state.trim().equalsIgnoreCase("onbreak") || "استراحة".equals(stateLabel)))) {
+            long breakStarted = parseTimestampMillis(firstValue(rider,
+                    "break_started_at", "breakStartedAt", "break_start_time",
+                    "breakStartTime", "on_break_since", "onBreakSince"));
+            long now = System.currentTimeMillis();
+
+            if (breakStarted > 0L && breakStarted <= now) {
+                long minutes = (now - breakStarted) / 60000L;
+                breakTime = String.format(Locale.getDefault(),
+                        "%02d:%02d", minutes / 60L, minutes % 60L);
+            }
+        }
+
         String normalizedState = state == null ? ""
                 : state.trim().toLowerCase(Locale.ROOT)
                 .replace('-', '_').replace(' ', '_');
