@@ -3542,7 +3542,6 @@ public class MainActivity extends Activity {
         if (header == null) return -1;
 
         java.util.Calendar bookingCalendar = java.util.Calendar.getInstance();
-        bookingCalendar.add(java.util.Calendar.DAY_OF_YEAR, 1);
         String targetDate = new SimpleDateFormat("yyyy-MM-dd", Locale.US)
                 .format(bookingCalendar.getTime());
         int dateColumn = -1;
