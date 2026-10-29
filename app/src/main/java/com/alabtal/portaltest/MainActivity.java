@@ -753,9 +753,9 @@ public class MainActivity extends Activity {
         mapTabs.setElevation(dp(2));
 
         Button ridersTab = makeButton("☷ المناديب");
-        Button mapTab = makeButton("⌖ الخريطة");
-        Button sheetTab = makeButton("▤ ردود الشيت");
-        Button bookingsTab = makeButton("📦 الحجوزات");
+        Button mapTab = makeButton("📍 الخريطة");
+        Button sheetTab = makeButton("📋 ردود الشيت");
+        Button bookingsTab = makeButton("📅 الحجوزات");
         ridersTab.setTextSize(8);
         mapTab.setTextSize(8);
         sheetTab.setTextSize(8);
