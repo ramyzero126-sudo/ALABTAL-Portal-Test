@@ -701,6 +701,8 @@ public class MainActivity extends Activity {
         summary.setBackground(round(Color.rgb(10, 14, 21),
                 Color.rgb(87, 48, 22), 1));
         root.addView(summary);
+        // إخفاء سطر عدد المندوبين من الواجهة الرئيسية فقط.
+        summary.setVisibility(View.GONE);
 
         TextView statsTitle = makeText(
                 "◈  لوحة مؤشرات التشغيل", 11, ORANGE, true);
@@ -741,7 +743,7 @@ public class MainActivity extends Activity {
         LinearLayout.LayoutParams reportParams =
                 new LinearLayout.LayoutParams(-2, dp(30));
         reportParams.setMargins(dp(3), 0, 0, 0);
-        controls.addView(reportButton, reportParams);
+        // التقرير متاح من مركز التشغيل فقط.
         reportButton.setOnClickListener(v -> {
             if (!isAdmin) {
                 Toast.makeText(this, "الصلاحية للمدير فقط",
@@ -761,7 +763,7 @@ public class MainActivity extends Activity {
         LinearLayout.LayoutParams ordersParams =
                 new LinearLayout.LayoutParams(-2, dp(30));
         ordersParams.setMargins(dp(3), 0, 0, 0);
-        controls.addView(ordersButton, ordersParams);
+        // الأوردرات متاحة من مركز التشغيل فقط.
         ordersButton.setOnClickListener(v -> showAllOrdersPage());
 
         inspectButton = makeButton("↻");
@@ -1147,10 +1149,6 @@ public class MainActivity extends Activity {
         root.addView(contentFrame,
                 new LinearLayout.LayoutParams(-1, 0, 1));
 
-        // شريط تنقّل سفلي ثابت، ومحتوى الداش يتمرر فوقه.
-        root.addView(mapTabs,
-                new LinearLayout.LayoutParams(-1, dp(50)));
-
         ridersTab.setOnClickListener(v -> {
             mapTabActive = false;
             sheetTabActive = false;
@@ -1248,7 +1246,7 @@ public class MainActivity extends Activity {
         LinearLayout toolsHeader = new LinearLayout(this);
         toolsHeader.setOrientation(LinearLayout.HORIZONTAL);
         toolsHeader.setGravity(Gravity.CENTER_VERTICAL);
-        TextView toolsTitle = makeText("⚡ مركز الأدوات", 11, ORANGE, true);
+        TextView toolsTitle = makeText("⚡ مركز التشغيل", 11, ORANGE, true);
         toolsHeader.addView(toolsTitle,
                 new LinearLayout.LayoutParams(0, dp(29), 1f));
         TextView toolsToggle = makeText("⌄ فتح الأدوات", 10, GREEN, true);
@@ -1261,8 +1259,8 @@ public class MainActivity extends Activity {
         toolsGrid.setOrientation(LinearLayout.VERTICAL);
         toolsGrid.setVisibility(View.GONE);
         String[] toolLabels = {
-                "الحجوزات", "Live", "الأوردرات",
-                "ردود الشيت", "الخريطة", "المناديب", "التقرير"
+                "📅 الحجوزات", "🔄 Live", "📦 الأوردرات",
+                "📋 ردود الشيت", "🗺️ الخريطة", "👥 المناديب", "📊 التقرير"
         };
 
         for (int start = 0; start < toolLabels.length; start += 3) {
