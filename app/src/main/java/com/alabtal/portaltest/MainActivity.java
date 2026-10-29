@@ -3437,15 +3437,6 @@ public class MainActivity extends Activity {
             card.addView(orderStrip, orderStripLp);
         }
 
-        if (hasOrders) {
-            LinearLayout progress = new LinearLayout(this);
-            progress.setOrientation(LinearLayout.VERTICAL);
-            LinearLayout.LayoutParams progressLp =
-                    new LinearLayout.LayoutParams(-1, -2);
-            progressLp.topMargin = dp(0);
-            card.addView(progress, progressLp);
-            addOrderProgressTrack(progress, stage, vendor);
-        }
 
         // مؤشرات تشغيل مضغوطة.
         LinearLayout metrics = new LinearLayout(this);
@@ -3873,67 +3864,7 @@ public class MainActivity extends Activity {
         params.setMargins(dp(3), dp(4), dp(3), dp(3));
         target.addView(badge, params);
 
-        // عرض اسم المطعم كسطر مستقل داخل كارت المندوب.
-        String visibleRestaurant = restaurantName == null
-                ? "" : restaurantName.trim();
-        if (!visibleRestaurant.isEmpty()
-                && !"غير متاح".equals(visibleRestaurant)
-                && !"null".equalsIgnoreCase(visibleRestaurant)) {
-            TextView restaurantBadge = makeText(
-                    "🍔 المطعم: " + visibleRestaurant,
-                    10, WHITE, true);
-            restaurantBadge.setSingleLine(true);
-            restaurantBadge.setPadding(dp(9), dp(5), dp(9), dp(5));
-            restaurantBadge.setBackground(round(
-                    Color.rgb(28, 31, 36),
-                    Color.rgb(255, 121, 0), 1));
-            LinearLayout.LayoutParams restaurantParams =
-                    new LinearLayout.LayoutParams(-1, -2);
-            restaurantParams.setMargins(0, dp(2), 0, dp(3));
-            target.addView(restaurantBadge, restaurantParams);
-        }
 
-        boolean animateOrderJourney =
-                st.equals("near pickup")
-                || st.equals("at pickup")
-                || st.equals("arrived at pickup")
-                || st.equals("in transit")
-                || st.equals("on the way")
-                || st.equals("picked up")
-                || st.equals("left pickup")
-                || st.equals("near dropoff")
-                || st.equals("at dropoff")
-                || st.equals("arrived at dropoff");
-
-        if (animateOrderJourney) {
-            ObjectAnimator slide = ObjectAnimator.ofFloat(
-                    badge, View.TRANSLATION_X, dp(-3), dp(3));
-            slide.setDuration(650);
-            slide.setRepeatMode(ObjectAnimator.REVERSE);
-            slide.setRepeatCount(ObjectAnimator.INFINITE);
-            slide.start();
-        }
-
-        ObjectAnimator pulse = ObjectAnimator.ofFloat(
-                badge, View.ALPHA, 0.78f, 1f);
-        pulse.setDuration(850);
-        pulse.setRepeatMode(ObjectAnimator.REVERSE);
-        pulse.setRepeatCount(ObjectAnimator.INFINITE);
-        pulse.start();
-
-        ObjectAnimator breatheX = ObjectAnimator.ofFloat(
-                badge, View.SCALE_X, 1f, 1.035f);
-        breatheX.setDuration(850);
-        breatheX.setRepeatMode(ObjectAnimator.REVERSE);
-        breatheX.setRepeatCount(ObjectAnimator.INFINITE);
-        breatheX.start();
-
-        ObjectAnimator breatheY = ObjectAnimator.ofFloat(
-                badge, View.SCALE_Y, 1f, 1.035f);
-        breatheY.setDuration(850);
-        breatheY.setRepeatMode(ObjectAnimator.REVERSE);
-        breatheY.setRepeatCount(ObjectAnimator.INFINITE);
-        breatheY.start();
     }
 
     private void addDetailPair(LinearLayout parent,
