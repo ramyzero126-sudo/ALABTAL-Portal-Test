@@ -899,17 +899,22 @@ public class MainActivity extends Activity {
         topOrderAlertBanner = new TextView(this);
         topOrderAlertBanner.setTextColor(WHITE);
         topOrderAlertBanner.setTextSize(14);
+        topOrderAlertBanner.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         topOrderAlertBanner.setMaxLines(2);
-        topOrderAlertBanner.setGravity(Gravity.CENTER);
-        topOrderAlertBanner.setPadding(dp(16), dp(12), dp(16), dp(12));
+        topOrderAlertBanner.setGravity(Gravity.CENTER_VERTICAL);
+        topOrderAlertBanner.setTextAlignment(View.TEXT_ALIGNMENT_CENTER);
+        topOrderAlertBanner.setPadding(dp(18), dp(13), dp(18), dp(13));
+        topOrderAlertBanner.setMinHeight(dp(62));
         topOrderAlertBanner.setBackground(round(
-                Color.rgb(25, 22, 18), ORANGE, 2));
-        topOrderAlertBanner.setElevation(dp(10));
+                Color.rgb(24, 20, 16), ORANGE, 2));
+        topOrderAlertBanner.setElevation(dp(14));
+        topOrderAlertBanner.setShadowLayer(
+                dp(7), 0, 0, Color.rgb(255, 121, 0));
         topOrderAlertBanner.setVisibility(View.GONE);
 
         topOrderAlertPopup = new PopupWindow(
                 topOrderAlertBanner, -1, -2, false);
-        topOrderAlertPopup.setElevation(dp(12));
+        topOrderAlertPopup.setElevation(dp(16));
         topOrderAlertPopup.setClippingEnabled(true);
 
         // تبويبات مضغوطة: المناديب والخريطة
@@ -2699,8 +2704,16 @@ public class MainActivity extends Activity {
                 }
 
                 topOrderAlertBanner.setText(
-                        "🔔 " + name + " وصل عند العميل" + elapsed);
+                        "⚡ AL ABTAL • LIVE ALERT\n"
+                        + "📍 " + name + " وصل عند العميل" + elapsed);
+                topOrderAlertBanner.setAlpha(0f);
+                topOrderAlertBanner.setTranslationY(-dp(12));
                 topOrderAlertBanner.setVisibility(View.VISIBLE);
+                topOrderAlertBanner.animate()
+                        .alpha(1f)
+                        .translationY(0f)
+                        .setDuration(280L)
+                        .start();
 
                 handler.removeCallbacks(topOrderBannerRunnable);
                 if (topOrderAlertPopup != null) {
