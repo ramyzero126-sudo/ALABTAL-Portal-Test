@@ -4005,32 +4005,6 @@ public class MainActivity extends Activity {
         ).matcher(header.trim()).find();
     }
 
-    private int findBookingDateHeaderRowIndex(JSONArray rows) {
-        if (rows == null) return -1;
-
-        int bestIndex = -1;
-        int bestCount = 0;
-        int limit = Math.min(rows.length(), 30);
-
-        for (int r = 0; r < limit; r++) {
-            JSONArray candidate = rows.optJSONArray(r);
-            if (candidate == null) continue;
-
-            int count = 0;
-            for (int c = 5; c < candidate.length(); c++) {
-                if (isBookingDateHeader(sheetCell(candidate, c).trim())) {
-                    count++;
-                }
-            }
-
-            if (count > bestCount) {
-                bestCount = count;
-                bestIndex = r;
-            }
-        }
-        return bestIndex;
-    }
-
     private void addSelectedShiftsToDetails(LinearLayout page, JSONObject rider) {
         TextView title = makeText("شيفتات الروستر", 13, ORANGE, true);
         title.setPadding(dp(2), dp(7), dp(2), dp(5));
@@ -4100,6 +4074,43 @@ public class MainActivity extends Activity {
             page.addView(makeText("لا توجد شيفتات لهذا المندوب ضمن الفترة المحمّلة من الروستر.", 11, MUTED, false));
         }
     }
+    private void addRiderSheetRequestsToDetails(
+            LinearLayout page, JSONObject rider) {
+        LinearLayout section = new LinearLayout(this);
+        section.setOrientation(LinearLayout.VERTICAL);
+        section.setPadding(dp(9), dp(8), dp(9), dp(8));
+        section.setBackground(round(PANEL, ORANGE, 1));
+
+        LinearLayout.LayoutParams params =
+                new LinearLayout.LayoutParams(-1, -2);
+        params.setMargins(0, dp(5), 0, dp(6));
+        page.addView(section, params);
+
+        section.addView(makeText(
+                "📋 طلبات التزويد والبريك", 13, ORANGE, true));
+
+        String riderId = firstValue(
+                rider, "employee_id", "id", "rider_id").trim();
+
+        if (riderId.isEmpty()) {
+            section.addView(makeText(
+                    "معرّف المندوب غير متاح للمطابقة.",
+                    10, MUTED, false));
+            return;
+        }
+
+        int count = appendRiderRequests(
+                section, cachedShiftRequestRows, riderId, true);
+        count += appendRiderRequests(
+                section, cachedBreakRequestRows, riderId, false);
+
+        if (count == 0) {
+            section.addView(makeText(
+                    "لا توجد طلبات مطابقة في الشيتات المحمّلة.",
+                    10, MUTED, false));
+        }
+    }
+
     private void showRiderDetails(JSONObject rider, JSONArray orders) {
         detailVisible = true;
         ScrollView scroll = new ScrollView(this);
