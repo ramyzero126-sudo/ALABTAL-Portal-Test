@@ -4037,6 +4037,61 @@ public class MainActivity extends Activity {
         ).matcher(header.trim()).find();
     }
 
+    private void addShiftTimeCards(
+            LinearLayout parent, String startTime, String endTime) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+
+        int cardBg = Color.rgb(19, 21, 25);
+        int greenAccent = Color.rgb(45, 210, 125);
+        int orangeAccent = Color.rgb(255, 121, 0);
+
+        LinearLayout startCard = new LinearLayout(this);
+        startCard.setOrientation(LinearLayout.VERTICAL);
+        startCard.setGravity(Gravity.CENTER_VERTICAL);
+        startCard.setPadding(dp(10), dp(8), dp(10), dp(8));
+        startCard.setBackground(round(cardBg, greenAccent, 1));
+        startCard.setElevation(dp(2));
+
+        TextView startLabel = makeText("◷  بداية الشيفت", 10, greenAccent, true);
+        TextView startValue = makeText(
+                (startTime == null || startTime.trim().isEmpty())
+                        ? "غير متاح" : startTime, 16, WHITE, true);
+        startValue.setSingleLine(true);
+        startValue.setShadowLayer(dp(3), 0, 0, greenAccent);
+        startCard.addView(startLabel);
+        startCard.addView(startValue);
+
+        LinearLayout endCard = new LinearLayout(this);
+        endCard.setOrientation(LinearLayout.VERTICAL);
+        endCard.setGravity(Gravity.CENTER_VERTICAL);
+        endCard.setPadding(dp(10), dp(8), dp(10), dp(8));
+        endCard.setBackground(round(cardBg, orangeAccent, 1));
+        endCard.setElevation(dp(2));
+
+        TextView endLabel = makeText("◷  نهاية الشيفت", 10, orangeAccent, true);
+        TextView endValue = makeText(
+                (endTime == null || endTime.trim().isEmpty())
+                        ? "غير متاح" : endTime, 16, WHITE, true);
+        endValue.setSingleLine(true);
+        endValue.setShadowLayer(dp(3), 0, 0, orangeAccent);
+        endCard.addView(endLabel);
+        endCard.addView(endValue);
+
+        LinearLayout.LayoutParams startParams =
+                new LinearLayout.LayoutParams(0, -2, 1f);
+        startParams.setMargins(0, dp(3), dp(4), dp(7));
+        row.addView(startCard, startParams);
+
+        LinearLayout.LayoutParams endParams =
+                new LinearLayout.LayoutParams(0, -2, 1f);
+        endParams.setMargins(dp(4), dp(3), 0, dp(7));
+        row.addView(endCard, endParams);
+
+        parent.addView(row, new LinearLayout.LayoutParams(-1, -2));
+    }
+
     private void addSelectedShiftsToDetails(LinearLayout page, JSONObject rider) {
         TextView title = makeText("شيفتات الروستر", 13, ORANGE, true);
         title.setPadding(dp(2), dp(7), dp(2), dp(5));
@@ -4279,9 +4334,8 @@ private void addRequestDetailLine(
         addDetailPair(page, "المحفظة",
                 firstValue(rider, "wallet_balance", "wallet", "balance"),
                 "إجمالي الأوردرات", firstValue(rider, "total_orders"));
-        addDetailPair(page, "بداية الشيفت",
+        addShiftTimeCards(page,
                 firstValue(rider, "shift_start", "planned_shift_start", "session_start"),
-                "نهاية الشيفت",
                 firstValue(rider, "shift_end", "planned_shift_end", "session_end"));
         addDetailPair(page, "الأداء",
                 firstValue(rider, "performance", "performance_score"),
