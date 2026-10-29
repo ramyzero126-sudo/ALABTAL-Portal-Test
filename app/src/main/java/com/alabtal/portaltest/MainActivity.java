@@ -3207,6 +3207,18 @@ public class MainActivity extends Activity {
         final JSONObject riderData = rider;
         final JSONArray riderOrders = orders;
 
+        String restaurantNameForBadge = "";
+        for (int i = 0; i < orders.length(); i++) {
+            JSONObject order = orders.optJSONObject(i);
+            if (order == null) continue;
+            restaurantNameForBadge = firstValue(order,
+                    "vendor_name", "restaurant_name", "merchant_name",
+                    "vendorName", "restaurantName", "store_name");
+            if (!restaurantNameForBadge.isEmpty()
+                    && !restaurantNameForBadge.equals("غير متاح")) break;
+            restaurantNameForBadge = "";
+        }
+
         String name = firstValue(rider, "name", "employee_name", "rider_name");
         if (name.isEmpty()) name = "مندوب بدون اسم";
         String id = firstValue(rider, "employee_id", "id", "rider_id");
@@ -3378,7 +3390,28 @@ public class MainActivity extends Activity {
         stateBg.setCornerRadius(dp(10));
         stateBg.setStroke(dp(1), stateColor);
         stateBadge.setBackground(stateBg);
-        heading.addView(stateBadge);
+        LinearLayout statusColumn = new LinearLayout(this);
+        statusColumn.setOrientation(LinearLayout.VERTICAL);
+        statusColumn.setGravity(Gravity.CENTER);
+        statusColumn.setPadding(dp(2), 0, dp(2), 0);
+        statusColumn.addView(stateBadge);
+
+        if (!restaurantNameForBadge.trim().isEmpty()) {
+            TextView restaurantView = makeText(
+                    "🍔 " + restaurantNameForBadge.trim(),
+                    9, ORANGE, true);
+            restaurantView.setGravity(Gravity.CENTER);
+            restaurantView.setMaxLines(1);
+            restaurantView.setEllipsize(
+                    android.text.TextUtils.TruncateAt.END);
+            restaurantView.setMaxWidth(dp(135));
+            LinearLayout.LayoutParams restaurantLp =
+                    new LinearLayout.LayoutParams(-2, -2);
+            restaurantLp.topMargin = dp(2);
+            statusColumn.addView(restaurantView, restaurantLp);
+        }
+
+        heading.addView(statusColumn);
 
         // مؤشرات تشغيل مضغوطة.
         LinearLayout metrics = new LinearLayout(this);
