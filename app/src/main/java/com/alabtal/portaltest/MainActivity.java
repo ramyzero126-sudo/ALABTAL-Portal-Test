@@ -3390,28 +3390,7 @@ public class MainActivity extends Activity {
         stateBg.setCornerRadius(dp(10));
         stateBg.setStroke(dp(1), stateColor);
         stateBadge.setBackground(stateBg);
-        LinearLayout statusColumn = new LinearLayout(this);
-        statusColumn.setOrientation(LinearLayout.VERTICAL);
-        statusColumn.setGravity(Gravity.CENTER);
-        statusColumn.setPadding(dp(2), 0, dp(2), 0);
-        statusColumn.addView(stateBadge);
-
-        if (!restaurantNameForBadge.trim().isEmpty()) {
-            TextView restaurantView = makeText(
-                    "🍔 " + restaurantNameForBadge.trim(),
-                    9, ORANGE, true);
-            restaurantView.setGravity(Gravity.CENTER);
-            restaurantView.setMaxLines(1);
-            restaurantView.setEllipsize(
-                    android.text.TextUtils.TruncateAt.END);
-            restaurantView.setMaxWidth(dp(135));
-            LinearLayout.LayoutParams restaurantLp =
-                    new LinearLayout.LayoutParams(-2, -2);
-            restaurantLp.topMargin = dp(2);
-            statusColumn.addView(restaurantView, restaurantLp);
-        }
-
-        heading.addView(statusColumn);
+        heading.addView(stateBadge);
 
         // مؤشرات تشغيل مضغوطة.
         LinearLayout metrics = new LinearLayout(this);
