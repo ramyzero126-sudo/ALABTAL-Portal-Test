@@ -3604,28 +3604,7 @@ public class MainActivity extends Activity {
         String shiftEnd = firstValue(rider, "shift_end", "shiftEnd",
                 "shift_end_time", "session_end", "planned_shift_end");
 
-        LinearLayout shift = new LinearLayout(this);
-        shift.setOrientation(LinearLayout.HORIZONTAL);
-        shift.setGravity(Gravity.CENTER_VERTICAL);
-        shift.setPadding(dp(7), dp(5), dp(7), dp(5));
-        shift.setBackground(round(Color.rgb(17, 21, 28),
-                Color.rgb(91, 57, 30), 1));
-
-        TextView from = makeText("بداية  " + displayValue(shiftStart),
-                9, ORANGE, true);
-        from.setLayoutParams(new LinearLayout.LayoutParams(0, -2, 1f));
-        shift.addView(from);
-
-        TextView to = makeText("نهاية  " + displayValue(shiftEnd),
-                9, ORANGE, true);
-        to.setGravity(Gravity.RIGHT | Gravity.CENTER_VERTICAL);
-        to.setLayoutParams(new LinearLayout.LayoutParams(0, -2, 1f));
-        shift.addView(to);
-
-        LinearLayout.LayoutParams shiftLp =
-                new LinearLayout.LayoutParams(-1, -2);
-        shiftLp.topMargin = dp(5);
-        card.addView(shift, shiftLp);
+        addShiftTimeCards(card, shiftStart, shiftEnd);
 
         addSmartAlerts(card, rider, orders, state);
 
