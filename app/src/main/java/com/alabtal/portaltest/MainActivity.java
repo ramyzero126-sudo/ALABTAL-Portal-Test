@@ -4111,6 +4111,95 @@ public class MainActivity extends Activity {
         }
     }
 
+    private int appendRiderRequests(
+            LinearLayout parent, JSONArray rows,
+            String riderId, boolean isShift) {
+        if (rows == null || rows.length() < 2) return 0;
+
+        int idColumn = isShift ? 3 : 2;
+        int shown = 0;
+        boolean headingAdded = false;
+
+        for (int i = rows.length() - 1; i >= 1 && shown < 5; i--) {
+            JSONArray row = rows.optJSONArray(i);
+            if (row == null) continue;
+
+            String id = sheetCell(row, idColumn);
+            if (id.isEmpty() || !riderId.equalsIgnoreCase(id)) continue;
+
+            if (!headingAdded) {
+                parent.addView(makeText(
+                        isShift ? "طلبات تزويد الشيفتات" : "طلبات فك البريك",
+                        11, WHITE, true));
+                headingAdded = true;
+            }
+
+            LinearLayout card = new LinearLayout(this);
+            card.setOrientation(LinearLayout.VERTICAL);
+            card.setPadding(dp(8), dp(7), dp(8), dp(7));
+            card.setBackground(round(
+                    Color.rgb(25, 27, 32),
+                    Color.rgb(67, 47, 31), 1));
+
+            LinearLayout.LayoutParams cp =
+                    new LinearLayout.LayoutParams(-1, -2);
+            cp.setMargins(0, dp(4), 0, dp(5));
+            parent.addView(card, cp);
+
+            addRequestDetailLine(card, "وقت الطلب", sheetCell(row, 0), false);
+            addRequestDetailLine(card, "نوع الطلب", sheetCell(row, 1), false);
+
+            if (isShift) {
+                addRequestDetailLine(card, "ساعات التزويد", sheetCell(row, 2), false);
+                addRequestDetailLine(card, "المدينة", sheetCell(row, 4), false);
+                addRequestDetailLine(card, "حالة الطلب", sheetCell(row, 5), true);
+                addRequestDetailLine(card, "الرد على الطلب", sheetCell(row, 6), true);
+                addRequestDetailLine(card, "سبب الرفض", sheetCell(row, 7), false);
+            } else {
+                addRequestDetailLine(card, "حالة الطلب", sheetCell(row, 3), true);
+                addRequestDetailLine(card, "القرار النهائي", sheetCell(row, 4), true);
+                addRequestDetailLine(card, "سبب الرفض", sheetCell(row, 5), false);
+            }
+            shown++;
+        }
+        return shown;
+    }
+
+private void addRequestDetailLine(
+            LinearLayout parent, String label,
+            String value, boolean status) {
+        if (value == null || value.trim().isEmpty()) return;
+
+        String v = value.trim();
+        int color = MUTED;
+
+        if (status) {
+            String lower = v.toLowerCase(java.util.Locale.ROOT);
+            if (lower.contains("مرفوض") || lower.contains("رفض")) {
+                color = Color.rgb(255, 75, 75);
+            } else if (lower.contains("مقبول")
+                    || lower.contains("موافق")
+                    || lower.contains("معتمد")
+                    || lower.contains("تمت الموافقة")
+                    || lower.contains("تم القبول")
+                    || lower.contains("مكتمل")) {
+                color = GREEN;
+            } else {
+                color = Color.rgb(255, 195, 65);
+            }
+        }
+
+        LinearLayout line = new LinearLayout(this);
+        line.setOrientation(LinearLayout.HORIZONTAL);
+        line.setGravity(Gravity.CENTER_VERTICAL);
+        line.addView(makeText(label + ": ", 10, MUTED, false));
+
+        TextView valueView = makeText(v, 10, color, status);
+        line.addView(valueView,
+                new LinearLayout.LayoutParams(0, -2, 1f));
+        parent.addView(line);
+    }
+
     private void showRiderDetails(JSONObject rider, JSONArray orders) {
         detailVisible = true;
         ScrollView scroll = new ScrollView(this);
