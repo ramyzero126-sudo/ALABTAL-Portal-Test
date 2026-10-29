@@ -3701,6 +3701,336 @@ public class MainActivity extends Activity {
         return bestIndex;
     }
 
+    private void addAnimatedBookingBadge(
+            LinearLayout parent, boolean booked) {
+        final int color = booked ? GREEN : RED;
+        final String fullText = booked ? "✓ حاجز" : "✕ مش حاجز";
+
+        TextView badge = makeText("", 11, color, true);
+        badge.setGravity(Gravity.CENTER);
+        badge.setPadding(dp(10), dp(5), dp(10), dp(5));
+        badge.setShadowLayer(dp(5), 0, 0, color);
+
+        GradientDrawable background = new GradientDrawable(
+                GradientDrawable.Orientation.LEFT_RIGHT,
+                booked
+                        ? new int[]{Color.rgb(12, 42, 27), Color.rgb(14, 25, 20)}
+                        : new int[]{Color.rgb(48, 15, 20), Color.rgb(25, 15, 18)});
+        background.setCornerRadius(dp(10));
+        background.setStroke(dp(1), color);
+        badge.setBackground(background);
+        badge.setElevation(dp(3));
+
+        LinearLayout.LayoutParams params =
+                new LinearLayout.LayoutParams(-1, -2);
+        params.topMargin = dp(6);
+        parent.addView(badge, params);
+
+        final int[] position = {0};
+        Runnable typing = new Runnable() {
+            @Override public void run() {
+                if (badge.getParent() == null) return;
+
+                if (position[0] < fullText.length()) {
+                    badge.setText(
+                            fullText.substring(0, ++position[0]) + "▌");
+                    handler.postDelayed(this, 85);
+                } else {
+                    badge.setText(fullText);
+                    ObjectAnimator glow = ObjectAnimator.ofFloat(
+                            badge, View.ALPHA, 0.72f, 1f);
+                    glow.setDuration(650);
+                    glow.setRepeatCount(1);
+                    glow.setRepeatMode(ObjectAnimator.REVERSE);
+                    glow.start();
+                }
+            }
+        };
+        handler.postDelayed(typing, 100);
+    }
+
+    private void addRiderAction(
+            LinearLayout parent, JSONObject rider, String symbol, String label, int glow) {
+        LinearLayout button = new LinearLayout(this);
+        button.setOrientation(LinearLayout.VERTICAL);
+        button.setGravity(Gravity.CENTER);
+        button.setPadding(dp(2), dp(4), dp(2), dp(4));
+        button.setBackground(round(Color.rgb(20, 20, 23), ORANGE_DEEP, 1));
+
+        TextView icon = makeText(symbol, 16, glow, true);
+        icon.setGravity(Gravity.CENTER);
+        icon.setShadowLayer(dp(4), 0, 0, glow);
+        button.addView(icon, new LinearLayout.LayoutParams(-1, dp(22)));
+
+        TextView caption = makeText(label, 8, Color.WHITE, true);
+        caption.setGravity(Gravity.CENTER);
+        button.addView(caption);
+
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, -2, 1f);
+        lp.setMargins(dp(2), 0, dp(2), 0);
+        parent.addView(button, lp);
+
+        button.setClickable(true);
+        button.setFocusable(true);
+        button.setOnClickListener(v -> {
+            String phone = firstValue(rider, "phone", "phone_number", "mobile",
+                    "rider_phone", "telephone", "contact_number");
+            try {
+                if ("تزويد".equals(label)) {
+                    showFormPage("تزويد شيفتات الطيارين");
+                } else if ("بريك".equals(label)) {
+                    showFormPage("فك بريك");
+                } else if ("اتصال".equals(label)) {
+                    if (phone.isEmpty() || phone.equals("غير متاح")) {
+                        Toast.makeText(this, "رقم هاتف المندوب غير متاح", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    android.content.Intent intent = new android.content.Intent(
+                            android.content.Intent.ACTION_DIAL,
+                            android.net.Uri.parse("tel:" + phone.replace(" ", "")));
+                    startActivity(intent);
+                } else if ("رسالة".equals(label)) {
+                    if (phone.isEmpty() || phone.equals("غير متاح")) {
+                        Toast.makeText(this, "رقم هاتف المندوب غير متاح", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    android.content.Intent intent = new android.content.Intent(
+                            android.content.Intent.ACTION_SENDTO,
+                            android.net.Uri.parse("smsto:" + phone.replace(" ", "")));
+                    startActivity(intent);
+                } else if ("بريك".equals(label)) {
+                    Toast.makeText(this,
+                            "زر البريك ظاهر؛ تفعيل الحالة يحتاج دعمًا من مصدر الروستر",
+                            Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(this,
+                            "زر التزويد ظاهر؛ لا يوجد إجراء تزويد مؤكد في بيانات الروستر",
+                            Toast.LENGTH_SHORT).show();
+                }
+            } catch (Exception e) {
+                Toast.makeText(this, "تعذر فتح الإجراء على هذا الجهاز", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    private void addWalletMetricWithOrderStatus(
+            LinearLayout parent, String walletValue,
+            boolean hasOrders, String rawStage) {
+        LinearLayout item = new LinearLayout(this);
+        item.setOrientation(LinearLayout.VERTICAL);
+        item.setGravity(Gravity.CENTER);
+        item.setPadding(dp(3), dp(5), dp(3), dp(5));
+
+        GradientDrawable bg = new GradientDrawable(
+                GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{Color.rgb(25, 39, 53), Color.rgb(8, 13, 21)});
+        bg.setCornerRadius(dp(11));
+        bg.setStroke(dp(1), GREEN);
+        item.setBackground(bg);
+        item.setElevation(dp(5));
+
+        LinearLayout.LayoutParams lp =
+                new LinearLayout.LayoutParams(0, -2, 1f);
+        lp.setMargins(dp(2), 0, dp(2), 0);
+        parent.addView(item, lp);
+
+        TextView label = makeText("المحفظة", 9, ORANGE, true);
+        label.setGravity(Gravity.CENTER);
+        item.addView(label);
+
+        TextView value = makeText(walletValue, 12, WHITE, true);
+        value.setGravity(Gravity.CENTER);
+        value.setMaxLines(1);
+        value.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        item.addView(value);
+    }
+
+    private void addCompactMetric(LinearLayout parent, String label, String value) {
+        LinearLayout item = new LinearLayout(this);
+        item.setOrientation(LinearLayout.VERTICAL);
+        item.setGravity(Gravity.CENTER);
+        item.setPadding(dp(5), dp(4), dp(5), dp(4));
+
+        int accent = ORANGE;
+        String key = label == null ? "" : label.toLowerCase(Locale.ROOT);
+        if (key.contains("محفظة")) accent = GREEN;
+        else if (key.contains("أوردر")) accent = ORANGE;
+        else if (key.contains("ساعة")) accent = Color.rgb(65, 165, 255);
+        else if (key.contains("بريك")) accent = Color.rgb(185, 115, 255);
+
+        GradientDrawable bg = new GradientDrawable(
+                GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{
+                        Color.rgb(25, 39, 53),
+                        Color.rgb(8, 13, 21)
+                }
+        );
+        bg.setCornerRadius(dp(11));
+        bg.setStroke(dp(1), accent);
+        item.setBackground(bg);
+        item.setElevation(dp(5));
+        item.setTranslationZ(dp(1));
+
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, -2, 1f);
+        lp.setMargins(dp(2), 0, dp(2), 0);
+        parent.addView(item, lp);
+
+        TextView metricLabel = makeText(label, 9, ORANGE, true);
+        metricLabel.setShadowLayer(dp(3), 0, 0, ORANGE_DEEP);
+        metricLabel.setGravity(Gravity.CENTER);
+        metricLabel.setMaxLines(1);
+        metricLabel.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        item.addView(metricLabel);
+        TextView val = makeText(value, 12, Color.WHITE, true);
+        val.setShadowLayer(dp(4), 0, 0, ORANGE_DEEP);
+        val.setGravity(Gravity.CENTER);
+        val.setMaxLines(1);
+        val.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        item.addView(val);
+    }
+
+    private void addCompactDetail(LinearLayout parent, String label, String value) {
+        if (value == null || value.trim().isEmpty()) return;
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(dp(2), dp(3), dp(2), dp(3));
+
+        TextView key = makeText(label, 11, Color.LTGRAY, false);
+        key.setLayoutParams(new LinearLayout.LayoutParams(dp(94), -2));
+        row.addView(key);
+
+        TextView val = makeText(value, 11, Color.WHITE, false);
+        val.setLayoutParams(new LinearLayout.LayoutParams(0, -2, 1));
+        row.addView(val);
+        parent.addView(row);
+    }
+
+
+    private void addOrderProgressTrack(
+            LinearLayout target, String rawStatus, String restaurantName) {
+        String st = rawStatus == null
+                ? "" : rawStatus.trim().toLowerCase(Locale.ROOT)
+                    .replace('_', ' ').replace('-', ' ');
+
+        String stage;
+        int color;
+        int background;
+
+        if (st.equals("dispatched") || st.equals("assigned")
+                || st.equals("courier notified")) {
+            stage = "📨 تم إسناد الأوردر";
+            color = Color.rgb(255, 193, 7);
+            background = Color.rgb(57, 44, 15);
+        } else if (st.equals("accepted") || st.equals("accepted order")) {
+            stage = "✓ المندوب قبل الأوردر";
+            color = Color.rgb(255, 154, 67);
+            background = Color.rgb(65, 39, 18);
+        } else if (st.equals("completed") || st.equals("delivered")) {
+            stage = "✓ تم التسليم";
+            color = GREEN;
+            background = Color.rgb(15, 53, 37);
+        } else if (st.equals("cancelled") || st.equals("canceled")) {
+            stage = "✕ الأوردر ملغي";
+            color = RED;
+            background = Color.rgb(58, 20, 24);
+        } else if (st.equals("in transit") || st.equals("on the way")
+                || st.equals("near dropoff") || st.equals("picked up")
+                || st.equals("left pickup")) {
+            stage = "🚲 في الطريق للعميل";
+            color = Color.rgb(190, 125, 255);
+            background = Color.rgb(43, 27, 61);
+        } else if (st.equals("at dropoff")
+                || st.equals("arrived at dropoff")) {
+            stage = "📍 وصل للعميل";
+            color = Color.rgb(90, 165, 255);
+            background = Color.rgb(20, 39, 65);
+        } else if (st.equals("near pickup") || st.equals("at pickup")
+                || st.equals("arrived at pickup")) {
+            stage = "🏪 استلام من المطعم";
+            color = Color.rgb(255, 174, 70);
+            background = Color.rgb(65, 39, 18);
+        } else {
+            stage = "معاه أوردر";
+            color = Color.rgb(255, 154, 67);
+            background = Color.rgb(65, 39, 18);
+        }
+
+        String restaurant = restaurantName == null
+                ? "" : restaurantName.trim();
+        if (!restaurant.isEmpty() && !stage.contains(restaurant)) {
+            if (restaurant.length() > 18) {
+                restaurant = restaurant.substring(0, 17) + "…";
+            }
+            stage += " • " + restaurant;
+        }
+
+        TextView badge = makeText(stage, 10, color, true);
+        badge.setGravity(Gravity.CENTER);
+        badge.setSingleLine(true);
+        badge.setPadding(dp(10), dp(6), dp(10), dp(6));
+        badge.setBackground(round(background, color, 1));
+        badge.setShadowLayer(dp(3), 0, 0, color);
+        badge.setElevation(dp(3));
+
+        LinearLayout.LayoutParams params =
+                new LinearLayout.LayoutParams(-1, -2);
+        params.setMargins(dp(3), dp(3), dp(3), dp(3));
+        target.addView(badge, params);
+
+
+    }
+
+    private void addDetailPair(LinearLayout parent,
+            String label1, String value1, String label2, String value2) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+
+        LinearLayout.LayoutParams a =
+                new LinearLayout.LayoutParams(0, -2, 1f);
+        a.setMargins(0, 0, dp(4), dp(4));
+        row.addView(createTile(label1, displayValue(value1)), a);
+
+        LinearLayout.LayoutParams b =
+                new LinearLayout.LayoutParams(0, -2, 1f);
+        b.setMargins(dp(4), 0, 0, dp(4));
+        row.addView(createTile(label2, displayValue(value2)), b);
+        parent.addView(row);
+    }
+
+    private boolean isBookingDateHeader(String header) {
+        if (header == null) return false;
+        return java.util.regex.Pattern.compile(
+            "(?<!\\d)(?:\\d{1,2}[/-]\\d{1,2}[/-]\\d{4}|\\d{4}-\\d{1,2}-\\d{1,2})(?!\\d)"
+        ).matcher(header.trim()).find();
+    }
+
+    private int findBookingDateHeaderRowIndex(JSONArray rows) {
+        if (rows == null) return -1;
+
+        int bestIndex = -1;
+        int bestCount = 0;
+        int limit = Math.min(rows.length(), 30);
+
+        for (int r = 0; r < limit; r++) {
+            JSONArray candidate = rows.optJSONArray(r);
+            if (candidate == null) continue;
+
+            int count = 0;
+            for (int c = 5; c < candidate.length(); c++) {
+                if (isBookingDateHeader(sheetCell(candidate, c).trim())) {
+                    count++;
+                }
+            }
+
+            if (count > bestCount) {
+                bestCount = count;
+                bestIndex = r;
+            }
+        }
+        return bestIndex;
+    }
+
     private void addSelectedShiftsToDetails(LinearLayout page, JSONObject rider) {
         TextView title = makeText("شيفتات الروستر", 13, ORANGE, true);
         title.setPadding(dp(2), dp(7), dp(2), dp(5));
@@ -3770,6 +4100,123 @@ public class MainActivity extends Activity {
             page.addView(makeText("لا توجد شيفتات لهذا المندوب ضمن الفترة المحمّلة من الروستر.", 11, MUTED, false));
         }
     }
+    private void showRiderDetails(JSONObject rider, JSONArray orders) {
+        detailVisible = true;
+        ScrollView scroll = new ScrollView(this);
+        scroll.setFillViewport(false);
+        scroll.setBackgroundColor(BG);
+
+        LinearLayout page = new LinearLayout(this);
+        page.setOrientation(LinearLayout.VERTICAL);
+        page.setPadding(dp(8), dp(7), dp(8), dp(10));
+        page.setBackgroundColor(BG);
+        scroll.addView(page);
+
+        LinearLayout toolbar = new LinearLayout(this);
+        toolbar.setOrientation(LinearLayout.HORIZONTAL);
+        toolbar.setGravity(Gravity.CENTER_VERTICAL);
+
+        Button back = makeButton("← رجوع");
+        back.setTextSize(11);
+        back.setOnClickListener(v -> returnToDashboard());
+        toolbar.addView(back, new LinearLayout.LayoutParams(dp(90), dp(36)));
+
+        TextView title = makeText("تفاصيل المندوب", 15, ORANGE, true);
+        title.setPadding(dp(8), 0, 0, 0);
+        toolbar.addView(title);
+        page.addView(toolbar);
+
+        LinearLayout identity = new LinearLayout(this);
+        identity.setOrientation(LinearLayout.VERTICAL);
+        identity.setPadding(dp(9), dp(7), dp(9), dp(7));
+        identity.setBackground(round(PANEL, ORANGE, 1));
+
+        identity.addView(makeText(
+                "👤 " + rider.optString("name", "مندوب بدون اسم"),
+                16, WHITE, true));
+        identity.addView(makeText(
+                "ID: " + rider.optString("employee_id", "غير متاح")
+                        + "  •  " + translateRiderStatus(
+                                rider.optString("rider_status", "")),
+                10, GREEN, true));
+        LinearLayout.LayoutParams ip =
+                new LinearLayout.LayoutParams(-1, -2);
+        ip.setMargins(0, dp(6), 0, dp(5));
+        page.addView(identity, ip);
+
+        addDetailPair(page, "المحفظة",
+                firstValue(rider, "wallet_balance", "wallet", "balance"),
+                "إجمالي الأوردرات", firstValue(rider, "total_orders"));
+        addDetailPair(page, "بداية الشيفت",
+                firstValue(rider, "shift_start", "planned_shift_start", "session_start"),
+                "نهاية الشيفت",
+                firstValue(rider, "shift_end", "planned_shift_end", "session_end"));
+        addDetailPair(page, "الأداء",
+                firstValue(rider, "performance", "performance_score"),
+                "نسبة القبول",
+                firstValue(rider, "acceptance_rate", "acceptance", "acceptance_percentage"));
+        addDetailPair(page, "ساعات العمل",
+                firstValue(rider, "worked_time", "worked_hours", "worked"),
+                "المحطة", firstValue(rider, "starting_point"));
+        addDetailPair(page, "المنطقة", firstValue(rider, "zone"),
+                "وسيلة التوصيل", firstValue(rider, "vehicle", "vehicle_type"));
+
+        addSelectedShiftsToDetails(page, rider);
+        addRiderSheetRequestsToDetails(page, rider);
+
+        TextView ordersTitle = makeText("الأوردرات النشطة", 13, ORANGE, true);
+        ordersTitle.setPadding(dp(2), dp(5), dp(2), dp(4));
+        page.addView(ordersTitle);
+
+        if (orders == null || orders.length() == 0) {
+            boolean activeConfirmed =
+                    rider.optBoolean("has_active_deliveries", false)
+                    || rider.optInt("active_count") > 0;
+            page.addView(makeText(
+                    activeConfirmed
+                        ? "يوجد أوردر نشط لكن تفاصيله غير متاحة حاليًا."
+                        : "لا يوجد أوردر نشط مؤكد.",
+                    11, MUTED, false));
+        } else {
+            for (int i = 0; i < orders.length(); i++) {
+                JSONObject order = orders.optJSONObject(i);
+                if (order == null) continue;
+
+                LinearLayout box = new LinearLayout(this);
+                box.setOrientation(LinearLayout.VERTICAL);
+                box.setPadding(dp(8), dp(7), dp(8), dp(7));
+                box.setBackground(round(
+                        Color.rgb(24, 20, 17), ORANGE_DEEP, 1));
+
+                LinearLayout.LayoutParams params =
+                        new LinearLayout.LayoutParams(-1, -2);
+                params.setMargins(0, 0, 0, dp(5));
+                page.addView(box, params);
+
+                String code = order.optString("order_code", "");
+                if (code.isEmpty()) code = order.optString("delivery_id", "غير متاح");
+
+                box.addView(makeText("📦 " + code, 12, ORANGE, true));
+                box.addView(makeText("🚦 " +
+                        arabicStatus(order.optString("status", "")),
+                        11, GREEN, true));
+                box.addView(makeText("🍔 " +
+                        displayValue(order.optString("vendor_name", "")),
+                        10, WHITE, false));
+                addAddress(box, "الاستلام", order.optString("pickup_address", ""));
+                addAddress(box, "التسليم", order.optString("dropoff_address", ""));
+
+                JSONArray timeline = order.optJSONArray("timeline");
+                if (timeline != null && timeline.length() > 0) {
+                    box.addView(makeText(
+                            "الأحداث المسجلة: " + timeline.length(),
+                            9, MUTED, false));
+                }
+            }
+        }
+        setContentView(scroll);
+    }
+
     private void addDetailLine(LinearLayout parent, String label, String value) {
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.VERTICAL);
