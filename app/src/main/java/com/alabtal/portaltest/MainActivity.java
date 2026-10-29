@@ -607,17 +607,41 @@ public class MainActivity extends Activity {
         banner.setGravity(Gravity.CENTER);
         banner.setSingleLine(true);
         banner.setLetterSpacing(0.025f);
-        banner.setShadowLayer(dp(4), 0, 0, ORANGE);
+        banner.setShadowLayer(dp(5), 0, 0, ORANGE);
         banner.setPadding(dp(4), dp(3), dp(4), dp(3));
+        banner.setLayerType(View.LAYER_TYPE_SOFTWARE, null);
+        banner.setElevation(dp(3));
 
         GradientDrawable ledBg = new GradientDrawable(
                 GradientDrawable.Orientation.LEFT_RIGHT,
-                new int[]{Color.rgb(58, 25, 5), Color.rgb(8, 13, 22),
-                          Color.rgb(58, 25, 5)}
+                new int[]{Color.rgb(72, 29, 3), Color.rgb(8, 11, 18),
+                          Color.rgb(72, 29, 3)}
         );
         ledBg.setCornerRadius(dp(8));
-        ledBg.setStroke(dp(1), ORANGE);
+        ledBg.setStroke(dp(1), Color.rgb(255, 121, 0));
         banner.setBackground(ledBg);
+
+        banner.setAlpha(0.96f);
+        banner.animate().cancel();
+        banner.post(new Runnable() {
+            private boolean bright = false;
+
+            @Override
+            public void run() {
+                if (destroyed || banner == null) return;
+
+                bright = !bright;
+                banner.animate()
+                        .alpha(bright ? 1.0f : 0.88f)
+                        .setDuration(850)
+                        .withEndAction(() -> {
+                            if (!destroyed && banner != null) {
+                                banner.postDelayed(this, 120);
+                            }
+                        })
+                        .start();
+            }
+        });
 
         LinearLayout.LayoutParams bp =
                 new LinearLayout.LayoutParams(-1, dp(25));
