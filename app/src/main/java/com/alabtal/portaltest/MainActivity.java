@@ -184,6 +184,33 @@ public class MainActivity extends Activity {
         }
     };
 
+    private TextView refreshCountdownText;
+    private android.widget.ProgressBar refreshCountdownBar;
+    private long nextSyncAtMs = 0L;
+
+    private final Runnable refreshCountdownRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (destroyed || refreshCountdownText == null) return;
+            if (!pageLoaded || nextSyncAtMs <= 0L) {
+                refreshCountdownText.setText("↻");
+                if (refreshCountdownBar != null) {
+                    refreshCountdownBar.setProgress(0);
+                }
+                return;
+            }
+            long remaining = Math.max(
+                    0L, nextSyncAtMs - System.currentTimeMillis());
+            int seconds = (int) ((remaining + 999L) / 1000L);
+            refreshCountdownText.setText(
+                    seconds > 0 ? String.valueOf(seconds) : "↻");
+            if (refreshCountdownBar != null) {
+                refreshCountdownBar.setProgress((int) remaining);
+            }
+            if (remaining > 0L) handler.postDelayed(this, 250L);
+        }
+    };
+
     private final Runnable resumeRefreshRunnable = new Runnable() {
         @Override
         public void run() {
@@ -201,8 +228,13 @@ public class MainActivity extends Activity {
 
     private void scheduleNextSync() {
         handler.removeCallbacks(refreshRunnable);
+        handler.removeCallbacks(refreshCountdownRunnable);
         if (!destroyed && pageLoaded) {
+            nextSyncAtMs = System.currentTimeMillis() + nextSyncDelayMs;
             handler.postDelayed(refreshRunnable, nextSyncDelayMs);
+            handler.post(refreshCountdownRunnable);
+        } else {
+            nextSyncAtMs = 0L;
         }
     }
 
@@ -733,16 +765,38 @@ public class MainActivity extends Activity {
         ordersButton.setOnClickListener(v -> showAllOrdersPage());
 
         inspectButton = makeButton("↻");
-        inspectButton.setTextSize(22);
-        inspectButton.setTextColor(ORANGE);
+        inspectButton.setTextSize(12);
+        inspectButton.setTextColor(GREEN);
         inspectButton.setPadding(0, 0, 0, 0);
-        inspectButton.setBackground(round(Color.rgb(9, 28, 24), GREEN, 1));
-        inspectButton.setElevation(dp(4));
+        android.graphics.drawable.GradientDrawable refreshCircle =
+                new android.graphics.drawable.GradientDrawable();
+        refreshCircle.setShape(
+                android.graphics.drawable.GradientDrawable.OVAL);
+        refreshCircle.setColor(Color.rgb(9, 28, 24));
+        refreshCircle.setStroke(dp(1), GREEN);
+        inspectButton.setBackground(refreshCircle);
+        inspectButton.setElevation(dp(3));
         inspectButton.setContentDescription("تحديث البيانات الآن");
-        LinearLayout.LayoutParams refreshParams =
-                new LinearLayout.LayoutParams(dp(38), dp(30));
-        refreshParams.setMargins(dp(3), 0, 0, 0);
-        controls.addView(inspectButton, refreshParams);
+        LinearLayout refreshWidget = new LinearLayout(this);
+        refreshWidget.setOrientation(LinearLayout.VERTICAL);
+        refreshWidget.setGravity(Gravity.CENTER);
+        refreshWidget.addView(inspectButton,
+                new LinearLayout.LayoutParams(dp(30), dp(28)));
+        refreshCountdownText = inspectButton;
+        refreshCountdownBar = new android.widget.ProgressBar(
+                this, null, android.R.attr.progressBarStyleHorizontal);
+        refreshCountdownBar.setMax(10000);
+        refreshCountdownBar.setProgress(0);
+        refreshCountdownBar.setProgressTintList(
+                android.content.res.ColorStateList.valueOf(GREEN));
+        LinearLayout.LayoutParams barParams =
+                new LinearLayout.LayoutParams(dp(36), dp(3));
+        barParams.topMargin = dp(1);
+        refreshWidget.addView(refreshCountdownBar, barParams);
+        LinearLayout.LayoutParams widgetParams =
+                new LinearLayout.LayoutParams(dp(42), dp(34));
+        widgetParams.setMargins(dp(3), 0, 0, 0);
+        controls.addView(refreshWidget, widgetParams);
 
         root.addView(controls);
 
@@ -1183,6 +1237,91 @@ public class MainActivity extends Activity {
 
             requestSheetAccess();
         });
+
+        // مركز الأدوات القابل للفتح والإغلاق
+        LinearLayout toolsPanel = new LinearLayout(this);
+        toolsPanel.setOrientation(LinearLayout.VERTICAL);
+        toolsPanel.setPadding(dp(5), dp(3), dp(5), dp(3));
+        toolsPanel.setBackground(round(
+                Color.rgb(12, 15, 20), Color.rgb(100, 54, 23), 1));
+
+        LinearLayout toolsHeader = new LinearLayout(this);
+        toolsHeader.setOrientation(LinearLayout.HORIZONTAL);
+        toolsHeader.setGravity(Gravity.CENTER_VERTICAL);
+        TextView toolsTitle = makeText("⚡ مركز الأدوات", 11, ORANGE, true);
+        toolsHeader.addView(toolsTitle,
+                new LinearLayout.LayoutParams(0, dp(29), 1f));
+        TextView toolsToggle = makeText("⌄ فتح الأدوات", 10, GREEN, true);
+        toolsToggle.setGravity(Gravity.CENTER);
+        toolsToggle.setPadding(dp(7), dp(4), dp(7), dp(4));
+        toolsHeader.addView(toolsToggle);
+        toolsPanel.addView(toolsHeader);
+
+        LinearLayout toolsGrid = new LinearLayout(this);
+        toolsGrid.setOrientation(LinearLayout.VERTICAL);
+        toolsGrid.setVisibility(View.GONE);
+        String[] toolLabels = {
+                "الحجوزات", "Live", "الأوردرات",
+                "ردود الشيت", "الخريطة", "المناديب", "التقرير"
+        };
+
+        for (int start = 0; start < toolLabels.length; start += 3) {
+            LinearLayout toolRow = new LinearLayout(this);
+            toolRow.setOrientation(LinearLayout.HORIZONTAL);
+            for (int i = start; i < Math.min(start + 3, toolLabels.length); i++) {
+                final int action = i;
+                Button toolButton = makeButton(toolLabels[i]);
+                toolButton.setTextSize(9);
+                toolButton.setPadding(dp(2), 0, dp(2), 0);
+                toolButton.setBackground(round(
+                        Color.rgb(23, 19, 16), ORANGE, 1));
+                LinearLayout.LayoutParams p =
+                        new LinearLayout.LayoutParams(0, dp(32), 1f);
+                p.setMargins(dp(2), dp(2), dp(2), dp(2));
+                toolRow.addView(toolButton, p);
+                toolButton.setOnClickListener(v -> {
+                    switch (action) {
+                        case 0:
+                            if (isAdmin) bookingsTab.performClick();
+                            else Toast.makeText(this, "الحجوزات للمدير فقط",
+                                    Toast.LENGTH_SHORT).show();
+                            break;
+                        case 1:
+                            requestRosterRefresh();
+                            break;
+                        case 2:
+                            showAllOrdersPage();
+                            break;
+                        case 3:
+                            if (isAdmin) sheetTab.performClick();
+                            else Toast.makeText(this, "ردود الشيت للمدير فقط",
+                                    Toast.LENGTH_SHORT).show();
+                            break;
+                        case 4:
+                            mapTab.performClick();
+                            break;
+                        case 5:
+                            ridersTab.performClick();
+                            break;
+                        case 6:
+                            if (isAdmin) exportSupervisorReport();
+                            else Toast.makeText(this, "التقرير للمدير فقط",
+                                    Toast.LENGTH_SHORT).show();
+                            break;
+                    }
+                });
+            }
+            toolsGrid.addView(toolRow);
+        }
+        toolsPanel.addView(toolsGrid);
+        toolsToggle.setOnClickListener(v -> {
+            boolean expand = toolsGrid.getVisibility() != View.VISIBLE;
+            toolsGrid.setVisibility(expand ? View.VISIBLE : View.GONE);
+            toolsToggle.setText(
+                    expand ? "⌃ إغلاق الأدوات" : "⌄ فتح الأدوات");
+        });
+        root.addView(toolsPanel, 2,
+                new LinearLayout.LayoutParams(-1, -2));
 
         setContentView(root);
 
