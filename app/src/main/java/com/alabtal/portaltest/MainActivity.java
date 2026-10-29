@@ -4913,12 +4913,6 @@ public class MainActivity extends Activity {
                 return;
             }
 
-            if (setup && pw.length() < 6) {
-                password.setError("6 أحرف على الأقل");
-                password.requestFocus();
-                return;
-            }
-
             submit.setEnabled(false);
             submit.setText("جارٍ الاتصال...");
 
@@ -4928,9 +4922,7 @@ public class MainActivity extends Activity {
 
             task.addOnCompleteListener(this, result -> {
                 submit.setEnabled(true);
-                submit.setText(
-                        setup ? "إنشاء الحساب والمتابعة"
-                              : "دخول إلى التطبيق");
+                submit.setText("دخول إلى التطبيق");
 
                 if (isFinishing() || isDestroyed()) return;
 
@@ -4944,8 +4936,7 @@ public class MainActivity extends Activity {
 
                     Toast.makeText(
                             this,
-                            setup ? "تم إنشاء حساب Firebase بنجاح"
-                                  : "تم تسجيل الدخول بنجاح",
+                            "تم تسجيل الدخول بنجاح",
                             Toast.LENGTH_SHORT
                     ).show();
 
