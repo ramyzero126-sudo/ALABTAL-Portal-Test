@@ -3391,7 +3391,7 @@ public class MainActivity extends Activity {
         card.addView(metrics, metricsLp);
 
         addWalletMetricWithOrderStatus(
-                metrics, displayValue(wallet), hasOrders, stage);
+                metrics, displayValue(wallet), hasOrders, diagnosticStage);
         addCompactMetric(metrics, "الأوردرات",
                 totalOrders.isEmpty()
                         ? String.valueOf(orders.length()) : totalOrders);
