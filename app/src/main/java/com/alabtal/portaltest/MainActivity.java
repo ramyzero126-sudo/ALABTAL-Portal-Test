@@ -3109,8 +3109,11 @@ public class MainActivity extends Activity {
                 "if(typeof L==='undefined'){loadLeafletFallback();return;}" +
                 "const map=L.map('map',{zoomControl:false}).setView([30.7865,31.0004],12);" +
                 "L.control.zoom({position:'bottomright'}).addTo(map);" +
-                "L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'," +
-                "{maxZoom:20,attribution:'&copy; OpenStreetMap &copy; CARTO'}).addTo(map);" +
+                "const tiles=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'," +
+                "{maxZoom:19,attribution:'&copy; OpenStreetMap contributors'}).addTo(map);" +
+                "tiles.on('tileerror',function(){const n=document.getElementById('note');" +
+                "if(n)n.textContent='تحميل الخريطة متعثر؛ تحقق من الإنترنت ثم أعد فتح الخريطة.';});" +
+                "setTimeout(function(){map.invalidateSize(true);},500);"
                 "const safe=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');" +
                 "const pts=" + points.toString() + ";" +
                 "pts.forEach(p=>{const color=/بريك|استراحة/.test(p.status)?'#ff5252':" +
@@ -3355,7 +3358,18 @@ public class MainActivity extends Activity {
         identity.addView(idRow);
         heading.addView(identity);
 
-        TextView stateBadge = makeText("● " + stateLabel, 10, stateColor, true);
+        TextView stateBadge = makeText(
+                (working ? "⚡ " : "● ") + stateLabel,
+                10, stateColor, true);
+        if (working) {
+            stateBadge.setShadowLayer(dp(7), 0, 0, GREEN);
+            ObjectAnimator boltGlow = ObjectAnimator.ofFloat(
+                    stateBadge, "alpha", 0.68f, 1f);
+            boltGlow.setDuration(700);
+            boltGlow.setRepeatMode(ObjectAnimator.REVERSE);
+            boltGlow.setRepeatCount(ObjectAnimator.INFINITE);
+            boltGlow.start();
+        }
         stateBadge.setGravity(Gravity.CENTER);
         stateBadge.setPadding(dp(8), dp(5), dp(8), dp(5));
         GradientDrawable stateBg = new GradientDrawable();
@@ -3365,78 +3379,6 @@ public class MainActivity extends Activity {
         stateBg.setStroke(dp(1), stateColor);
         stateBadge.setBackground(stateBg);
         heading.addView(stateBadge);
-
-        // شارة الأوردر منفصلة وواضحة.
-        LinearLayout orderStrip = new LinearLayout(this);
-        orderStrip.setOrientation(LinearLayout.HORIZONTAL);
-        orderStrip.setGravity(Gravity.CENTER_VERTICAL);
-        orderStrip.setPadding(dp(6), dp(3), dp(6), dp(3));
-        GradientDrawable orderStripBg = new GradientDrawable();
-        orderStripBg.setColor(hasOrders
-                ? Color.rgb(10, 37, 27) : Color.rgb(27, 30, 36));
-        orderStripBg.setCornerRadius(dp(9));
-        orderStripBg.setStroke(dp(1), hasOrders ? GREEN : Color.rgb(76, 84, 96));
-        orderStrip.setBackground(orderStripBg);
-
-        TextView orderText = makeText(
-                "", 10, hasOrders ? GREEN : MUTED, true);
-        orderText.setSingleLine(true);
-        orderText.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        orderStrip.addView(orderText,
-                new LinearLayout.LayoutParams(0, -2, 1f));
-
-        String stage = firstValue(rider,
-                "active_order_status", "activeOrderStatus", "order_status",
-                "delivery_status", "order_stage", "orderStage");
-        if ("غير متاح".equals(stage)) stage = "";
-        if (stage.isEmpty()) stage = diagnosticStage;
-        String vendor = "";
-        JSONObject activeOrder = orders.optJSONObject(0);
-        if (activeOrder != null) {
-            String orderStage = firstValue(activeOrder,
-                    "status", "order_status", "stage", "delivery_status");
-            if (!"غير متاح".equals(orderStage) && !orderStage.isEmpty()) {
-                stage = orderStage;
-            }
-            vendor = firstValue(activeOrder,
-                    "vendor_name", "restaurant_name", "merchant_name",
-                    "vendorName", "restaurantName");
-        }
-
-        if (!vendor.isEmpty()
-                && !"غير متاح".equals(vendor)
-                && !"null".equalsIgnoreCase(vendor)) {
-            orderText.setText("🍔 " + vendor);
-        } else if (hasOrders) {
-            orderText.setText("🍔 اسم المطعم غير متاح");
-        } else {
-            orderText.setText("");
-        }
-
-        if ((stage.isEmpty() || "غير متاح".equals(stage)) && hasOrders) {
-            stage = "accepted order";
-        }
-
-        if (hasOrders) {
-            TextView stageBadge = makeText(
-                    stage.isEmpty() ? "معاه أوردر • المرحلة غير متاحة" : arabicStatus(stage),
-                    9, ORANGE, true);
-            stageBadge.setGravity(Gravity.CENTER);
-            stageBadge.setPadding(dp(6), dp(4), dp(6), dp(4));
-            stageBadge.setBackground(round(Color.rgb(39, 25, 14), ORANGE, 1));
-            orderStrip.addView(stageBadge);
-        }
-
-        LinearLayout.LayoutParams orderStripLp =
-                new LinearLayout.LayoutParams(-1, -2);
-        orderStripLp.topMargin = dp(3);
-        if (hasOrders && !vendor.isEmpty()
-                && !"غير متاح".equals(vendor)) {
-            card.addView(orderStrip, orderStripLp);
-        } else if (hasOrders) {
-            card.addView(orderStrip, orderStripLp);
-        }
-
 
         // مؤشرات تشغيل مضغوطة.
         LinearLayout metrics = new LinearLayout(this);
@@ -3448,7 +3390,8 @@ public class MainActivity extends Activity {
         metricsLp.topMargin = dp(3);
         card.addView(metrics, metricsLp);
 
-        addCompactMetric(metrics, "المحفظة", displayValue(wallet));
+        addWalletMetricWithOrderStatus(
+                metrics, displayValue(wallet), hasOrders, stage);
         addCompactMetric(metrics, "الأوردرات",
                 totalOrders.isEmpty()
                         ? String.valueOf(orders.length()) : totalOrders);
@@ -3728,6 +3671,68 @@ public class MainActivity extends Activity {
                 Toast.makeText(this, "تعذر فتح الإجراء على هذا الجهاز", Toast.LENGTH_SHORT).show();
             }
         });
+    }
+
+    private void addWalletMetricWithOrderStatus(
+            LinearLayout parent, String walletValue,
+            boolean hasOrders, String rawStage) {
+        LinearLayout item = new LinearLayout(this);
+        item.setOrientation(LinearLayout.VERTICAL);
+        item.setGravity(Gravity.CENTER);
+        item.setPadding(dp(3), dp(4), dp(3), dp(4));
+
+        GradientDrawable bg = new GradientDrawable(
+                GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{Color.rgb(25, 39, 53), Color.rgb(8, 13, 21)});
+        bg.setCornerRadius(dp(11));
+        bg.setStroke(dp(1), GREEN);
+        item.setBackground(bg);
+        item.setElevation(dp(5));
+
+        LinearLayout.LayoutParams lp =
+                new LinearLayout.LayoutParams(0, -2, 1f);
+        lp.setMargins(dp(2), 0, dp(2), 0);
+        parent.addView(item, lp);
+
+        TextView label = makeText("المحفظة", 9, ORANGE, true);
+        label.setGravity(Gravity.CENTER);
+        item.addView(label);
+
+        TextView value = makeText(walletValue, 12, WHITE, true);
+        value.setGravity(Gravity.CENTER);
+        value.setMaxLines(1);
+        value.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        item.addView(value);
+
+        String status = hasOrders
+                ? "🚚 " + (rawStage == null || rawStage.trim().isEmpty()
+                    ? "معاه أوردر" : arabicStatus(rawStage))
+                : "بدون أوردر";
+
+        TextView orderState = makeText("", 8,
+                hasOrders ? ORANGE : MUTED, true);
+        orderState.setGravity(Gravity.CENTER);
+        orderState.setSingleLine(true);
+        orderState.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        orderState.setShadowLayer(dp(3), 0, 0,
+                hasOrders ? ORANGE : Color.TRANSPARENT);
+        item.addView(orderState);
+
+        if (hasOrders) {
+            final android.animation.ValueAnimator typing =
+                    android.animation.ValueAnimator.ofInt(0, status.length());
+            typing.setDuration(Math.max(700, status.length() * 65L));
+            typing.setRepeatCount(android.animation.ValueAnimator.INFINITE);
+            typing.setRepeatMode(android.animation.ValueAnimator.RESTART);
+            typing.addUpdateListener(a -> {
+                int count = (Integer) a.getAnimatedValue();
+                orderState.setText(status.substring(0,
+                        Math.min(count, status.length())));
+            });
+            typing.start();
+        } else {
+            orderState.setText(status);
+        }
     }
 
     private void addCompactMetric(LinearLayout parent, String label, String value) {
