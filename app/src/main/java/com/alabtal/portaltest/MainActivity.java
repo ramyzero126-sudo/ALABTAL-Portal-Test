@@ -1652,6 +1652,7 @@ public class MainActivity extends Activity {
             "  active_orders:activeOrders," +
             "  detail_error:detailError," +
             "  diagnostic_detail_keys:Object.keys(detail || {})," +
+            "  diagnostic_status_metadata:(detail && detail.status_metadata && typeof detail.status_metadata === 'object') ? Object.keys(detail.status_metadata).reduce((a,k) => { if (/break|pause|start|time|status|since/i.test(k)) { const v=detail.status_metadata[k]; a[k]=(v == null || ['string','number','boolean'].includes(typeof v)) ? v : (typeof v === 'object' ? Object.keys(v) : typeof v); } return a; }, {}) : {}," +
             "  diagnostic_delivery_info_keys:Object.keys((detail && detail.deliveries_info) || {})," +
             "  diagnostic_latest_count:Array.isArray(latest) ? latest.length : 0," +
             "  diagnostic_latest_samples:(Array.isArray(latest) ? latest : []).slice(0,10).map(o => ({keys:Object.keys(o || {}), ids:{delivery_id:o.delivery_id,order_id:o.order_id,id:o.id,deliveryId:o.deliveryId,orderId:o.orderId}, status:o.status || o.order_status || o.delivery_status || o.stage || '', vendor_fields:Object.keys(o || {}).filter(k => /vendor|restaurant|merchant|store/i.test(k)), vendor_values:{vendor_name:o.vendor_name,restaurant_name:o.restaurant_name,merchant_name:o.merchant_name,vendorName:o.vendorName,restaurantName:o.restaurantName,restaurant:(o.restaurant && o.restaurant.name) || '',vendor:(o.vendor && o.vendor.name) || '',merchant:(o.merchant && o.merchant.name) || '',store:(o.store && o.store.name) || ''}}))," +
@@ -3615,53 +3616,49 @@ public class MainActivity extends Activity {
         if (rows == null || rows.length() == 0 || rider == null) return -1;
 
         int headerIndex = findBookingDateHeaderRowIndex(rows);
-        JSONArray header = headerIndex >= 0 ? rows.optJSONArray(headerIndex) : null;
+        JSONArray header = headerIndex >= 0
+                ? rows.optJSONArray(headerIndex) : null;
         if (header == null) return -1;
 
-        java.util.Calendar bookingCalendar = java.util.Calendar.getInstance();
-        String targetDate = new SimpleDateFormat("yyyy-MM-dd", Locale.US)
-                .format(bookingCalendar.getTime());
-        int dateColumn = -1;
+        java.util.Calendar cal = java.util.Calendar.getInstance();
+        cal.add(java.util.Calendar.DAY_OF_YEAR, 1);
+        java.text.SimpleDateFormat fmt =
+                new java.text.SimpleDateFormat("yyyy-MM-dd", Locale.US);
+        String tomorrow = fmt.format(cal.getTime());
 
+        int tomorrowCol = -1;
         for (int c = 5; c < header.length(); c++) {
-            if (targetDate.equals(bookingDateIso(sheetCell(header, c)))) {
-                dateColumn = c;
+            if (tomorrow.equals(bookingDateIso(sheetCell(header, c)))) {
+                tomorrowCol = c;
                 break;
             }
         }
-        if (dateColumn < 0) return -1;
+        if (tomorrowCol < 0) return -1;
 
         String riderId = firstValue(
                 rider, "employee_id", "id", "rider_id", "riderId").trim();
         String riderName = firstValue(
-                rider, "name", "employee_name", "rider_name")
-                .replaceAll("\\s+", " ").trim();
+                rider, "name", "employee_name", "rider_name").trim();
 
         JSONArray matched = null;
-
-        if (!riderId.isEmpty()) {
+        if (!normalizeBookingId(riderId).isEmpty()) {
             for (int i = 0; i < rows.length(); i++) {
                 if (i == headerIndex) continue;
                 JSONArray row = rows.optJSONArray(i);
-                if (row != null && !normalizeBookingId(riderId).isEmpty()
-                        && normalizeBookingId(riderId).equals(
-                                normalizeBookingId(sheetCell(row, 0)))) {
+                if (row != null && normalizeBookingId(riderId).equals(
+                        normalizeBookingId(sheetCell(row, 0)))) {
                     matched = row;
                     break;
                 }
             }
         }
 
-        if (matched == null && !riderName.isEmpty()) {
+        if (matched == null && !normalizeBookingName(riderName).isEmpty()) {
             for (int i = 0; i < rows.length(); i++) {
                 if (i == headerIndex) continue;
                 JSONArray row = rows.optJSONArray(i);
-                if (row == null) continue;
-
-                String sheetName = sheetCell(row, 1);
-                if (!normalizeBookingName(riderName).isEmpty()
-                        && normalizeBookingName(riderName).equals(
-                                normalizeBookingName(sheetName))) {
+                if (row != null && normalizeBookingName(riderName).equals(
+                        normalizeBookingName(sheetCell(row, 1)))) {
                     matched = row;
                     break;
                 }
@@ -3670,8 +3667,8 @@ public class MainActivity extends Activity {
 
         if (matched == null) return -1;
 
-        String value = sheetCell(matched, dateColumn)
-                .trim().toLowerCase(Locale.ROOT);
+        String value = sheetCell(matched, tomorrowCol).trim()
+                .toLowerCase(Locale.ROOT);
 
         boolean notBooked = value.isEmpty()
                 || value.contains("إجاز")
@@ -4457,6 +4454,10 @@ public class MainActivity extends Activity {
     }
 
     private void showLoginScreen(boolean setup) {
+        getWindow().setStatusBarColor(Color.rgb(5, 6, 8));
+        getWindow().setNavigationBarColor(Color.rgb(5, 6, 8));
+        getWindow().getDecorView().setSystemUiVisibility(0);
+
         android.widget.ScrollView scroll = new android.widget.ScrollView(this);
         scroll.setFillViewport(true);
         scroll.setBackgroundColor(BG);
@@ -4465,14 +4466,20 @@ public class MainActivity extends Activity {
         LinearLayout page = new LinearLayout(this);
         page.setOrientation(LinearLayout.VERTICAL);
         page.setGravity(Gravity.CENTER);
-        page.setPadding(dp(12), dp(8), dp(12), dp(10));
+        page.setPadding(dp(8), dp(6), dp(8), dp(8));
         scroll.addView(page, new android.widget.ScrollView.LayoutParams(-1, -1));
 
         FrameLayout hero = new FrameLayout(this);
         hero.setClipChildren(false);
         hero.setClipToPadding(false);
-        hero.setBackground(round(BG, ORANGE_DEEP, 1));
-        hero.setElevation(dp(8));
+        android.graphics.drawable.GradientDrawable heroSurface =
+                new android.graphics.drawable.GradientDrawable(
+                        android.graphics.drawable.GradientDrawable.Orientation.TL_BR,
+                        new int[]{0xFF20242B, 0xFF0B0D11, 0xFF251407});
+        heroSurface.setCornerRadius(dp(24));
+        heroSurface.setStroke(dp(1), 0xFFFF7900);
+        hero.setBackground(heroSurface);
+        hero.setElevation(dp(16));
 
         // شعاع برتقالي خلف الشعار، مرسوم داخل التطبيق دون صورة جديدة.
         View rayField = new View(this) {
@@ -4601,13 +4608,15 @@ public class MainActivity extends Activity {
         brand.setAdjustViewBounds(true);
         heroContent.addView(brand, new LinearLayout.LayoutParams(-1, dp(164)));
 
-        TextView brandTitle = makeText("AL ABTAL", 25, ORANGE, true);
+        TextView brandTitle = makeText("AL ABTAL", 27, WHITE, true);
         brandTitle.setGravity(Gravity.CENTER);
-        brandTitle.setShadowLayer(dp(8), 0, 0, ORANGE);
+        brandTitle.setShadowLayer(dp(12), 0, dp(2), 0xFFFF7900);
+        brandTitle.setElevation(dp(8));
         heroContent.addView(brandTitle, new LinearLayout.LayoutParams(-1, dp(36)));
 
-        TextView tagline = makeText("OPERATIONS  •  TALABAT  •  TANTA", 11, MUTED, true);
+        TextView tagline = makeText("OPERATIONS  •  TALABAT  •  TANTA", 11, ORANGE, true);
         tagline.setGravity(Gravity.CENTER);
+        tagline.setShadowLayer(dp(5), 0, 0, 0xAAFF7900);
         heroContent.addView(tagline, new LinearLayout.LayoutParams(-1, dp(24)));
 
         hero.addView(heroContent, new FrameLayout.LayoutParams(-1, -2, Gravity.CENTER));
@@ -4765,6 +4774,7 @@ public class MainActivity extends Activity {
                 setup ? "إنشاء حساب التطبيق" : "مرحباً بعودتك",
                 22, WHITE, true);
         heading.setGravity(Gravity.CENTER);
+        heading.setShadowLayer(dp(8), 0, dp(2), 0xAAFF7900);
         page.addView(heading, new LinearLayout.LayoutParams(-1, dp(34)));
 
         TextView description = makeText(
@@ -4780,8 +4790,14 @@ public class MainActivity extends Activity {
         LinearLayout form = new LinearLayout(this);
         form.setOrientation(LinearLayout.VERTICAL);
         form.setPadding(dp(16), dp(14), dp(16), dp(13));
-        form.setBackground(round(PANEL, ORANGE_DEEP, 1));
-        form.setElevation(dp(10));
+        android.graphics.drawable.GradientDrawable formSurface =
+                new android.graphics.drawable.GradientDrawable(
+                        android.graphics.drawable.GradientDrawable.Orientation.TL_BR,
+                        new int[]{0xFF1B2028, 0xFF0B0D11, 0xFF17100B});
+        formSurface.setCornerRadius(dp(24));
+        formSurface.setStroke(dp(1), 0xFFFF7900);
+        form.setBackground(formSurface);
+        form.setElevation(dp(18));
         page.addView(form, new LinearLayout.LayoutParams(-1, -2));
 
         TextView usernameLabel = makeText("✉   البريد الإلكتروني", 13, ORANGE, true);
@@ -4797,7 +4813,14 @@ public class MainActivity extends Activity {
                 InputType.TYPE_CLASS_TEXT |
                 InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS);
         username.setPadding(dp(12), dp(8), dp(12), dp(8));
-        username.setBackground(round(BG, ORANGE_DEEP, 1));
+        android.graphics.drawable.GradientDrawable emailSurface =
+                new android.graphics.drawable.GradientDrawable(
+                        android.graphics.drawable.GradientDrawable.Orientation.LEFT_RIGHT,
+                        new int[]{0xFF090B0E, 0xFF171B21});
+        emailSurface.setCornerRadius(dp(13));
+        emailSurface.setStroke(dp(1), 0xFF343B45);
+        username.setBackground(emailSurface);
+        username.setElevation(dp(3));
         form.addView(username, new LinearLayout.LayoutParams(-1, dp(46)));
 
         TextView passwordLabel = makeText("🔒   كلمة المرور", 13, ORANGE, true);
@@ -4816,7 +4839,14 @@ public class MainActivity extends Activity {
                 InputType.TYPE_CLASS_TEXT |
                 InputType.TYPE_TEXT_VARIATION_PASSWORD);
         password.setPadding(dp(12), dp(8), dp(12), dp(8));
-        password.setBackground(round(BG, ORANGE_DEEP, 1));
+        android.graphics.drawable.GradientDrawable passwordSurface =
+                new android.graphics.drawable.GradientDrawable(
+                        android.graphics.drawable.GradientDrawable.Orientation.LEFT_RIGHT,
+                        new int[]{0xFF090B0E, 0xFF171B21});
+        passwordSurface.setCornerRadius(dp(13));
+        passwordSurface.setStroke(dp(1), 0xFF343B45);
+        password.setBackground(passwordSurface);
+        password.setElevation(dp(3));
         LinearLayout.LayoutParams passwordParams =
                 new LinearLayout.LayoutParams(-1, dp(46));
         passwordParams.setMargins(0, 0, 0, dp(4));
@@ -4856,7 +4886,7 @@ public class MainActivity extends Activity {
         Button submit = makeButton(
                 setup ? "إنشاء الحساب والمتابعة" : "دخول إلى التطبيق");
         form.addView(submit, new LinearLayout.LayoutParams(-1, dp(48)));
-        submit.setElevation(dp(4));
+        submit.setElevation(dp(12));
 
         Button switchMode = makeButton(
                 setup ? "لدي حساب بالفعل — تسجيل الدخول"
