@@ -48,6 +48,7 @@ import android.os.Environment;
 import android.net.Uri;
 import android.content.Intent;
 import android.content.IntentSender;
+import com.google.firebase.auth.FirebaseAuth;
 import com.google.android.gms.auth.api.identity.AuthorizationRequest;
 import com.google.android.gms.auth.api.identity.AuthorizationResult;
 import com.google.android.gms.auth.api.identity.Identity;
@@ -269,14 +270,11 @@ public class MainActivity extends Activity {
         rosterCachePrefs = getSharedPreferences(
                 "alabtal_roster_cache", MODE_PRIVATE);
         ensureOperationsNotificationChannel();
-        String savedUser = authPrefs.getString("username", null);
-        boolean loggedIn = authPrefs.getBoolean("logged_in", false);
-        if (savedUser == null) {
-            showLoginScreen(true);
-        } else if (loggedIn) {
+        FirebaseAuth firebaseAuth = FirebaseAuth.getInstance();
+        if (firebaseAuth.getCurrentUser() != null) {
             buildDashboard();
         } else {
-            showLoginScreen(false);
+            showLoginScreen(true);
         }
 
         // افحص التحديث بعد تجهيز شاشة الدخول أو لوحة التحكم.
@@ -4697,7 +4695,7 @@ public class MainActivity extends Activity {
         page.addView(heading, new LinearLayout.LayoutParams(-1, dp(34)));
 
         TextView description = makeText(
-                setup ? "أنشئ بيانات الدخول المحلية للمتابعة"
+                setup ? "أنشئ حسابك الآمن للمتابعة"
                       : "سجّل الدخول لمتابعة عملياتك",
                 13, MUTED, false);
         description.setGravity(Gravity.CENTER);
@@ -4713,18 +4711,18 @@ public class MainActivity extends Activity {
         form.setElevation(dp(10));
         page.addView(form, new LinearLayout.LayoutParams(-1, -2));
 
-        TextView usernameLabel = makeText("♙   اسم المستخدم", 13, ORANGE, true);
+        TextView usernameLabel = makeText("✉   البريد الإلكتروني", 13, ORANGE, true);
         form.addView(usernameLabel, new LinearLayout.LayoutParams(-1, dp(24)));
 
         EditText username = new EditText(this);
         username.setSingleLine(true);
         username.setTextColor(WHITE);
         username.setHintTextColor(MUTED);
-        username.setHint("مثال: ramy_admin");
+        username.setHint("name@example.com");
         username.setTextSize(15);
         username.setInputType(
                 InputType.TYPE_CLASS_TEXT |
-                InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
+                InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS);
         username.setPadding(dp(12), dp(8), dp(12), dp(8));
         username.setBackground(round(BG, ORANGE_DEEP, 1));
         form.addView(username, new LinearLayout.LayoutParams(-1, dp(46)));
@@ -4787,54 +4785,110 @@ public class MainActivity extends Activity {
         form.addView(submit, new LinearLayout.LayoutParams(-1, dp(48)));
         submit.setElevation(dp(4));
 
+        Button switchMode = makeButton(
+                setup ? "لدي حساب بالفعل — تسجيل الدخول"
+                      : "إنشاء حساب جديد");
+        form.addView(switchMode,
+                new LinearLayout.LayoutParams(-1, dp(42)));
+        switchMode.setOnClickListener(v -> showLoginScreen(!setup));
+
         TextView note = makeText(
-                "حساب محلي على هذا الجهاز، منفصل عن حساب بوابة الشركة.",
+                "تسجيل الدخول محمي عبر Firebase Authentication.",
                 11, MUTED, false);
         note.setGravity(Gravity.CENTER);
         note.setPadding(dp(4), dp(12), dp(4), 0);
         form.addView(note, new LinearLayout.LayoutParams(-1, -2));
 
         submit.setOnClickListener(v -> {
-            String u = username.getText().toString().trim().toLowerCase(Locale.US);
+            String email = username.getText().toString()
+                    .trim().toLowerCase(Locale.US);
             String pw = password.getText().toString();
 
-            if (u.isEmpty() || pw.isEmpty()) {
-                Toast.makeText(this,
-                        "اكتب اسم المستخدم وكلمة المرور",
-                        Toast.LENGTH_SHORT).show();
+            if (email.isEmpty() || !android.util.Patterns.EMAIL_ADDRESS
+                    .matcher(email).matches()) {
+                username.setError("اكتب بريدًا إلكترونيًا صحيحًا");
+                username.requestFocus();
                 return;
             }
 
-            if (setup) {
-                if (pw.length() < 6) {
-                    password.setError("6 أحرف على الأقل");
-                    password.requestFocus();
+            if (pw.isEmpty()) {
+                password.setError("اكتب كلمة المرور");
+                password.requestFocus();
+                return;
+            }
+
+            if (setup && pw.length() < 6) {
+                password.setError("6 أحرف على الأقل");
+                password.requestFocus();
+                return;
+            }
+
+            submit.setEnabled(false);
+            submit.setText("جارٍ الاتصال...");
+
+            FirebaseAuth firebaseAuth = FirebaseAuth.getInstance();
+            com.google.android.gms.tasks.Task<com.google.firebase.auth.AuthResult>
+                    task = setup
+                    ? firebaseAuth.createUserWithEmailAndPassword(email, pw)
+                    : firebaseAuth.signInWithEmailAndPassword(email, pw);
+
+            task.addOnCompleteListener(this, result -> {
+                submit.setEnabled(true);
+                submit.setText(
+                        setup ? "إنشاء الحساب والمتابعة"
+                              : "دخول إلى التطبيق");
+
+                if (isFinishing() || isDestroyed()) return;
+
+                if (result.isSuccessful()
+                        && firebaseAuth.getCurrentUser() != null) {
+                    authPrefs.edit()
+                            .putString("username", email)
+                            .putBoolean("logged_in", true)
+                            .remove("password_hash")
+                            .apply();
+
+                    Toast.makeText(
+                            this,
+                            setup ? "تم إنشاء حساب Firebase بنجاح"
+                                  : "تم تسجيل الدخول بنجاح",
+                            Toast.LENGTH_SHORT
+                    ).show();
+
+                    buildDashboard();
                     return;
                 }
 
-                authPrefs.edit()
-                        .putString("username", u)
-                        .putString("password_hash", hashPassword(pw))
-                        .putBoolean("logged_in", true)
-                        .apply();
+                Exception error = result.getException();
+                String code = error instanceof
+                        com.google.firebase.FirebaseNetworkException
+                        ? "network"
+                        : error instanceof
+                        com.google.firebase.auth.FirebaseAuthException
+                        ? ((com.google.firebase.auth.FirebaseAuthException)
+                                error).getErrorCode()
+                        : "";
 
-                Toast.makeText(this,
-                        "تم إنشاء حساب الدخول المحلي",
-                        Toast.LENGTH_SHORT).show();
-                buildDashboard();
-            } else {
-                String savedUser = authPrefs.getString("username", "");
-                String savedHash = authPrefs.getString("password_hash", "");
-
-                if (u.equals(savedUser) && hashPassword(pw).equals(savedHash)) {
-                    authPrefs.edit().putBoolean("logged_in", true).apply();
-                    buildDashboard();
+                String message;
+                if (code.contains("EMAIL_ALREADY_IN_USE")) {
+                    message = "الإيميل مسجل بالفعل؛ اختر تسجيل الدخول.";
+                } else if (code.contains("INVALID_EMAIL")) {
+                    message = "صيغة البريد الإلكتروني غير صحيحة.";
+                } else if (code.contains("WEAK_PASSWORD")) {
+                    message = "كلمة المرور ضعيفة؛ استخدم 6 أحرف على الأقل.";
+                } else if (code.contains("INVALID_CREDENTIAL")
+                        || code.contains("WRONG_PASSWORD")
+                        || code.contains("USER_NOT_FOUND")) {
+                    message = "الإيميل أو كلمة المرور غير صحيحة.";
+                } else if ("network".equals(code)) {
+                    message = "تحقق من اتصال الإنترنت وحاول مجددًا.";
                 } else {
-                    Toast.makeText(this,
-                            "اسم المستخدم أو كلمة المرور غير صحيحة",
-                            Toast.LENGTH_LONG).show();
+                    message = "تعذر إتمام العملية. راجع إعدادات Firebase "
+                            + "وحاول مجددًا.";
                 }
-            }
+
+                Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+            });
         });
 
         if (!setup) {
@@ -5494,6 +5548,7 @@ public class MainActivity extends Activity {
 
     private void logoutApp() {
         detailVisible = false;
+        FirebaseAuth.getInstance().signOut();
         authPrefs.edit().putBoolean("logged_in", false).apply();
         if (webView != null) webView.onPause();
         showLoginScreen(false);
