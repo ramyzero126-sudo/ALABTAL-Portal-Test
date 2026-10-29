@@ -153,6 +153,7 @@ public class MainActivity extends Activity {
     private boolean detailVisible = false;
     private SharedPreferences authPrefs;
     private boolean isAdmin = false;
+    private boolean backgroundMonitoringEnabled = false;
     private SharedPreferences rosterCachePrefs;
     private volatile boolean updateCheckRunning = false;
     private File pendingUpdateFile;
@@ -449,6 +450,7 @@ public class MainActivity extends Activity {
 
         if (auth.getCurrentUser() == null) {
             isAdmin = false;
+            stopRosterKeepAlive();
             showLoginScreen(true);
             return;
         }
@@ -473,6 +475,7 @@ public class MainActivity extends Activity {
                         buildDashboard();
                     } else {
                         isAdmin = false;
+                        stopRosterKeepAlive();
                         auth.signOut();
                         authPrefs.edit()
                                 .putBoolean("logged_in", false)
@@ -504,6 +507,11 @@ public class MainActivity extends Activity {
     }
 
     private void buildDashboard() {
+        if (isAdmin) {
+            startRosterKeepAlive();
+        } else {
+            stopRosterKeepAlive();
+        }
         detailVisible = false;
         getWindow().setStatusBarColor(BG);
         getWindow().setNavigationBarColor(BG);
@@ -5598,18 +5606,39 @@ private void addRequestDetailLine(
 
     @Override
     protected void onPause() {
-        handler.removeCallbacks(refreshRunnable);
-        handler.removeCallbacks(resumeRefreshRunnable);
-
-        if (webView != null) {
-            webView.onPause();
+        // اترك WebView ودورة التحديث يعملان في الخلفية للمدير.
+        if (!backgroundMonitoringEnabled) {
+            handler.removeCallbacks(refreshRunnable);
+            if (webView != null) webView.onPause();
         }
-
+        handler.removeCallbacks(resumeRefreshRunnable);
         super.onPause();
+    }
+
+    private void startRosterKeepAlive() {
+        if (!isAdmin || backgroundMonitoringEnabled) return;
+        try {
+            Intent i = new Intent(this, RosterKeepAliveService.class);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(i);
+            else startService(i);
+            backgroundMonitoringEnabled = true;
+        } catch (Exception e) {
+            backgroundMonitoringEnabled = false;
+            Toast.makeText(this, "تعذر تشغيل خدمة الخلفية: " + e.getMessage(), Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void stopRosterKeepAlive() {
+        backgroundMonitoringEnabled = false;
+        try { stopService(new Intent(this, RosterKeepAliveService.class)); }
+        catch (Exception ignored) { }
     }
 
     private void logoutApp() {
         detailVisible = false;
+        stopRosterKeepAlive();
+        handler.removeCallbacks(refreshRunnable);
+        handler.removeCallbacks(resumeRefreshRunnable);
         FirebaseAuth.getInstance().signOut();
         authPrefs.edit().putBoolean("logged_in", false).apply();
         if (webView != null) webView.onPause();
