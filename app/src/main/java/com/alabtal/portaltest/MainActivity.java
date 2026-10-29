@@ -4051,10 +4051,10 @@ public class MainActivity extends Activity {
         startCard.setOrientation(LinearLayout.VERTICAL);
         startCard.setGravity(Gravity.CENTER_VERTICAL);
         startCard.setPadding(dp(10), dp(8), dp(10), dp(8));
-        startCard.setBackground(round(cardBg, greenAccent, 1));
+        startCard.setBackground(round(Color.rgb(13, 30, 24), greenAccent, 1));
         startCard.setElevation(dp(2));
 
-        TextView startLabel = makeText("◷  بداية الشيفت", 10, greenAccent, true);
+        TextView startLabel = makeText("↪  بداية الشيفت", 10, greenAccent, true);
         TextView startValue = makeText(
                 (startTime == null || startTime.trim().isEmpty())
                         ? "غير متاح" : startTime, 16, WHITE, true);
@@ -4067,10 +4067,10 @@ public class MainActivity extends Activity {
         endCard.setOrientation(LinearLayout.VERTICAL);
         endCard.setGravity(Gravity.CENTER_VERTICAL);
         endCard.setPadding(dp(10), dp(8), dp(10), dp(8));
-        endCard.setBackground(round(cardBg, orangeAccent, 1));
+        endCard.setBackground(round(Color.rgb(35, 24, 17), orangeAccent, 1));
         endCard.setElevation(dp(2));
 
-        TextView endLabel = makeText("◷  نهاية الشيفت", 10, orangeAccent, true);
+        TextView endLabel = makeText("↩  نهاية الشيفت", 10, orangeAccent, true);
         TextView endValue = makeText(
                 (endTime == null || endTime.trim().isEmpty())
                         ? "غير متاح" : endTime, 16, WHITE, true);
