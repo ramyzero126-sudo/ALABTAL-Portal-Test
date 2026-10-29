@@ -3392,6 +3392,12 @@ public class MainActivity extends Activity {
         stateBadge.setBackground(stateBg);
         heading.addView(stateBadge);
 
+        // إظهار حالة حجز المندوب من شيت الحجوزات عند توفر البيانات.
+        int bookingStatus = bookingStatusForRider(rider);
+        if (bookingStatus >= 0) {
+            addAnimatedBookingBadge(card, bookingStatus == 1);
+        }
+
         // مؤشرات تشغيل مضغوطة.
         LinearLayout metrics = new LinearLayout(this);
         metrics.setOrientation(LinearLayout.HORIZONTAL);
