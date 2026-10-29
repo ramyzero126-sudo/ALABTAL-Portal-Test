@@ -3113,7 +3113,7 @@ public class MainActivity extends Activity {
                 "{maxZoom:19,attribution:'&copy; OpenStreetMap contributors'}).addTo(map);" +
                 "tiles.on('tileerror',function(){const n=document.getElementById('note');" +
                 "if(n)n.textContent='تحميل الخريطة متعثر؛ تحقق من الإنترنت ثم أعد فتح الخريطة.';});" +
-                "setTimeout(function(){map.invalidateSize(true);},500);"
+                "setTimeout(function(){map.invalidateSize(true);},500);" +
                 "const safe=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');" +
                 "const pts=" + points.toString() + ";" +
                 "pts.forEach(p=>{const color=/بريك|استراحة/.test(p.status)?'#ff5252':" +
