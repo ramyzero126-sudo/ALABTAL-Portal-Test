@@ -150,6 +150,7 @@ public class MainActivity extends Activity {
     private boolean portalPageVisible = false;
     private LinearLayout portalRoot;
     private LinearLayout dashboardRoot;
+    private View detachedNavigationView;
     private boolean detailVisible = false;
     private SharedPreferences authPrefs;
     private boolean isAdmin = false;
@@ -1241,89 +1242,75 @@ public class MainActivity extends Activity {
             requestSheetAccess();
         });
 
-        // مركز الأدوات القابل للفتح والإغلاق
-        LinearLayout toolsPanel = new LinearLayout(this);
-        toolsPanel.setOrientation(LinearLayout.VERTICAL);
-        toolsPanel.setPadding(dp(5), dp(3), dp(5), dp(3));
-        toolsPanel.setBackground(round(
+        // شريط تنقل أفقي دائم بدل مركز الأدوات القابل للفتح
+        android.widget.HorizontalScrollView navigationScroll =
+                new android.widget.HorizontalScrollView(this);
+        navigationScroll.setHorizontalScrollBarEnabled(false);
+        navigationScroll.setFillViewport(true);
+        navigationScroll.setBackground(round(
                 Color.rgb(12, 15, 20), Color.rgb(100, 54, 23), 1));
 
-        LinearLayout toolsHeader = new LinearLayout(this);
-        toolsHeader.setOrientation(LinearLayout.HORIZONTAL);
-        toolsHeader.setGravity(Gravity.CENTER_VERTICAL);
-        TextView toolsTitle = makeText("⚡ مركز التشغيل", 11, ORANGE, true);
-        toolsHeader.addView(toolsTitle,
-                new LinearLayout.LayoutParams(0, dp(29), 1f));
-        TextView toolsToggle = makeText("⌄ فتح الأدوات", 10, GREEN, true);
-        toolsToggle.setGravity(Gravity.CENTER);
-        toolsToggle.setPadding(dp(7), dp(4), dp(7), dp(4));
-        toolsHeader.addView(toolsToggle);
-        toolsPanel.addView(toolsHeader);
+        LinearLayout navigationBar = new LinearLayout(this);
+        navigationBar.setOrientation(LinearLayout.HORIZONTAL);
+        navigationBar.setGravity(Gravity.CENTER_VERTICAL);
+        navigationBar.setPadding(dp(3), dp(3), dp(3), dp(3));
 
-        LinearLayout toolsGrid = new LinearLayout(this);
-        toolsGrid.setOrientation(LinearLayout.VERTICAL);
-        toolsGrid.setVisibility(View.GONE);
-        String[] toolLabels = {
-                "📅 الحجوزات", "🔄 Live", "📦 الأوردرات",
-                "📋 ردود الشيت", "🗺️ الخريطة", "👥 المناديب", "📊 التقرير"
+        String[] navigationLabels = {
+                "👥 المناديب", "📍 الخريطة", "📦 الأوردرات",
+                "💰 المحافظ", "🔄 تحديث", "📅 الحجوزات",
+                "📋 الشيت", "📊 التقرير"
         };
 
-        for (int start = 0; start < toolLabels.length; start += 3) {
-            LinearLayout toolRow = new LinearLayout(this);
-            toolRow.setOrientation(LinearLayout.HORIZONTAL);
-            for (int i = start; i < Math.min(start + 3, toolLabels.length); i++) {
-                final int action = i;
-                Button toolButton = makeButton(toolLabels[i]);
-                toolButton.setTextSize(9);
-                toolButton.setPadding(dp(2), 0, dp(2), 0);
-                toolButton.setBackground(round(
-                        Color.rgb(23, 19, 16), ORANGE, 1));
-                LinearLayout.LayoutParams p =
-                        new LinearLayout.LayoutParams(0, dp(32), 1f);
-                p.setMargins(dp(2), dp(2), dp(2), dp(2));
-                toolRow.addView(toolButton, p);
-                toolButton.setOnClickListener(v -> {
-                    switch (action) {
-                        case 0:
-                            if (isAdmin) bookingsTab.performClick();
-                            else Toast.makeText(this, "الحجوزات للمدير فقط",
-                                    Toast.LENGTH_SHORT).show();
-                            break;
-                        case 1:
-                            requestRosterRefresh();
-                            break;
-                        case 2:
-                            showAllOrdersPage();
-                            break;
-                        case 3:
-                            if (isAdmin) sheetTab.performClick();
-                            else Toast.makeText(this, "ردود الشيت للمدير فقط",
-                                    Toast.LENGTH_SHORT).show();
-                            break;
-                        case 4:
-                            mapTab.performClick();
-                            break;
-                        case 5:
-                            ridersTab.performClick();
-                            break;
-                        case 6:
-                            if (isAdmin) exportSupervisorReport();
-                            else Toast.makeText(this, "التقرير للمدير فقط",
-                                    Toast.LENGTH_SHORT).show();
-                            break;
-                    }
-                });
+        for (int i = 0; i < navigationLabels.length; i++) {
+            final int action = i;
+            Button navButton = makeButton(navigationLabels[i]);
+            navButton.setTextSize(9);
+            navButton.setMinWidth(dp(76));
+            navButton.setPadding(dp(7), 0, dp(7), 0);
+            navButton.setBackground(round(
+                    Color.rgb(23, 19, 16), ORANGE, 1));
+
+            LinearLayout.LayoutParams navParams =
+                    new LinearLayout.LayoutParams(-2, dp(36));
+            navParams.setMargins(dp(2), 0, dp(2), 0);
+            navigationBar.addView(navButton, navParams);
+
+            if ((action == 5 || action == 6 || action == 7) && !isAdmin) {
+                navButton.setVisibility(View.GONE);
             }
-            toolsGrid.addView(toolRow);
+
+            navButton.setOnClickListener(v -> {
+                switch (action) {
+                    case 0:
+                        ridersTab.performClick();
+                        break;
+                    case 1:
+                        mapTab.performClick();
+                        break;
+                    case 2:
+                        showAllOrdersPage();
+                        break;
+                    case 3:
+                        showWalletsPage();
+                        break;
+                    case 4:
+                        requestRosterRefresh();
+                        break;
+                    case 5:
+                        if (isAdmin) bookingsTab.performClick();
+                        break;
+                    case 6:
+                        if (isAdmin) sheetTab.performClick();
+                        break;
+                    case 7:
+                        if (isAdmin) exportSupervisorReport();
+                        break;
+                }
+            });
         }
-        toolsPanel.addView(toolsGrid);
-        toolsToggle.setOnClickListener(v -> {
-            boolean expand = toolsGrid.getVisibility() != View.VISIBLE;
-            toolsGrid.setVisibility(expand ? View.VISIBLE : View.GONE);
-            toolsToggle.setText(
-                    expand ? "⌃ إغلاق الأدوات" : "⌄ فتح الأدوات");
-        });
-        root.addView(toolsPanel, 2,
+
+        navigationScroll.addView(navigationBar);
+        root.addView(navigationScroll, 2,
                 new LinearLayout.LayoutParams(-1, -2));
 
         setContentView(root);
@@ -1922,6 +1909,10 @@ public class MainActivity extends Activity {
 
             currentRiders = riders;
 
+            if (!fromCache) {
+                updateWalletHistory(riders);
+            }
+
             boolean shiftsFetchOk =
                     report.optBoolean("roster_shifts_loaded", false);
             JSONArray freshShifts = report.optJSONArray("roster_shifts");
@@ -1930,7 +1921,9 @@ public class MainActivity extends Activity {
                 rosterShiftsLoaded = true;
             }
 
-            updateTopOrderAlertBanner(riders);
+            if (!fromCache) {
+                updateTopOrderAlertBanner(riders);
+            }
 
             int ridersWithOrders = 0;
             int totalOrders = 0;
@@ -4535,6 +4528,150 @@ private void addRequestDetailLine(
         parent.addView(line);
     }
 
+    private void updateWalletHistory(JSONArray riders) {
+        if (riders == null || rosterCachePrefs == null) return;
+
+        JSONObject history;
+        try {
+            String saved = rosterCachePrefs.getString("wallet_history", "{}");
+            history = new JSONObject(saved);
+        } catch (Exception e) {
+            history = new JSONObject();
+        }
+
+        long now = System.currentTimeMillis();
+
+        for (int i = 0; i < riders.length(); i++) {
+            JSONObject rider = riders.optJSONObject(i);
+            if (rider == null) continue;
+
+            String id = firstValue(rider, "employee_id", "rider_id", "id");
+            String name = firstValue(rider, "name", "rider_name", "employee_name");
+            String balance = firstValue(
+                    rider, "wallet_balance", "wallet", "walletBalance", "balance");
+
+            if (id.isEmpty() || balance.isEmpty()) continue;
+
+            String normalized = balance.trim().replace(",", "").replace(" ", "");
+            if (!normalized.matches("-?\\d+(\\.\\d+)?")) continue;
+
+            try {
+                JSONObject previous = history.optJSONObject(id);
+                String previousBalance = previous == null
+                        ? "" : previous.optString("balance", "");
+
+                long updatedAt = previous == null
+                        ? now : previous.optLong("updated_at", now);
+
+                String oldNormalized = previousBalance.trim()
+                        .replace(",", "").replace(" ", "");
+
+                if (previous == null
+                        || !normalized.equals(oldNormalized)) {
+                    updatedAt = now;
+                }
+
+                JSONObject record = new JSONObject();
+                record.put("employee_id", id);
+                record.put("name", name.isEmpty() ? id : name);
+                record.put("balance", balance);
+                record.put("updated_at", updatedAt);
+                history.put(id, record);
+            } catch (Exception ignored) { }
+        }
+
+        rosterCachePrefs.edit()
+                .putString("wallet_history", history.toString())
+                .apply();
+    }
+
+    private void showWalletsPage() {
+        detailVisible = true;
+
+        ScrollView scroll = new ScrollView(this);
+        scroll.setBackgroundColor(BG);
+
+        LinearLayout page = new LinearLayout(this);
+        page.setOrientation(LinearLayout.VERTICAL);
+        page.setPadding(dp(10), dp(10), dp(10), dp(14));
+        page.setBackgroundColor(BG);
+        scroll.addView(page);
+
+        LinearLayout toolbar = new LinearLayout(this);
+        toolbar.setGravity(Gravity.CENTER_VERTICAL);
+
+        Button back = makeButton("← رجوع");
+        back.setTextSize(11);
+        back.setOnClickListener(v -> returnToDashboard());
+        toolbar.addView(back, new LinearLayout.LayoutParams(dp(88), dp(36)));
+
+        TextView title = makeText("💰 محافظ المندوبين", 16, ORANGE, true);
+        title.setPadding(dp(9), 0, 0, 0);
+        toolbar.addView(title);
+        page.addView(toolbar);
+
+        JSONObject history;
+        try {
+            history = new JSONObject(rosterCachePrefs == null
+                    ? "{}" : rosterCachePrefs.getString("wallet_history", "{}"));
+        } catch (Exception e) {
+            history = new JSONObject();
+        }
+
+        java.util.ArrayList<JSONObject> records = new java.util.ArrayList<>();
+        java.util.Iterator<String> keys = history.keys();
+        while (keys.hasNext()) {
+            JSONObject record = history.optJSONObject(keys.next());
+            if (record != null) records.add(record);
+        }
+
+        java.util.Collections.sort(records, (a, b) ->
+                firstValue(a, "name").compareToIgnoreCase(firstValue(b, "name")));
+
+        page.addView(makeText(
+                "عدد المحافظ المحفوظة: " + records.size(),
+                12, GREEN, true));
+
+        if (records.isEmpty()) {
+            page.addView(makeText(
+                    "لا توجد أرصدة محفوظة حتى الآن. حدّث الروستر لاستقبال الأرصدة.",
+                    12, MUTED, false));
+        }
+
+        java.text.SimpleDateFormat dateFormat =
+                new java.text.SimpleDateFormat("yyyy/MM/dd  hh:mm a",
+                        java.util.Locale.getDefault());
+
+        for (JSONObject record : records) {
+            LinearLayout card = new LinearLayout(this);
+            card.setOrientation(LinearLayout.VERTICAL);
+            card.setPadding(dp(11), dp(9), dp(11), dp(9));
+            card.setBackground(round(PANEL, ORANGE_DEEP, 1));
+
+            String name = firstValue(record, "name", "employee_id");
+            String id = firstValue(record, "employee_id");
+            String balance = firstValue(record, "balance");
+            long updatedAt = record.optLong("updated_at", 0L);
+
+            card.addView(makeText("👤 " + name, 13, WHITE, true));
+            card.addView(makeText("ID: " + id, 10, MUTED, false));
+            card.addView(makeText("الرصيد: " + balance, 15, GREEN, true));
+
+            String updated = updatedAt > 0
+                    ? dateFormat.format(new java.util.Date(updatedAt))
+                    : "غير متاح";
+            card.addView(makeText(
+                    "آخر تحديث للرصيد: " + updated, 10, MUTED, false));
+
+            LinearLayout.LayoutParams params =
+                    new LinearLayout.LayoutParams(-1, -2);
+            params.setMargins(0, dp(7), 0, 0);
+            page.addView(card, params);
+        }
+
+        showOperationalPage(scroll);
+    }
+
     private void showAllOrdersPage() {
         detailVisible = true;
 
@@ -4695,7 +4832,7 @@ private void addRequestDetailLine(
                     12, MUTED, false));
         }
 
-        setContentView(scroll);
+        showOperationalPage(scroll);
     }
 
     private void showRiderDetails(JSONObject rider, JSONArray orders) {
@@ -4811,7 +4948,7 @@ private void addRequestDetailLine(
                 }
             }
         }
-        setContentView(scroll);
+        showOperationalPage(scroll);
     }
 
     private void addDetailLine(LinearLayout parent, String label, String value) {
@@ -4828,8 +4965,51 @@ private void addRequestDetailLine(
         parent.addView(row, params);
     }
 
+
+    private void showOperationalPage(ScrollView pageScroll) {
+        if (dashboardRoot == null || dashboardRoot.getChildCount() <= 2) {
+            setContentView(pageScroll);
+            return;
+        }
+
+        if (detachedNavigationView == null) {
+            detachedNavigationView = dashboardRoot.getChildAt(2);
+        }
+
+        if (detachedNavigationView == null) {
+            setContentView(pageScroll);
+            return;
+        }
+
+        if (detachedNavigationView.getParent() instanceof ViewGroup) {
+            ((ViewGroup) detachedNavigationView.getParent())
+                    .removeView(detachedNavigationView);
+        }
+
+        LinearLayout pageShell = new LinearLayout(this);
+        pageShell.setOrientation(LinearLayout.VERTICAL);
+        pageShell.setBackgroundColor(BG);
+        pageShell.addView(pageScroll,
+                new LinearLayout.LayoutParams(-1, 0, 1));
+        pageShell.addView(detachedNavigationView,
+                new LinearLayout.LayoutParams(-1, -2));
+        setContentView(pageShell);
+    }
+
     private void returnToDashboard() {
         detailVisible = false;
+
+        if (dashboardRoot != null && detachedNavigationView != null) {
+            if (detachedNavigationView.getParent() instanceof ViewGroup) {
+                ((ViewGroup) detachedNavigationView.getParent())
+                        .removeView(detachedNavigationView);
+            }
+
+            int navIndex = Math.min(2, dashboardRoot.getChildCount());
+            dashboardRoot.addView(detachedNavigationView, navIndex,
+                    new LinearLayout.LayoutParams(-1, -2));
+            detachedNavigationView = null;
+        }
 
         if (portalPageVisible && webView != null
                 && dashboardRoot != null) {
