@@ -2630,52 +2630,131 @@ public class MainActivity extends Activity {
                 JSONObject order = orders.optJSONObject(j);
                 if (order == null) continue;
 
-                String rawStage = firstValue(order,
-                        "status", "stage", "order_status", "delivery_status")
-                        .trim().toLowerCase(Locale.ROOT)
-                        .replace('_', ' ').replace('-', ' ');
-
-                boolean arrived =
-                        rawStage.equals("at dropoff")
-                        || rawStage.equals("arrived at dropoff")
-                        || rawStage.equals("at customer")
-                        || rawStage.equals("arrived at customer")
-                        || rawStage.equals("reached customer")
-                        || rawStage.contains("وصل عند العميل")
-                        || rawStage.contains("وصل للعميل")
-                        || rawStage.contains("وصل إلى العميل");
-
-                if (!arrived) continue;
-
                 String orderId = firstValue(order,
-                        "delivery_id", "order_code", "order_id", "id");
-                if (orderId.isEmpty()) {
-                    orderId = firstValue(
-                            rider, "employee_id", "id", "rider_id", "name");
-                }
-                if (orderId.isEmpty()) orderId = name;
+                        "delivery_id", "order_id", "order_code", "id");
+                if (orderId.isEmpty()) continue;
 
-                long arrivedAt = parseTimestampMillis(firstValue(order,
-                        "arrived_at", "arrivedAt",
-                        "arrived_at_customer", "arrivedAtCustomer",
-                        "customer_arrived_at", "customerArrivedAt",
-                        "reached_customer_at", "reachedCustomerAt",
-                        "arrival_time", "arrivalTime",
-                        "stage_started_at", "status_changed_at",
-                        "status_updated_at"));
+                JSONArray timeline = order.optJSONArray("timeline");
+                JSONObject arrivalEvent = null;
+                String arrivalType = "";
+                boolean timelineHasArrival = false;
+
+                // نفحص من الأقدم للأحدث حتى لا نفوّت وصول المطعم.
+                if (timeline != null) {
+                    for (int k = 0; k < timeline.length(); k++) {
+                        JSONObject event = timeline.optJSONObject(k);
+                        if (event == null) continue;
+
+                        String status = firstValue(event,
+                                "status", "stage", "event", "name")
+                                .trim().toLowerCase(Locale.ROOT)
+                                .replace('-', '_').replace(' ', '_');
+
+                        boolean restaurantArrival =
+                                status.equals("at_pickup")
+                                || status.equals("arrived_at_pickup")
+                                || status.equals("at_restaurant")
+                                || status.equals("arrived_at_restaurant")
+                                || status.equals("reached_restaurant")
+                                || status.equals("وصل_المطعم");
+
+                        boolean customerArrival =
+                                status.equals("at_dropoff")
+                                || status.equals("arrived_at_dropoff")
+                                || status.equals("at_customer")
+                                || status.equals("arrived_at_customer")
+                                || status.equals("reached_customer")
+                                || status.equals("وصل_عند_العميل");
+
+                        if (!restaurantArrival && !customerArrival) continue;
+
+                        timelineHasArrival = true;
+                        String type = restaurantArrival
+                                ? "restaurant" : "customer";
+
+                        String eventTime = firstValue(event,
+                                "timestamp", "created_at", "occurred_at",
+                                "event_time", "updated_at", "arrived_at");
+
+                        long eventMillis = eventTime.isEmpty()
+                                ? -1L : parseTimestampMillis(eventTime);
+
+                        String safeId = orderId.replaceAll(
+                                "[^A-Za-z0-9_-]", "_");
+                        String marker = eventMillis > 0
+                                ? String.valueOf(eventMillis) : "seen";
+                        String key = "top_order_arrival_seen_"
+                                + safeId + "_" + type;
+
+                        String previous = rosterCachePrefs == null
+                                ? "" : rosterCachePrefs.getString(key, "");
+
+                        if (marker.equals(previous)) continue;
+
+                        // لا نعرض حدثًا قديمًا عند أول اكتشاف له.
+                        if (eventMillis > 0 && now >= eventMillis
+                                && now - eventMillis > 15L * 60L * 1000L) {
+                            if (rosterCachePrefs != null) {
+                                rosterCachePrefs.edit()
+                                        .putString(key, marker).apply();
+                            }
+                            continue;
+                        }
+
+                        arrivalEvent = event;
+                        arrivalType = type;
+                        break;
+                    }
+                }
+
+                // نستخدم status الرئيسي فقط إذا لم توجد أحداث وصول في timeline.
+                if (arrivalEvent == null && !timelineHasArrival) {
+                    String status = firstValue(order,
+                            "status", "stage", "order_status",
+                            "delivery_status")
+                            .trim().toLowerCase(Locale.ROOT)
+                            .replace('-', '_').replace(' ', '_');
+
+                    if (status.equals("at_pickup")
+                            || status.equals("arrived_at_pickup")
+                            || status.equals("at_restaurant")
+                            || status.equals("arrived_at_restaurant")
+                            || status.equals("reached_restaurant")
+                            || status.equals("وصل_المطعم")) {
+                        arrivalType = "restaurant";
+                    } else if (status.equals("at_dropoff")
+                            || status.equals("arrived_at_dropoff")
+                            || status.equals("at_customer")
+                            || status.equals("arrived_at_customer")
+                            || status.equals("reached_customer")
+                            || status.equals("وصل_عند_العميل")) {
+                        arrivalType = "customer";
+                    }
+
+                    if (!arrivalType.isEmpty()) arrivalEvent = order;
+                }
+
+                if (arrivalEvent == null || arrivalType.isEmpty()) continue;
+
+                String timestamp = firstValue(arrivalEvent,
+                        "timestamp", "created_at", "occurred_at",
+                        "event_time", "updated_at", "arrived_at");
+
+                long arrivedAt = timestamp.isEmpty()
+                        ? -1L : parseTimestampMillis(timestamp);
 
                 String safeId = orderId.replaceAll(
                         "[^A-Za-z0-9_-]", "_");
                 String marker = arrivedAt > 0
-                        ? String.valueOf(arrivedAt) : "arrived";
-                String prefKey = "top_order_arrival_seen_" + safeId;
+                        ? String.valueOf(arrivedAt) : "seen";
+                String prefKey = "top_order_arrival_seen_"
+                        + safeId + "_" + arrivalType;
 
                 if (rosterCachePrefs != null) {
                     String previous = rosterCachePrefs.getString(
                             prefKey, "");
                     if (marker.equals(previous)) continue;
 
-                    // لا تعرض حدث وصول قديم عند اكتشافه متأخرًا.
                     if (arrivedAt > 0 && now >= arrivedAt
                             && now - arrivedAt > 15L * 60L * 1000L) {
                         rosterCachePrefs.edit()
@@ -2683,6 +2762,7 @@ public class MainActivity extends Activity {
                         continue;
                     }
 
+                    // نسجل الحدث الذي سنعرضه فقط.
                     rosterCachePrefs.edit()
                             .putString(prefKey, marker).apply();
                 }
@@ -2703,9 +2783,13 @@ public class MainActivity extends Activity {
                     }
                 }
 
+                String message = arrivalType.equals("restaurant")
+                        ? "🍽️ " + name + " وصل عند المطعم"
+                        : "📍 " + name + " وصل عند العميل";
+
                 topOrderAlertBanner.setText(
                         "⚡ AL ABTAL • LIVE ALERT\n"
-                        + "📍 " + name + " وصل عند العميل" + elapsed);
+                        + message + elapsed);
                 topOrderAlertBanner.setAlpha(0f);
                 topOrderAlertBanner.setTranslationY(-dp(12));
                 topOrderAlertBanner.setVisibility(View.VISIBLE);
@@ -2729,6 +2813,8 @@ public class MainActivity extends Activity {
                             0, dp(72));
                 }
                 handler.postDelayed(topOrderBannerRunnable, 10000L);
+
+                // تنبيه واحد في كل دورة؛ الأحداث الأخرى ستظهر في الدورات التالية.
                 return;
             }
         }
