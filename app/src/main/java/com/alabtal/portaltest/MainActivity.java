@@ -50,6 +50,10 @@ import android.content.Intent;
 import android.content.IntentSender;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.ListenerRegistration;
+import com.google.firebase.firestore.DocumentSnapshot;
+import java.util.HashMap;
+import java.util.Map;
 import com.google.android.gms.auth.api.identity.AuthorizationRequest;
 import com.google.android.gms.auth.api.identity.AuthorizationResult;
 import com.google.android.gms.auth.api.identity.Identity;
@@ -156,6 +160,7 @@ public class MainActivity extends Activity {
     private boolean isAdmin = false;
     private boolean backgroundMonitoringEnabled = false;
     private SharedPreferences rosterCachePrefs;
+    private ListenerRegistration sharedRosterListener;
     private volatile boolean updateCheckRunning = false;
     private File pendingUpdateFile;
     private boolean waitingForInstallPermission = false;
@@ -176,7 +181,7 @@ public class MainActivity extends Activity {
     private final Runnable refreshRunnable = new Runnable() {
         @Override
         public void run() {
-            if (destroyed) return;
+            if (destroyed || !isAdmin) return;
 
             if (pageLoaded && !inspectionRunning) {
                 inspectRoster();
@@ -216,7 +221,7 @@ public class MainActivity extends Activity {
     private final Runnable resumeRefreshRunnable = new Runnable() {
         @Override
         public void run() {
-            if (destroyed || !pageLoaded || detailVisible) return;
+            if (destroyed || !isAdmin || !pageLoaded || detailVisible) return;
 
             if (inspectionRunning) {
                 handler.postDelayed(this, 500);
@@ -231,7 +236,7 @@ public class MainActivity extends Activity {
     private void scheduleNextSync() {
         handler.removeCallbacks(refreshRunnable);
         handler.removeCallbacks(refreshCountdownRunnable);
-        if (!destroyed && pageLoaded) {
+        if (!destroyed && isAdmin && pageLoaded) {
             nextSyncAtMs = System.currentTimeMillis() + nextSyncDelayMs;
             handler.postDelayed(refreshRunnable, nextSyncDelayMs);
             handler.post(refreshCountdownRunnable);
@@ -241,6 +246,7 @@ public class MainActivity extends Activity {
     }
 
     private void recordSyncFailure() {
+        if (!isAdmin) return;
         consecutiveSyncFailures++;
         renderFollowUpAlerts(currentRiders, true);
 
@@ -571,6 +577,7 @@ public class MainActivity extends Activity {
         portalButton.setTextSize(18);
         portalButton.setPadding(0, 0, 0, 0);
         portalButton.setContentDescription("فتح بوابة الشركة");
+        portalButton.setVisibility(isAdmin ? View.VISIBLE : View.GONE);
         portalButton.setBackground(round(Color.rgb(10, 23, 34), ORANGE, 2));
         portalButton.setElevation(dp(5));
         LinearLayout.LayoutParams portalParams =
@@ -834,6 +841,7 @@ public class MainActivity extends Activity {
                     return;
                 }
 
+                if (!isAdmin) return;
                 pageLoaded = true;
                 status.setText("تم الاتصال بالجلسة؛ جاري فحص إمكانية القراءة المباشرة...");
                 probeNativeApiAccess();
@@ -1327,6 +1335,7 @@ public class MainActivity extends Activity {
         );
 
         restoreCachedReport();
+        if (!isAdmin) startSharedRosterListener();
 
         // لا تفتح البوابة تلقائيًا؛ تُفتح فقط بطلب المستخدم.
     }
@@ -1503,7 +1512,7 @@ public class MainActivity extends Activity {
     }
 
     private void showPortalPage() {
-        if (webView == null || dashboardRoot == null) return;
+        if (!isAdmin || webView == null || dashboardRoot == null) return;
 
         if (portalRoot == null) {
             portalRoot = new LinearLayout(this);
@@ -1554,6 +1563,7 @@ public class MainActivity extends Activity {
     }
 
     private void openPortal() {
+        if (!isAdmin) return;
         if (webView != null) {
             portalVisible = true;
             webView.setVisibility(View.VISIBLE);
@@ -1563,7 +1573,7 @@ public class MainActivity extends Activity {
     }
 
     private void logoutPortal() {
-        if (webView == null) return;
+        if (!isAdmin || webView == null) return;
         pageLoaded = false;
         inspectionRunning = false;
         inspectButton.setEnabled(true);
@@ -1587,6 +1597,10 @@ public class MainActivity extends Activity {
     }
 
     private void requestRosterRefresh() {
+        if (!isAdmin) {
+            fetchSharedRosterReport();
+            return;
+        }
         if (inspectButton != null) {
             inspectButton.setTextColor(ORANGE);
         }
@@ -1690,7 +1704,7 @@ public class MainActivity extends Activity {
     }
 
     private void inspectRoster() {
-        if (inspectionRunning || destroyed) return;
+        if (!isAdmin || inspectionRunning || destroyed) return;
 
         if (webView == null || !pageLoaded) {
             status.setText("اضغط تحديث للاتصال بالبوابة.");
@@ -1976,6 +1990,98 @@ public class MainActivity extends Activity {
         }
     }
 
+
+    private void stopSharedRosterListener() {
+        if (sharedRosterListener != null) {
+            sharedRosterListener.remove();
+            sharedRosterListener = null;
+        }
+    }
+
+    private void startSharedRosterListener() {
+        if (isAdmin || destroyed
+                || FirebaseAuth.getInstance().getCurrentUser() == null) return;
+
+        stopSharedRosterListener();
+
+        sharedRosterListener = FirebaseFirestore.getInstance()
+                .collection("shared_data")
+                .document("roster_live")
+                .addSnapshotListener((snapshot, error) -> {
+                    if (destroyed || isAdmin) return;
+
+                    if (error != null) {
+                        status.setText("تعذر استقبال تحديثات المدير؛ نحتفظ بآخر نسخة محفوظة.");
+                        return;
+                    }
+
+                    applySharedRosterSnapshot(snapshot);
+                });
+    }
+
+    private void fetchSharedRosterReport() {
+        if (isAdmin || destroyed) return;
+
+        status.setText("جاري طلب أحدث بيانات الروستر من المدير...");
+
+        FirebaseFirestore.getInstance()
+                .collection("shared_data")
+                .document("roster_live")
+                .get()
+                .addOnSuccessListener(this::applySharedRosterSnapshot)
+                .addOnFailureListener(error -> {
+                    if (!destroyed) {
+                        status.setText("لا يوجد اتصال بالتحديث المشترك؛ نعرض آخر نسخة محفوظة.");
+                    }
+                });
+    }
+
+    private void applySharedRosterSnapshot(DocumentSnapshot snapshot) {
+        if (destroyed || isAdmin || snapshot == null || !snapshot.exists()) return;
+
+        String json = snapshot.getString("report");
+        if (json == null || json.trim().isEmpty()) return;
+
+        try {
+            JSONObject report = new JSONObject(json);
+            report.put("_from_shared", true);
+            handleReport(report.toString());
+        } catch (Exception e) {
+            status.setText("وصل تقرير مشترك غير صالح؛ نحتفظ بالبيانات السابقة.");
+        }
+    }
+
+    private void publishSharedRosterReport(JSONObject report) {
+        if (!isAdmin || destroyed
+                || FirebaseAuth.getInstance().getCurrentUser() == null) return;
+
+        try {
+            String json = report.toString();
+            int bytes = json.getBytes(StandardCharsets.UTF_8).length;
+
+            if (bytes > 900 * 1024) {
+                status.setText("تم تحديث بيانات المدير محليًا، لكن حجم التقرير كبير للمشاركة.");
+                return;
+            }
+
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("report", json);
+            payload.put("updated_at", System.currentTimeMillis());
+
+            FirebaseFirestore.getInstance()
+                    .collection("shared_data")
+                    .document("roster_live")
+                    .set(payload)
+                    .addOnFailureListener(error -> {
+                        if (!destroyed) {
+                            status.setText("تم تحديث بيانات المدير، لكن تعذرت مشاركتها مع المشرفين.");
+                        }
+                    });
+        } catch (Exception e) {
+            status.setText("تعذر تجهيز التقرير المشترك.");
+        }
+    }
+
     private void handleReport(String json) {
         inspectionRunning = false;
         inspectButton.setEnabled(true);
@@ -1983,7 +2089,9 @@ public class MainActivity extends Activity {
         try {
             JSONObject report = new JSONObject(json);
             boolean fromCache = report.optBoolean("_from_cache", false);
+            boolean fromShared = report.optBoolean("_from_shared", false);
             report.remove("_from_cache");
+            report.remove("_from_shared");
 
             JSONArray riders = report.optJSONArray("riders");
 
@@ -1993,7 +2101,7 @@ public class MainActivity extends Activity {
 
             currentRiders = riders;
 
-            if (!fromCache) {
+            if (!fromCache && !fromShared) {
                 updateWalletHistory(riders);
             }
 
@@ -2005,7 +2113,7 @@ public class MainActivity extends Activity {
                 rosterShiftsLoaded = true;
             }
 
-            if (!fromCache) {
+            if (!fromCache && !fromShared) {
                 updateTopOrderAlertBanner(riders);
             }
 
@@ -2031,7 +2139,7 @@ public class MainActivity extends Activity {
 
             renderDashboardStats(riders, ridersWithOrders, totalOrders);
 
-            if (!fromCache) {
+            if (!fromCache && !fromShared) {
                 notifySmartAlerts(riders);
                 monitorRiderChanges(riders);
             }
@@ -2042,6 +2150,13 @@ public class MainActivity extends Activity {
                     formatTime(report.optString("checked_at")) +
                     " • جاري التحقق من التحديث الحي"
                 );
+            } else if (fromShared) {
+                status.setText(
+                    "تحديث مشترك من المدير: " + formatTime(report.optString("checked_at"))
+                );
+                rosterCachePrefs.edit()
+                    .putString("last_successful_report", report.toString())
+                    .apply();
             } else {
                 status.setText(
                     "آخر تحديث: " + formatTime(report.optString("checked_at")) +
@@ -2057,9 +2172,10 @@ public class MainActivity extends Activity {
                     .putString("last_successful_report", report.toString())
                     .apply();
 
+                publishSharedRosterReport(report);
                 consecutiveSyncFailures = 0;
                 nextSyncDelayMs = SYNC_INTERVAL_MS;
-                scheduleNextSync();
+                if (isAdmin) scheduleNextSync();
 
             }
 
@@ -6272,7 +6388,7 @@ private void addRequestDetailLine(
             webView.onResume();
         }
 
-        if (!destroyed && pageLoaded && !detailVisible) {
+        if (!destroyed && isAdmin && pageLoaded && !detailVisible) {
             handler.removeCallbacks(refreshRunnable);
             handler.removeCallbacks(resumeRefreshRunnable);
             handler.postDelayed(resumeRefreshRunnable, 400);
@@ -6310,6 +6426,7 @@ private void addRequestDetailLine(
     }
 
     private void logoutApp() {
+        stopSharedRosterListener();
         detailVisible = false;
         stopRosterKeepAlive();
         handler.removeCallbacks(refreshRunnable);
@@ -6470,6 +6587,7 @@ private void addRequestDetailLine(
 
     @Override
     protected void onDestroy() {
+        stopSharedRosterListener();
         handler.removeCallbacks(topOrderBannerRunnable);
         destroyed = true;
         handler.removeCallbacksAndMessages(null);
