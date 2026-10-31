@@ -1101,7 +1101,7 @@ public class MainActivity extends Activity {
                 new LinearLayout.LayoutParams(-1, -2));
         scrollContent.addView(cards,
                 new LinearLayout.LayoutParams(-1, -2));
-        createRemoteCardsWebView(scrollContent);
+        // Remote cards disabled - use original native rider cards
         riderCardsScroll.addView(scrollContent);
 
         riderMapView = new WebView(this);
