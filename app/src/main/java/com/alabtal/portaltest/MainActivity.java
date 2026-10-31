@@ -162,6 +162,7 @@ public class MainActivity extends Activity {
 
     private boolean inspectionRunning = false;
     private boolean pageLoaded = false;
+    private boolean nativeApiProbeStarted = false;
     private boolean destroyed = false;
     private int consecutiveSyncFailures = 0;
     private long nextSyncDelayMs = 10000L;
@@ -834,7 +835,8 @@ public class MainActivity extends Activity {
                 }
 
                 pageLoaded = true;
-                status.setText("تم الاتصال بالبوابة؛ جاري تحديث بيانات المندوبين...");
+                status.setText("تم الاتصال بالجلسة؛ جاري فحص إمكانية القراءة المباشرة...");
+                probeNativeApiAccess();
                 inspectRoster();
             }
         });
@@ -1603,6 +1605,88 @@ public class MainActivity extends Activity {
         }
 
         inspectRoster();
+    }
+
+
+    // اختبار قراءة API مباشرة باستخدام جلسة WebView الحالية.
+    private void probeNativeApiAccess() {
+        if (nativeApiProbeStarted || webView == null || destroyed) return;
+
+        final String sessionCookies = CookieManager.getInstance().getCookie(
+                "https://eg.me.logisticsbackoffice.com/");
+        final String userAgent = webView.getSettings().getUserAgentString();
+
+        if (sessionCookies == null || sessionCookies.trim().isEmpty()) {
+            Toast.makeText(this,
+                    "جلسة البوابة غير جاهزة لاختبار القراءة المباشرة.",
+                    Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        nativeApiProbeStarted = true;
+
+        new Thread(() -> {
+            HttpURLConnection connection = null;
+            String outcome;
+            try {
+                URL endpoint = new URL(
+                        "https://eg.me.logisticsbackoffice.com" + RIDERS_URL);
+                connection = (HttpURLConnection) endpoint.openConnection();
+                connection.setRequestMethod("GET");
+                connection.setConnectTimeout(12000);
+                connection.setReadTimeout(15000);
+                connection.setInstanceFollowRedirects(false);
+                connection.setRequestProperty("Accept", "application/json");
+                connection.setRequestProperty("Cookie", sessionCookies);
+                connection.setRequestProperty("User-Agent", userAgent);
+                connection.setRequestProperty("Origin",
+                        "https://eg.me.logisticsbackoffice.com");
+                connection.setRequestProperty("Referer", PORTAL_URL);
+
+                int code = connection.getResponseCode();
+                InputStream stream = code >= 200 && code < 300
+                        ? connection.getInputStream() : connection.getErrorStream();
+
+                ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+                if (stream != null) {
+                    try (InputStream input = stream) {
+                        byte[] chunk = new byte[8192];
+                        int count;
+                        while ((count = input.read(chunk)) != -1) {
+                            buffer.write(chunk, 0, count);
+                            if (buffer.size() > 4 * 1024 * 1024) {
+                                throw new IOException("استجابة API أكبر من الحد المسموح");
+                            }
+                        }
+                    }
+                }
+
+                if (code != HttpURLConnection.HTTP_OK) {
+                    outcome = "HTTP " + code;
+                } else {
+                    JSONObject payload = new JSONObject(buffer.toString("UTF-8"));
+                    JSONArray rows = payload.optJSONArray("content");
+                    if (rows == null) rows = payload.optJSONArray("riders");
+
+                    outcome = rows == null
+                            ? "استجابة 200 لكن شكل البيانات غير متوقع"
+                            : "نجحت القراءة المباشرة من API؛ عدد السجلات: " + rows.length();
+                }
+            } catch (Exception e) {
+                String message = e.getMessage();
+                outcome = "تعذر الوصول المباشر: "
+                        + (message == null ? e.getClass().getSimpleName() : message);
+            } finally {
+                if (connection != null) connection.disconnect();
+            }
+
+            final String result = outcome;
+            runOnUiThread(() -> {
+                if (destroyed || isFinishing()) return;
+                Toast.makeText(MainActivity.this, result,
+                        Toast.LENGTH_LONG).show();
+            });
+        }, "Alabtal-Native-Api-Probe").start();
     }
 
     private void inspectRoster() {
