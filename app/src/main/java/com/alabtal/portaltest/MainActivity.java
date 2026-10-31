@@ -104,6 +104,14 @@ public class MainActivity extends Activity {
     private final Handler handler = new Handler(Looper.getMainLooper());
 
     private WebView webView;
+    private WebView remoteUiWebView;
+    private TextView remoteUiStatus;
+    private boolean remoteUiVisible = false;
+
+    private static final String REMOTE_UI_MANIFEST =
+            "https://ramyzero126-sudo.github.io/ALABTAL-Portal-Test/manifest.json";
+    private static final String REMOTE_UI_HOST =
+            "ramyzero126-sudo.github.io";
     private WebView formWebView;
     private LinearLayout formRoot;
     private TextView formTitle;
@@ -585,6 +593,17 @@ public class MainActivity extends Activity {
         portalParams.setMargins(0, 0, dp(7), 0);
         portalRow.addView(portalButton, portalParams);
         portalButton.setOnClickListener(v -> showPortalPage());
+
+        Button remoteButton = makeButton("UI");
+        remoteButton.setTextSize(12);
+        remoteButton.setContentDescription("Remote UI");
+        remoteButton.setBackground(round(Color.rgb(24, 29, 38), ORANGE, 2));
+        remoteButton.setElevation(dp(5));
+        LinearLayout.LayoutParams remoteParams =
+                new LinearLayout.LayoutParams(dp(38), dp(36));
+        remoteParams.setMargins(0, 0, dp(7), 0);
+        portalRow.addView(remoteButton, remoteParams);
+        remoteButton.setOnClickListener(v -> showRemoteUiPage());
 
         LinearLayout brand = new LinearLayout(this);
         brand.setOrientation(LinearLayout.VERTICAL);
@@ -5196,7 +5215,164 @@ private void addRequestDetailLine(
         setContentView(pageShell);
     }
 
+
+    private boolean isAllowedRemoteUiUrl(String value) {
+        try {
+            android.net.Uri uri = android.net.Uri.parse(value);
+            return "https".equalsIgnoreCase(uri.getScheme())
+                    && REMOTE_UI_HOST.equalsIgnoreCase(uri.getHost());
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private void showRemoteUiPage() {
+        remoteUiVisible = true;
+
+        LinearLayout page = new LinearLayout(this);
+        page.setOrientation(LinearLayout.VERTICAL);
+        page.setBackgroundColor(BG);
+        page.setPadding(dp(8), dp(8), dp(8), dp(5));
+
+        LinearLayout top = new LinearLayout(this);
+        top.setGravity(Gravity.CENTER_VERTICAL);
+
+        Button back = makeButton("رجوع");
+        back.setOnClickListener(v -> returnToDashboard());
+        top.addView(back, new LinearLayout.LayoutParams(dp(70), dp(40)));
+
+        TextView title = makeText("REMOTE UI", 16, ORANGE, true);
+        title.setGravity(Gravity.CENTER);
+        top.addView(title, new LinearLayout.LayoutParams(0, dp(40), 1));
+        page.addView(top);
+
+        remoteUiStatus = makeText("جاري فحص الواجهة...", 12,
+                Color.LTGRAY, false);
+        remoteUiStatus.setPadding(dp(5), dp(8), dp(5), dp(8));
+        page.addView(remoteUiStatus);
+
+        remoteUiWebView = new WebView(this);
+        remoteUiWebView.setBackgroundColor(Color.rgb(8, 10, 14));
+
+        android.webkit.WebSettings settings =
+                remoteUiWebView.getSettings();
+        settings.setJavaScriptEnabled(true);
+        settings.setDomStorageEnabled(true);
+        settings.setAllowFileAccess(false);
+        settings.setAllowContentAccess(false);
+        settings.setSupportMultipleWindows(false);
+
+        if (Build.VERSION.SDK_INT >= 26) {
+            settings.setSafeBrowsingEnabled(true);
+        }
+
+        remoteUiWebView.setWebViewClient(new WebViewClient() {
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, String url) {
+                return !isAllowedRemoteUiUrl(url);
+            }
+
+            @Override
+            public boolean shouldOverrideUrlLoading(
+                    WebView view,
+                    android.webkit.WebResourceRequest request) {
+                return !isAllowedRemoteUiUrl(
+                        request.getUrl().toString());
+            }
+        });
+
+        page.addView(remoteUiWebView,
+                new LinearLayout.LayoutParams(-1, 0, 1));
+        setContentView(page);
+
+        new Thread(() -> {
+            HttpURLConnection connection = null;
+
+            try {
+                connection = (HttpURLConnection)
+                        new URL(REMOTE_UI_MANIFEST).openConnection();
+                connection.setConnectTimeout(12000);
+                connection.setReadTimeout(12000);
+                connection.setUseCaches(false);
+
+                if (connection.getResponseCode() != 200) {
+                    throw new IOException("Manifest HTTP error");
+                }
+
+                ByteArrayOutputStream output =
+                        new ByteArrayOutputStream();
+
+                try (InputStream input = connection.getInputStream()) {
+                    byte[] buffer = new byte[4096];
+                    int count;
+                    while ((count = input.read(buffer)) != -1) {
+                        output.write(buffer, 0, count);
+                        if (output.size() > 32768) {
+                            throw new IOException("Manifest too large");
+                        }
+                    }
+                }
+
+                JSONObject manifest = new JSONObject(
+                        new String(output.toByteArray(),
+                                StandardCharsets.UTF_8));
+
+                if (!"com.alabtal.portaltest".equals(
+                            manifest.optString("app"))
+                        || !"stable".equals(
+                            manifest.optString("channel"))
+                        || !"index.html".equals(
+                            manifest.optString("entry"))
+                        || manifest.optInt("version", 0) < 1
+                        || manifest.optInt("minNativeVersion", 1) > 1) {
+                    throw new IOException("Manifest validation failed");
+                }
+
+                int version = manifest.optInt("version", 1);
+
+                runOnUiThread(() -> {
+                    if (!remoteUiVisible || remoteUiWebView == null) {
+                        return;
+                    }
+
+                    remoteUiStatus.setText(
+                            "متصل | إصدار الواجهة: " + version);
+
+                    remoteUiWebView.loadUrl(
+                            "https://ramyzero126-sudo.github.io/"
+                            + "ALABTAL-Portal-Test/index.html");
+                });
+
+            } catch (Exception e) {
+                String message = e.getMessage();
+                runOnUiThread(() -> {
+                    if (remoteUiVisible && remoteUiStatus != null) {
+                        remoteUiStatus.setText(
+                                "تعذر تحميل الواجهة: " + message);
+                    }
+                });
+            } finally {
+                if (connection != null) {
+                    connection.disconnect();
+                }
+            }
+        }).start();
+    }
+
     private void returnToDashboard() {
+        remoteUiVisible = false;
+
+        if (remoteUiWebView != null) {
+            remoteUiWebView.stopLoading();
+            if (remoteUiWebView.getParent() instanceof ViewGroup) {
+                ((ViewGroup) remoteUiWebView.getParent())
+                        .removeView(remoteUiWebView);
+            }
+            remoteUiWebView.destroy();
+            remoteUiWebView = null;
+        }
+
+        remoteUiStatus = null;
         detailVisible = false;
 
         if (dashboardRoot != null && detachedNavigationView != null) {
@@ -6576,7 +6752,9 @@ private void addRequestDetailLine(
 
     @Override
     public void onBackPressed() {
-        if (portalPageVisible || detailVisible) {
+        if (remoteUiVisible) {
+            returnToDashboard();
+        } else if (portalPageVisible || detailVisible) {
             returnToDashboard();
         } else if (webView != null && webView.canGoBack()) {
             webView.goBack();
@@ -6591,6 +6769,12 @@ private void addRequestDetailLine(
         handler.removeCallbacks(topOrderBannerRunnable);
         destroyed = true;
         handler.removeCallbacksAndMessages(null);
+
+        if (remoteUiWebView != null) {
+            remoteUiWebView.stopLoading();
+            remoteUiWebView.destroy();
+            remoteUiWebView = null;
+        }
 
         if (webView != null) {
             webView.removeJavascriptInterface("AlabtalBridge");
