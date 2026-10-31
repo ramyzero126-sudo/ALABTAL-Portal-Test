@@ -104,6 +104,9 @@ public class MainActivity extends Activity {
     private final Handler handler = new Handler(Looper.getMainLooper());
 
     private WebView webView;
+    private WebView remoteCardsWebView;
+    private boolean remoteCardsPageReady = false;
+    private boolean remoteCardsLoadStarted = false;
     private WebView remoteUiWebView;
     private TextView remoteUiStatus;
     private boolean remoteUiVisible = false;
@@ -1098,6 +1101,7 @@ public class MainActivity extends Activity {
                 new LinearLayout.LayoutParams(-1, -2));
         scrollContent.addView(cards,
                 new LinearLayout.LayoutParams(-1, -2));
+        createRemoteCardsWebView(scrollContent);
         riderCardsScroll.addView(scrollContent);
 
         riderMapView = new WebView(this);
@@ -3737,6 +3741,282 @@ public class MainActivity extends Activity {
         }
     }
 
+
+    private void createRemoteCardsWebView(LinearLayout parent) {
+        if (remoteCardsWebView != null) return;
+
+        remoteCardsWebView = new WebView(this);
+        remoteCardsWebView.setBackgroundColor(BG);
+        remoteCardsWebView.setVisibility(View.GONE);
+
+        android.webkit.WebSettings ws = remoteCardsWebView.getSettings();
+        ws.setJavaScriptEnabled(true);
+        ws.setDomStorageEnabled(false);
+        ws.setAllowFileAccess(false);
+        ws.setAllowContentAccess(false);
+        ws.setSupportMultipleWindows(false);
+        ws.setCacheMode(android.webkit.WebSettings.LOAD_NO_CACHE);
+        if (Build.VERSION.SDK_INT >= 21) {
+            ws.setMixedContentMode(
+                    android.webkit.WebSettings.MIXED_CONTENT_NEVER_ALLOW);
+        }
+        if (Build.VERSION.SDK_INT >= 26) ws.setSafeBrowsingEnabled(true);
+
+        remoteCardsWebView.addJavascriptInterface(
+                new RemoteCardsBridge(), "AlabtalNative");
+
+        remoteCardsWebView.setWebViewClient(new WebViewClient() {
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView v, String url) {
+                return !isAllowedRemoteUiUrl(url);
+            }
+
+            @Override
+            public boolean shouldOverrideUrlLoading(
+                    WebView v, android.webkit.WebResourceRequest request) {
+                return !isAllowedRemoteUiUrl(request.getUrl().toString());
+            }
+
+            @Override
+            public void onPageFinished(WebView v, String url) {
+                super.onPageFinished(v, url);
+                if (!isAllowedRemoteUiUrl(url)) return;
+                remoteCardsPageReady = true;
+                pushRemoteCardsData();
+            }
+
+            @Override
+            public void onReceivedError(
+                    WebView v, android.webkit.WebResourceRequest request,
+                    android.webkit.WebResourceError error) {
+                super.onReceivedError(v, request, error);
+                if (request != null && request.isForMainFrame()) {
+                    showNativeCardsFallback();
+                }
+            }
+        });
+
+        parent.addView(remoteCardsWebView,
+                new LinearLayout.LayoutParams(-1, dp(120)));
+
+        if (!remoteCardsLoadStarted) {
+            remoteCardsLoadStarted = true;
+            loadRemoteCardsManifest();
+        }
+    }
+
+    private void loadRemoteCardsManifest() {
+        new Thread(() -> {
+            HttpURLConnection conn = null;
+            try {
+                conn = (HttpURLConnection)
+                        new URL(REMOTE_UI_MANIFEST).openConnection();
+                conn.setConnectTimeout(12000);
+                conn.setReadTimeout(12000);
+                conn.setUseCaches(false);
+                conn.setRequestProperty("Cache-Control", "no-cache");
+                if (conn.getResponseCode() != 200) {
+                    throw new IOException("Manifest HTTP " + conn.getResponseCode());
+                }
+
+                ByteArrayOutputStream out = new ByteArrayOutputStream();
+                try (InputStream in = conn.getInputStream()) {
+                    byte[] buf = new byte[4096];
+                    int n;
+                    while ((n = in.read(buf)) != -1) {
+                        out.write(buf, 0, n);
+                        if (out.size() > 32768) throw new IOException("Manifest too large");
+                    }
+                }
+
+                JSONObject m = new JSONObject(
+                        new String(out.toByteArray(), StandardCharsets.UTF_8));
+                if (!"com.alabtal.portaltest".equals(m.optString("app"))
+                        || !"stable".equals(m.optString("channel"))
+                        || !"index.html".equals(m.optString("entry"))
+                        || m.optInt("version", 0) < 1
+                        || m.optInt("minNativeVersion", 1) > 1) {
+                    throw new IOException("Manifest validation failed");
+                }
+
+                int version = m.optInt("version", 1);
+                runOnUiThread(() -> {
+                    if (destroyed || remoteCardsWebView == null) return;
+                    remoteCardsWebView.loadUrl(
+                            "https://ramyzero126-sudo.github.io/"
+                            + "ALABTAL-Portal-Test/index.html?v=" + version);
+                });
+            } catch (Exception e) {
+                runOnUiThread(this::showNativeCardsFallback);
+            } finally {
+                if (conn != null) conn.disconnect();
+            }
+        }, "RemoteCardsManifest").start();
+    }
+
+    private void showNativeCardsFallback() {
+        if (cards != null) cards.setVisibility(View.VISIBLE);
+        if (remoteCardsWebView != null) {
+            remoteCardsWebView.setVisibility(View.GONE);
+        }
+    }
+
+    private final class RemoteCardsBridge {
+        @JavascriptInterface
+        public void onReady() {
+            runOnUiThread(() -> {
+                if (destroyed || remoteCardsWebView == null) return;
+                remoteCardsPageReady = true;
+                pushRemoteCardsData();
+            });
+        }
+
+        @JavascriptInterface
+        public void onRendered(int height) {
+            runOnUiThread(() -> {
+                if (destroyed || remoteCardsWebView == null || cards == null) return;
+                int h = Math.max(dp(100), Math.min(dp(6000), dp(height)));
+                remoteCardsWebView.setLayoutParams(
+                        new LinearLayout.LayoutParams(-1, h));
+                remoteCardsWebView.setVisibility(View.VISIBLE);
+                cards.setVisibility(View.GONE);
+            });
+        }
+
+        @JavascriptInterface
+        public void onError(String error) {
+            runOnUiThread(() -> showNativeCardsFallback());
+        }
+
+        @JavascriptInterface
+        public void openDetails(int index) {
+            runOnUiThread(() -> {
+                if (destroyed || index < 0 || index >= currentRiders.length()) return;
+                JSONObject rider = currentRiders.optJSONObject(index);
+                if (rider == null) return;
+                JSONArray orders = rider.optJSONArray("active_orders");
+                if (orders == null) orders = new JSONArray();
+                showRiderDetails(rider, orders);
+            });
+        }
+    }
+
+    private String remoteCardValue(String value) {
+        if (value == null) return "—";
+        String v = value.trim();
+        if (v.isEmpty() || v.equalsIgnoreCase("null")
+                || v.equalsIgnoreCase("undefined")
+                || v.equals("غير متاح")
+                || v.equals("غير متاح من المصدر")) return "—";
+        return v;
+    }
+
+    private void pushRemoteCardsData() {
+        if (destroyed || remoteCardsWebView == null || !remoteCardsPageReady) return;
+
+        try {
+            JSONArray data = new JSONArray();
+            int shown = 0;
+
+            for (int i = 0; i < currentRiders.length(); i++) {
+                JSONObject r = currentRiders.optJSONObject(i);
+                if (r == null) continue;
+
+                String name = firstValue(r, "name", "employee_name", "rider_name");
+                String id = firstValue(r, "employee_id", "id", "rider_id");
+                String state = firstValue(r,
+                        "rider_status", "state", "status", "work_status");
+                String st = state.toLowerCase(Locale.ROOT)
+                        .replace('-', '_').replace(' ', '_');
+
+                boolean working = st.equals("working") || st.equals("active")
+                        || st.equals("on_delivery") || st.equals("on_delivery_order");
+                boolean onBreak = st.equals("break") || st.equals("on_break")
+                        || st.equals("onbreak");
+
+                JSONArray orders = r.optJSONArray("active_orders");
+                if (orders == null) orders = new JSONArray();
+                JSONArray ids = r.optJSONArray("active_delivery_ids");
+                boolean hasOrders = orders.length() > 0
+                        || r.optInt("active_count") > 0
+                        || r.optBoolean("has_active_deliveries", false)
+                        || (ids != null && ids.length() > 0);
+
+                String stage = "";
+                JSONArray diagnostics = r.optJSONArray("diagnostic_latest_statuses");
+                if (diagnostics != null) {
+                    for (int j = 0; j < diagnostics.length(); j++) {
+                        String x = diagnostics.optString(j, "").trim();
+                        String nx = x.toLowerCase(Locale.ROOT)
+                                .replace('_', ' ').replace('-', ' ');
+                        if (nx.matches(".*(accepted|picked up|ongoing|in progress|assigned|preparing|ready|on the way|arrived|مقبول|استلم|جاري|في الطريق).*")) {
+                            hasOrders = true;
+                            stage = x;
+                            break;
+                        }
+                    }
+                }
+
+                if (riderFilter.equals("شغال") && !working) continue;
+                if (riderFilter.equals("بريك") && !onBreak) continue;
+                if (riderFilter.equals("معاه أوردر") && !hasOrders) continue;
+                if (riderFilter.equals("فاضي") && hasOrders) continue;
+                if (shown >= riderLimit) continue;
+
+                for (int j = 0; j < orders.length(); j++) {
+                    JSONObject order = orders.optJSONObject(j);
+                    if (order == null) continue;
+                    String x = firstValue(order,
+                            "status", "order_status", "delivery_status", "stage");
+                    if (!x.equals("غير متاح")
+                            && !x.equals("غير متاح من المصدر")) {
+                        stage = x;
+                        break;
+                    }
+                }
+
+                String total = firstValue(r,
+                        "total_orders", "orders_count", "totalOrders");
+                if (total.equals("غير متاح")
+                        || total.equals("غير متاح من المصدر")) {
+                    total = String.valueOf(orders.length());
+                }
+
+                JSONObject item = new JSONObject();
+                item.put("native_index", i);
+                item.put("name", remoteCardValue(name));
+                item.put("employee_id", remoteCardValue(id));
+                item.put("status", remoteCardValue(state));
+                item.put("wallet_balance", remoteCardValue(firstValue(
+                        r, "wallet_balance", "wallet", "walletBalance", "balance")));
+                item.put("orders_count", remoteCardValue(total));
+                item.put("worked_time", remoteCardValue(firstValue(
+                        r, "worked_time", "worked", "worked_hours",
+                        "worked_duration", "work_time")));
+                item.put("break_time", remoteCardValue(firstValue(
+                        r, "break_time", "break_duration", "break_minutes",
+                        "breaks", "breakTime")));
+                item.put("shift_start", remoteCardValue(firstValue(
+                        r, "shift_start", "shiftStart", "shift_start_time",
+                        "session_start", "planned_shift_start")));
+                item.put("shift_end", remoteCardValue(firstValue(
+                        r, "shift_end", "shiftEnd", "shift_end_time",
+                        "session_end", "planned_shift_end")));
+                item.put("order_stage", remoteCardValue(stage));
+                item.put("has_orders", hasOrders);
+                data.put(item);
+                shown++;
+            }
+
+            String js = "if(window.AlabtalRemote){window.AlabtalRemote.renderRiders("
+                    + JSONObject.quote(data.toString()) + ","
+                    + JSONObject.quote(riderFilter) + "," + riderLimit + ");}";
+            remoteCardsWebView.evaluateJavascript(js, null);
+        } catch (Exception e) {
+            showNativeCardsFallback();
+        }
+    }
+
     private void renderRiderCards() {
         if (cards == null) return;
         cards.removeAllViews();
@@ -3792,6 +4072,7 @@ public class MainActivity extends Activity {
             status.setText("عرض " + shown + " من " + matched
                     + " نتيجة مطابقة • تحديث البيانات من زر ↻");
         }
+        pushRemoteCardsData();
     }
 
     private void addRiderCard(JSONObject rider, JSONArray orders) {
@@ -6763,6 +7044,13 @@ private void addRequestDetailLine(
             remoteUiWebView.stopLoading();
             remoteUiWebView.destroy();
             remoteUiWebView = null;
+        }
+
+        if (remoteCardsWebView != null) {
+            remoteCardsWebView.removeJavascriptInterface("AlabtalNative");
+            remoteCardsWebView.stopLoading();
+            remoteCardsWebView.destroy();
+            remoteCardsWebView = null;
         }
 
         if (webView != null) {
