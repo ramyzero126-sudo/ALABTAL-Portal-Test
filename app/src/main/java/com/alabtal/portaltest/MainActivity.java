@@ -594,17 +594,6 @@ public class MainActivity extends Activity {
         portalRow.addView(portalButton, portalParams);
         portalButton.setOnClickListener(v -> showPortalPage());
 
-        Button remoteButton = makeButton("UI");
-        remoteButton.setTextSize(12);
-        remoteButton.setContentDescription("Remote UI");
-        remoteButton.setBackground(round(Color.rgb(24, 29, 38), ORANGE, 2));
-        remoteButton.setElevation(dp(5));
-        LinearLayout.LayoutParams remoteParams =
-                new LinearLayout.LayoutParams(dp(38), dp(36));
-        remoteParams.setMargins(0, 0, dp(7), 0);
-        portalRow.addView(remoteButton, remoteParams);
-        remoteButton.setOnClickListener(v -> showRemoteUiPage());
-
         LinearLayout brand = new LinearLayout(this);
         brand.setOrientation(LinearLayout.VERTICAL);
         brand.setGravity(Gravity.CENTER);
