@@ -1,8 +1,8 @@
 {
   "app": "com.alabtal.portaltest",
   "channel": "stable",
-  "version": 1,
+  "version": 2,
   "entry": "index.html",
   "minNativeVersion": 1,
-  "notes": "Initial remote UI hosting scaffold"
+  "notes": "Remote rider cards renderer"
 }
